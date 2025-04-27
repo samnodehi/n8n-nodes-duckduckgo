@@ -1,0 +1,88 @@
+name: CI/CD Pipeline
+
+# Triggers for the workflow
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  # Test and build job
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # Setup Node.js environment
+      - name: Set up Node.js 18 LTS
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # Run ESLint
+      - name: Lint code
+        run: npm run lint
+
+      # Build the project
+      - name: Build
+        run: npm run build
+
+      # Verify the build output
+      - name: Verify build
+        run: npm run verify-build
+
+      # Run tests (if available)
+      - name: Run tests
+        run: npm run test:coverage
+
+  # Release job - only runs on main/master branch after successful build
+  release:
+    name: Release to NPM
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && vars.NPM_TOKEN != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # Setup Node.js environment
+      - name: Set up Node.js 18 LTS
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # Build the project before release
+      - name: Build
+        run: npm run build:prod
+
+      # Use semantic-release to determine version and publish
+      - name: Release to NPM
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release

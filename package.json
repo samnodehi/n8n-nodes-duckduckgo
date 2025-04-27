@@ -1,0 +1,85 @@
+{
+  "name": "n8n-nodes-duckduckgo",
+  "version": "0.2.0",
+  "description": "Integrate DuckDuckGo search seamlessly into your n8n workflows. Enhance automation with advanced searches and tailored queries.",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "n8n-nodes",
+    "workflow-automation",
+    "duckduckgo",
+    "search-engine",
+    "automation",
+    "workflow",
+    "data-pipeline"
+  ],
+  "license": "MIT",
+  "homepage": "",
+  "author": {
+    "name": "Franz Haberfellner",
+    "email": "haf68k@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hapheus/n8n-nodes-duckduckgo.git"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && gulp build:icons",
+    "build:prod": "rimraf dist && npm run build && npm run postbuild && npm run clean-build",
+    "postbuild": "copyfiles -u 1 \"nodes/**/*.{svg,png}\" dist/",
+    "clean-build": "node -e \"const fs=require('fs'); const path=require('path'); const glob=require('glob'); const files=glob.sync('dist/**/*.{tsbuildinfo,map}'); files.forEach(f => fs.existsSync(f) && fs.unlinkSync(f)); const testDir=path.join(__dirname, 'dist', 'tests'); if(fs.existsSync(testDir)) fs.rmSync(testDir, {recursive: true});\"",
+    "verify-build": "node -e \"const fs=require('fs'); const path=require('path'); const assert=require('assert'); assert.ok(fs.existsSync(path.join(__dirname, 'dist/nodes/DuckDuckGo/DuckDuckGo.node.js')), 'Main node file missing'); assert.ok(fs.existsSync(path.join(__dirname, 'dist/nodes/DuckDuckGo/duckduckgo.svg')), 'Icon missing'); console.log('✅ Build verification successful')\"",
+    "dev": "tsc --watch",
+    "format": "prettier nodes --write",
+    "lint": "eslint nodes package.json --ignore-pattern jest.config.js",
+    "lintfix": "eslint nodes package.json --fix --ignore-pattern jest.config.js",
+    "prepublishOnly": "npm run build:prod && npm run lint -c .eslintrc.prepublish.js nodes package.json && npm run verify-build",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/DuckDuckGoApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/DuckDuckGo/DuckDuckGo.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@semantic-release/commit-analyzer": "^9.0.2",
+    "@semantic-release/github": "^11.0.2",
+    "@semantic-release/npm": "^12.0.1",
+    "@semantic-release/release-notes-generator": "^10.0.3",
+    "@types/express": "^4.17.6",
+    "@types/jest": "^29.5.6",
+    "@types/request-promise-native": "~1.0.15",
+    "@types/uuid": "^9.0.8",
+    "@typescript-eslint/parser": "~5.45",
+    "axios": "^1.9.0",
+    "babel-jest": "^29.7.0",
+    "copyfiles": "^2.4.1",
+    "eslint-plugin-n8n-nodes-base": "^1.11.0",
+    "glob": "^11.0.2",
+    "gulp": "^5.0.0",
+    "jest": "^29.7.0",
+    "n8n-core": "^1.0.0",
+    "n8n-workflow": "^1.0.0",
+    "prettier": "^2.7.1",
+    "rimraf": "^5.0.1",
+    "semantic-release": "^24.2.3",
+    "ts-jest": "^29.1.1",
+    "typescript": "~4.8.4"
+  },
+  "dependencies": {
+    "duck-duck-scrape": "^2.2.5",
+    "uuid": "^9.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
