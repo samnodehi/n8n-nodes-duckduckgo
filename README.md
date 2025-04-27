@@ -1,5 +1,11 @@
 # n8n-nodes-duckduckgo
 
+[![npm version](https://img.shields.io/npm/v/n8n-nodes-duckduckgo-search.svg)](https://www.npmjs.com/package/n8n-nodes-duckduckgo-search)
+[![npm downloads](https://img.shields.io/npm/dt/n8n-nodes-duckduckgo-search.svg)](https://www.npmjs.com/package/n8n-nodes-duckduckgo-search)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+---
+
 <img src="nodes/DuckDuckGo/duckduckgo.svg" width="100" alt="DuckDuckGo Logo" />
 
 **Integrate DuckDuckGo search seamlessly into your n8n workflows. Enhance automation with advanced searches and tailored queries.**
