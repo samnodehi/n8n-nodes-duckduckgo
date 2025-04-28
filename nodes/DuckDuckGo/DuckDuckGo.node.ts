@@ -685,6 +685,7 @@ export class DuckDuckGo implements INodeType {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
     const debugMode = this.getNodeParameter('debugMode', 0, false) as boolean;
+		const enableTelemetry = this.getNodeParameter('enableTelemetry', 0, false) as boolean;
 
     // Get cache settings
     const cacheSettings = this.getNodeParameter('cacheSettings', 0, {
@@ -734,10 +735,14 @@ export class DuckDuckGo implements INodeType {
             returnRawResults?: boolean;
           };
 
+					const maxResults = options.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
+
           // Set up search options - timePeriod is supported by duck-duck-scrape
           const searchOptions = {
+						maxResults: maxResults,
             safeSearch: options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH,
             locale: options.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
+						timePeriod:  options.timePeriod  ?? DEFAULT_PARAMETERS.TIME_PERIOD,
           } as SearchOptions;
 
           // Add API key to search options if provided
@@ -745,11 +750,6 @@ export class DuckDuckGo implements INodeType {
             (searchOptions as any).headers = {
               Authorization: `Bearer ${apiKey}`,
             };
-          }
-
-          // Add time period if provided
-          if (options.timePeriod) {
-            (searchOptions as any).timePeriod = options.timePeriod;
           }
 
           // Create a cache key based on operation and parameters
@@ -768,7 +768,9 @@ export class DuckDuckGo implements INodeType {
             query,
             searchOptions,
           };
-          await reportEvent(this, 'search_started', telemetryData);
+          if (enableTelemetry) {
+            await reportEvent(this, 'search_started', telemetryData);
+          }
 
           // Try to get cached result if cache is enabled
           let result;
@@ -836,10 +838,16 @@ export class DuckDuckGo implements INodeType {
                   try {
                     // For subsequent requests, we need the vqd parameter from the first request
                     if (result.vqd) {
-                      // Add offset parameter to indicate we want the next page
+                      // Add start parameter to indicate the page we want
+                      // DuckDuckGo uses increments of 30 for pagination
+                      const startPosition = (page - 1) * 30;
                       const nextPageOptions = {
                         ...searchOptions,
-                        offset: (page - 1) * 10,
+                        s: startPosition.toString(), // Add start parameter for pagination
+                        dc: (startPosition + 1).toString(), // Add additional dc parameter required for pagination
+                        v: 'l', // Required for pagination
+                        o: 'json', // Required for pagination
+                        api: '/d.js', // Required for pagination
                         vqd: result.vqd,
                       };
 
@@ -921,13 +929,15 @@ export class DuckDuckGo implements INodeType {
               }];
 
               // Report search_completed with zero results
-              await reportEvent(this, 'search_completed', {
-                operation,
-                query,
-                durationMs: Date.now() - startTime,
-                resultCount: 0,
-                fromCache: !!result,
-              });
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_completed', {
+                  operation,
+                  query,
+                  durationMs: Date.now() - startTime,
+                  resultCount: 0,
+                  fromCache: !!result,
+                });
+              }
             } else {
               // Return raw results if requested
               if (options.returnRawResults || debugMode) {
@@ -955,13 +965,15 @@ export class DuckDuckGo implements INodeType {
 
               // Report search_completed with result count
               const resultCount = Array.isArray(result.results) ? result.results.length : 0;
-              await reportEvent(this, 'search_completed', {
-                operation,
-                query,
-                durationMs: Date.now() - startTime,
-                resultCount,
-                fromCache: result !== undefined && !result.fromCache,
-              });
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_completed', {
+                  operation,
+                  query,
+                  durationMs: Date.now() - startTime,
+                  resultCount,
+                  fromCache: result !== undefined && !result.fromCache,
+                });
+              }
             }
           } catch (error) {
             // Create a user-friendly error message
@@ -995,13 +1007,15 @@ export class DuckDuckGo implements INodeType {
             }];
 
             // Report search_failed telemetry
-            await reportEvent(this, 'search_failed', {
-              operation,
-              query,
-              durationMs: Date.now() - startTime,
-              error: errorMessage,
-              errorType: error?.constructor?.name || 'Error',
-            });
+            if (enableTelemetry) {
+              await reportEvent(this, 'search_failed', {
+                operation,
+                query,
+                durationMs: Date.now() - startTime,
+                error: errorMessage,
+                errorType: error?.constructor?.name || 'Error',
+              });
+            }
           }
         }
         else if (operation === DuckDuckGoOperation.SearchImages) {
@@ -1020,7 +1034,9 @@ export class DuckDuckGo implements INodeType {
           };
 
           // Set up search options with defaults for any missing values
+          const maxResults = imageSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
           const searchOptions = {
+            maxResults: maxResults,
             safeSearch: imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH,
             locale: imageSearchOptions.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
           } as ImageSearchOptions;
@@ -1048,7 +1064,9 @@ export class DuckDuckGo implements INodeType {
             query: imageQuery,
             searchOptions,
           };
-          await reportEvent(this, 'search_started', telemetryData);
+          if (enableTelemetry) {
+            await reportEvent(this, 'search_started', telemetryData);
+          }
 
           // Try to get cached result if cache is enabled
           let result;
@@ -1116,10 +1134,16 @@ export class DuckDuckGo implements INodeType {
                   try {
                     // For subsequent requests, we need the vqd parameter from the first request
                     if (result.vqd) {
-                      // Add offset parameter to indicate we want the next page
+                      // Add start parameter to indicate the page we want
+                      // DuckDuckGo uses increments of 30 for pagination
+                      const startPosition = (page - 1) * 30;
                       const nextPageOptions = {
                         ...searchOptions,
-                        offset: (page - 1) * 10,
+                        s: startPosition.toString(), // Add start parameter for pagination
+                        dc: (startPosition + 1).toString(), // Add additional dc parameter required for pagination
+                        v: 'l', // Required for pagination
+                        o: 'json', // Required for pagination
+                        api: '/d.js', // Required for pagination
                         vqd: result.vqd,
                       };
 
@@ -1201,13 +1225,15 @@ export class DuckDuckGo implements INodeType {
               }];
 
               // Report search_completed with zero results
-              await reportEvent(this, 'search_completed', {
-                operation,
-                query: imageQuery,
-                durationMs: Date.now() - startTime,
-                resultCount: 0,
-                fromCache: !!result,
-              });
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_completed', {
+                  operation,
+                  query: imageQuery,
+                  durationMs: Date.now() - startTime,
+                  resultCount: 0,
+                  fromCache: !!result,
+                });
+              }
             } else {
               // Return raw results if requested
               if (imageSearchOptions.returnRawResults || debugMode) {
@@ -1235,13 +1261,15 @@ export class DuckDuckGo implements INodeType {
 
               // Report search_completed with result count
               const resultCount = Array.isArray(result.results) ? result.results.length : 0;
-              await reportEvent(this, 'search_completed', {
-                operation,
-                query: imageQuery,
-                durationMs: Date.now() - startTime,
-                resultCount,
-                fromCache: result !== undefined && !result.fromCache,
-              });
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_completed', {
+                  operation,
+                  query: imageQuery,
+                  durationMs: Date.now() - startTime,
+                  resultCount,
+                  fromCache: result !== undefined && !result.fromCache,
+                });
+              }
             }
           } catch (error) {
             // Create a user-friendly error message
@@ -1275,13 +1303,15 @@ export class DuckDuckGo implements INodeType {
             }];
 
             // Report search_failed telemetry
-            await reportEvent(this, 'search_failed', {
-              operation,
-              query: imageQuery,
-              durationMs: Date.now() - startTime,
-              error: errorMessage,
-              errorType: error?.constructor?.name || 'Error',
-            });
+            if (enableTelemetry) {
+              await reportEvent(this, 'search_failed', {
+                operation,
+                query: imageQuery,
+                durationMs: Date.now() - startTime,
+                error: errorMessage,
+                errorType: error?.constructor?.name || 'Error',
+              });
+            }
           }
         }
         else if (operation === DuckDuckGoOperation.SearchNews) {
@@ -1296,7 +1326,9 @@ export class DuckDuckGo implements INodeType {
           };
 
           // Set up search options with defaults for any missing values
+          const maxResults = newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
           const searchOptions = {
+            maxResults: maxResults,
             safeSearch: newsSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH,
             locale: newsSearchOptions.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
           } as NewsSearchOptions;
@@ -1329,7 +1361,9 @@ export class DuckDuckGo implements INodeType {
             query: newsQuery,
             searchOptions,
           };
-          await reportEvent(this, 'search_started', telemetryData);
+          if (enableTelemetry) {
+            await reportEvent(this, 'search_started', telemetryData);
+          }
 
           // Try to get cached result if cache is enabled
           let result;
@@ -1397,10 +1431,16 @@ export class DuckDuckGo implements INodeType {
                   try {
                     // For subsequent requests, we need the vqd parameter from the first request
                     if (result.vqd) {
-                      // Add offset parameter to indicate we want the next page
+                      // Add start parameter to indicate the page we want
+                      // DuckDuckGo uses increments of 30 for pagination
+                      const startPosition = (page - 1) * 30;
                       const nextPageOptions = {
                         ...searchOptions,
-                        offset: (page - 1) * 10,
+                        s: startPosition.toString(), // Add start parameter for pagination
+                        dc: (startPosition + 1).toString(), // Add additional dc parameter required for pagination
+                        v: 'l', // Required for pagination
+                        o: 'json', // Required for pagination
+                        api: '/d.js', // Required for pagination
                         vqd: result.vqd,
                       };
 
@@ -1482,13 +1522,15 @@ export class DuckDuckGo implements INodeType {
               }];
 
               // Report search_completed with zero results
-              await reportEvent(this, 'search_completed', {
-                operation,
-                query: newsQuery,
-                durationMs: Date.now() - startTime,
-                resultCount: 0,
-                fromCache: !!result,
-              });
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_completed', {
+                  operation,
+                  query: newsQuery,
+                  durationMs: Date.now() - startTime,
+                  resultCount: 0,
+                  fromCache: !!result,
+                });
+              }
             } else {
               // Return raw results if requested
               if (newsSearchOptions.returnRawResults || debugMode) {
@@ -1516,13 +1558,15 @@ export class DuckDuckGo implements INodeType {
 
               // Report search_completed with result count
               const resultCount = Array.isArray(result.results) ? result.results.length : 0;
-              await reportEvent(this, 'search_completed', {
-                operation,
-                query: newsQuery,
-                durationMs: Date.now() - startTime,
-                resultCount,
-                fromCache: result !== undefined && !result.fromCache,
-              });
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_completed', {
+                  operation,
+                  query: newsQuery,
+                  durationMs: Date.now() - startTime,
+                  resultCount,
+                  fromCache: result !== undefined && !result.fromCache,
+                });
+              }
             }
           } catch (error) {
             // Create a user-friendly error message
@@ -1556,13 +1600,15 @@ export class DuckDuckGo implements INodeType {
             }];
 
             // Report search_failed telemetry
-            await reportEvent(this, 'search_failed', {
-              operation,
-              query: newsQuery,
-              durationMs: Date.now() - startTime,
-              error: errorMessage,
-              errorType: error?.constructor?.name || 'Error',
-            });
+            if (enableTelemetry) {
+              await reportEvent(this, 'search_failed', {
+                operation,
+                query: newsQuery,
+                durationMs: Date.now() - startTime,
+                error: errorMessage,
+                errorType: error?.constructor?.name || 'Error',
+              });
+            }
           }
         }
         else if (operation === DuckDuckGoOperation.SearchVideos) {
@@ -1580,7 +1626,9 @@ export class DuckDuckGo implements INodeType {
           };
 
           // Set up search options with defaults for any missing values
+          const maxResults = videoSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
           const searchOptions = {
+            maxResults: maxResults,
             safeSearch: videoSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH,
             locale: videoSearchOptions.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
           } as VideoSearchOptions;
@@ -1608,7 +1656,9 @@ export class DuckDuckGo implements INodeType {
             query: videoQuery,
             searchOptions,
           };
-          await reportEvent(this, 'search_started', telemetryData);
+          if (enableTelemetry) {
+            await reportEvent(this, 'search_started', telemetryData);
+          }
 
           // Try to get cached result if cache is enabled
           let result;
@@ -1676,10 +1726,16 @@ export class DuckDuckGo implements INodeType {
                   try {
                     // For subsequent requests, we need the vqd parameter from the first request
                     if (result.vqd) {
-                      // Add offset parameter to indicate we want the next page
+                      // Add start parameter to indicate the page we want
+                      // DuckDuckGo uses increments of 30 for pagination
+                      const startPosition = (page - 1) * 30;
                       const nextPageOptions = {
                         ...searchOptions,
-                        offset: (page - 1) * 10,
+                        s: startPosition.toString(), // Add start parameter for pagination
+                        dc: (startPosition + 1).toString(), // Add additional dc parameter required for pagination
+                        v: 'l', // Required for pagination
+                        o: 'json', // Required for pagination
+                        api: '/d.js', // Required for pagination
                         vqd: result.vqd,
                       };
 
@@ -1761,13 +1817,15 @@ export class DuckDuckGo implements INodeType {
               }];
 
               // Report search_completed with zero results
-              await reportEvent(this, 'search_completed', {
-                operation,
-                query: videoQuery,
-                durationMs: Date.now() - startTime,
-                resultCount: 0,
-                fromCache: !!result,
-              });
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_completed', {
+                  operation,
+                  query: videoQuery,
+                  durationMs: Date.now() - startTime,
+                  resultCount: 0,
+                  fromCache: !!result,
+                });
+              }
             } else {
               // Return raw results if requested
               if (videoSearchOptions.returnRawResults || debugMode) {
@@ -1795,13 +1853,15 @@ export class DuckDuckGo implements INodeType {
 
               // Report search_completed with result count
               const resultCount = Array.isArray(result.results) ? result.results.length : 0;
-              await reportEvent(this, 'search_completed', {
-                operation,
-                query: videoQuery,
-                durationMs: Date.now() - startTime,
-                resultCount,
-                fromCache: result !== undefined && !result.fromCache,
-              });
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_completed', {
+                  operation,
+                  query: videoQuery,
+                  durationMs: Date.now() - startTime,
+                  resultCount,
+                  fromCache: result !== undefined && !result.fromCache,
+                });
+              }
             }
           } catch (error) {
             // Create a user-friendly error message
@@ -1835,13 +1895,15 @@ export class DuckDuckGo implements INodeType {
             }];
 
             // Report search_failed telemetry
-            await reportEvent(this, 'search_failed', {
-              operation,
-              query: videoQuery,
-              durationMs: Date.now() - startTime,
-              error: errorMessage,
-              errorType: error?.constructor?.name || 'Error',
-            });
+            if (enableTelemetry) {
+              await reportEvent(this, 'search_failed', {
+                operation,
+                query: videoQuery,
+                durationMs: Date.now() - startTime,
+                error: errorMessage,
+                errorType: error?.constructor?.name || 'Error',
+              });
+            }
           }
         }
         else {
@@ -1905,10 +1967,12 @@ export class DuckDuckGo implements INodeType {
         }
 
         // Report node_error telemetry for unexpected errors
-        await reportEvent(this, 'node_error', {
-          error: error instanceof Error ? error.message : String(error),
-          errorType: error?.constructor?.name || 'Error',
-        });
+        if (enableTelemetry) {
+          await reportEvent(this, 'node_error', {
+            error: error instanceof Error ? error.message : String(error),
+            errorType: error?.constructor?.name || 'Error',
+          });
+        }
 
         throw new NodeOperationError(this.getNode(), error, { itemIndex });
       }

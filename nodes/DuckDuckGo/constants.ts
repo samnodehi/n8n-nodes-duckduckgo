@@ -62,6 +62,7 @@ export const DEFAULT_PARAMETERS = {
   REGION: 'wt-wt',
   MAX_RESULTS: 10,
   SAFE_SEARCH: 0,
+  TIME_PERIOD: 'a', // 'a' is the value for 'all time'
 };
 
 /**
