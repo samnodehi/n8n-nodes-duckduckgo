@@ -808,6 +808,76 @@ export class DuckDuckGo implements INodeType {
               // Execute search
               result = await search(query, searchOptions);
 
+              // For maxResults > 10, we need to fetch additional results
+              // Note: duck-duck-scrape library has a limit of ~10 results per request
+              const maxResults = options.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
+              if (maxResults > 10 && result.results && result.results.length > 0) {
+                // Only attempt to get more results if we got some results initially
+                // and we need more than the default ~10 results
+                let page = 2;
+                const maxPages = Math.ceil(maxResults / 10);
+                const allResults = [...result.results];
+
+                // We need to limit to a reasonable number of pages to avoid abuse
+                const maxPageLimit = 5; // Limit to 5 pages (approximately 50 results)
+                const effectiveMaxPages = Math.min(maxPages, maxPageLimit);
+
+                while (allResults.length < maxResults && page <= effectiveMaxPages) {
+                  if (debugMode) {
+                    const logEntry = createLogEntry(
+                      LogLevel.INFO,
+                      `Fetching additional results (page ${page}) for: ${query}`,
+                      operation,
+                      { query, options: searchOptions, page }
+                    );
+                    console.log(JSON.stringify(logEntry));
+                  }
+
+                  try {
+                    // For subsequent requests, we need the vqd parameter from the first request
+                    if (result.vqd) {
+                      // Add offset parameter to indicate we want the next page
+                      const nextPageOptions = {
+                        ...searchOptions,
+                        offset: (page - 1) * 10,
+                        vqd: result.vqd,
+                      };
+
+                      // Make the additional request
+                      const nextPageResult = await search(query, nextPageOptions);
+
+                      // If we got results, add them to our collection
+                      if (nextPageResult.results && nextPageResult.results.length > 0) {
+                        allResults.push(...nextPageResult.results);
+                      } else {
+                        // No more results available
+                        break;
+                      }
+                    } else {
+                      // Can't continue without vqd
+                      break;
+                    }
+                  } catch (pageError) {
+                    // Log the error but continue with what we have
+                    if (debugMode) {
+                      const logEntry = createLogEntry(
+                        LogLevel.ERROR,
+                        `Error fetching additional results: ${pageError.message}`,
+                        operation,
+                        { query, options: searchOptions, page }
+                      );
+                      console.error(JSON.stringify(logEntry));
+                    }
+                    break;
+                  }
+
+                  page++;
+                }
+
+                // Update the result with all collected results
+                result.results = allResults;
+              }
+
               // Cache the result if cache is enabled
               if (enableCache && result) {
                 setCache(cacheKey, result, cacheTTL);
@@ -1017,6 +1087,76 @@ export class DuckDuckGo implements INodeType {
 
               // Execute image search
               result = await searchImages(imageQuery, searchOptions);
+
+              // For maxResults > 10, we need to fetch additional results
+              // Note: duck-duck-scrape library has a limit of ~10 results per request
+              const maxResults = imageSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
+              if (maxResults > 10 && result.results && result.results.length > 0) {
+                // Only attempt to get more results if we got some results initially
+                // and we need more than the default ~10 results
+                let page = 2;
+                const maxPages = Math.ceil(maxResults / 10);
+                const allResults = [...result.results];
+
+                // We need to limit to a reasonable number of pages to avoid abuse
+                const maxPageLimit = 5; // Limit to 5 pages (approximately 50 results)
+                const effectiveMaxPages = Math.min(maxPages, maxPageLimit);
+
+                while (allResults.length < maxResults && page <= effectiveMaxPages) {
+                  if (debugMode) {
+                    const logEntry = createLogEntry(
+                      LogLevel.INFO,
+                      `Fetching additional image results (page ${page}) for: ${imageQuery}`,
+                      operation,
+                      { query: imageQuery, options: searchOptions, page }
+                    );
+                    console.log(JSON.stringify(logEntry));
+                  }
+
+                  try {
+                    // For subsequent requests, we need the vqd parameter from the first request
+                    if (result.vqd) {
+                      // Add offset parameter to indicate we want the next page
+                      const nextPageOptions = {
+                        ...searchOptions,
+                        offset: (page - 1) * 10,
+                        vqd: result.vqd,
+                      };
+
+                      // Make the additional request
+                      const nextPageResult = await searchImages(imageQuery, nextPageOptions);
+
+                      // If we got results, add them to our collection
+                      if (nextPageResult.results && nextPageResult.results.length > 0) {
+                        allResults.push(...nextPageResult.results);
+                      } else {
+                        // No more results available
+                        break;
+                      }
+                    } else {
+                      // Can't continue without vqd
+                      break;
+                    }
+                  } catch (pageError) {
+                    // Log the error but continue with what we have
+                    if (debugMode) {
+                      const logEntry = createLogEntry(
+                        LogLevel.ERROR,
+                        `Error fetching additional image results: ${pageError.message}`,
+                        operation,
+                        { query: imageQuery, options: searchOptions, page }
+                      );
+                      console.error(JSON.stringify(logEntry));
+                    }
+                    break;
+                  }
+
+                  page++;
+                }
+
+                // Update the result with all collected results
+                result.results = allResults;
+              }
 
               // Cache the result if cache is enabled
               if (enableCache && result) {
@@ -1229,6 +1369,76 @@ export class DuckDuckGo implements INodeType {
               // Execute news search
               result = await searchNews(newsQuery, searchOptions);
 
+              // For maxResults > 10, we need to fetch additional results
+              // Note: duck-duck-scrape library has a limit of ~10 results per request
+              const maxResults = newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
+              if (maxResults > 10 && result.results && result.results.length > 0) {
+                // Only attempt to get more results if we got some results initially
+                // and we need more than the default ~10 results
+                let page = 2;
+                const maxPages = Math.ceil(maxResults / 10);
+                const allResults = [...result.results];
+
+                // We need to limit to a reasonable number of pages to avoid abuse
+                const maxPageLimit = 5; // Limit to 5 pages (approximately 50 results)
+                const effectiveMaxPages = Math.min(maxPages, maxPageLimit);
+
+                while (allResults.length < maxResults && page <= effectiveMaxPages) {
+                  if (debugMode) {
+                    const logEntry = createLogEntry(
+                      LogLevel.INFO,
+                      `Fetching additional news results (page ${page}) for: ${newsQuery}`,
+                      operation,
+                      { query: newsQuery, options: searchOptions, page }
+                    );
+                    console.log(JSON.stringify(logEntry));
+                  }
+
+                  try {
+                    // For subsequent requests, we need the vqd parameter from the first request
+                    if (result.vqd) {
+                      // Add offset parameter to indicate we want the next page
+                      const nextPageOptions = {
+                        ...searchOptions,
+                        offset: (page - 1) * 10,
+                        vqd: result.vqd,
+                      };
+
+                      // Make the additional request
+                      const nextPageResult = await searchNews(newsQuery, nextPageOptions);
+
+                      // If we got results, add them to our collection
+                      if (nextPageResult.results && nextPageResult.results.length > 0) {
+                        allResults.push(...nextPageResult.results);
+                      } else {
+                        // No more results available
+                        break;
+                      }
+                    } else {
+                      // Can't continue without vqd
+                      break;
+                    }
+                  } catch (pageError) {
+                    // Log the error but continue with what we have
+                    if (debugMode) {
+                      const logEntry = createLogEntry(
+                        LogLevel.ERROR,
+                        `Error fetching additional news results: ${pageError.message}`,
+                        operation,
+                        { query: newsQuery, options: searchOptions, page }
+                      );
+                      console.error(JSON.stringify(logEntry));
+                    }
+                    break;
+                  }
+
+                  page++;
+                }
+
+                // Update the result with all collected results
+                result.results = allResults;
+              }
+
               // Cache the result if cache is enabled
               if (enableCache && result) {
                 setCache(cacheKey, result, cacheTTL);
@@ -1437,6 +1647,76 @@ export class DuckDuckGo implements INodeType {
 
               // Execute video search
               result = await searchVideos(videoQuery, searchOptions);
+
+              // For maxResults > 10, we need to fetch additional results
+              // Note: duck-duck-scrape library has a limit of ~10 results per request
+              const maxResults = videoSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
+              if (maxResults > 10 && result.results && result.results.length > 0) {
+                // Only attempt to get more results if we got some results initially
+                // and we need more than the default ~10 results
+                let page = 2;
+                const maxPages = Math.ceil(maxResults / 10);
+                const allResults = [...result.results];
+
+                // We need to limit to a reasonable number of pages to avoid abuse
+                const maxPageLimit = 5; // Limit to 5 pages (approximately 50 results)
+                const effectiveMaxPages = Math.min(maxPages, maxPageLimit);
+
+                while (allResults.length < maxResults && page <= effectiveMaxPages) {
+                  if (debugMode) {
+                    const logEntry = createLogEntry(
+                      LogLevel.INFO,
+                      `Fetching additional video results (page ${page}) for: ${videoQuery}`,
+                      operation,
+                      { query: videoQuery, options: searchOptions, page }
+                    );
+                    console.log(JSON.stringify(logEntry));
+                  }
+
+                  try {
+                    // For subsequent requests, we need the vqd parameter from the first request
+                    if (result.vqd) {
+                      // Add offset parameter to indicate we want the next page
+                      const nextPageOptions = {
+                        ...searchOptions,
+                        offset: (page - 1) * 10,
+                        vqd: result.vqd,
+                      };
+
+                      // Make the additional request
+                      const nextPageResult = await searchVideos(videoQuery, nextPageOptions);
+
+                      // If we got results, add them to our collection
+                      if (nextPageResult.results && nextPageResult.results.length > 0) {
+                        allResults.push(...nextPageResult.results);
+                      } else {
+                        // No more results available
+                        break;
+                      }
+                    } else {
+                      // Can't continue without vqd
+                      break;
+                    }
+                  } catch (pageError) {
+                    // Log the error but continue with what we have
+                    if (debugMode) {
+                      const logEntry = createLogEntry(
+                        LogLevel.ERROR,
+                        `Error fetching additional video results: ${pageError.message}`,
+                        operation,
+                        { query: videoQuery, options: searchOptions, page }
+                      );
+                      console.error(JSON.stringify(logEntry));
+                    }
+                    break;
+                  }
+
+                  page++;
+                }
+
+                // Update the result with all collected results
+                result.results = allResults;
+              }
 
               // Cache the result if cache is enabled
               if (enableCache && result) {

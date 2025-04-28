@@ -1,5 +1,5 @@
 {
-  "name": "n8n-nodes-duckduckgo",
+  "name": "n8n-nodes-duckduckgo-search",
   "version": "0.2.0",
   "description": "Integrate DuckDuckGo search seamlessly into your n8n workflows. Enhance automation with advanced searches and tailored queries.",
   "keywords": [
@@ -81,5 +81,8 @@
   },
   "engines": {
     "node": ">=16.0.0"
+  },
+  "publishConfig": {
+  "access": "public"
   }
 }
