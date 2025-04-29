@@ -74,6 +74,24 @@ const LOCALE_OPTIONS = [
 	{ name: 'Persian (Iran)', value: 'ir-fa' },
 ];
 
+// Sleep for a fixed amount of time
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getRandomUserAgent(): string {
+	const userAgents = [
+		// Mobile
+		'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+		'Mozilla/5.0 (Linux; Android 11; SM-G998U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.98 Mobile Safari/537.36',
+		// Desktop
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36',
+		'Mozilla/5.0 (Macintosh; Intel Mac OS X 12_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15',
+		'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/117.0',
+	];
+	return userAgents[Math.floor(Math.random() * userAgents.length)];
+}
+
 /**
  * DuckDuckGo node implementation with cleanly separated operations
  */
@@ -679,69 +697,132 @@ export class DuckDuckGo implements INodeType {
   };
 
   /**
-   * Main execution method
+   * Advanced search method with super pagination capabilities
+   * Uses both JSON API and HTML scraping with intelligent pagination
    */
-	private async webSearchWithFallback(
-		this: IExecuteFunctions,
-		query: string,
-		options: {
-			maxResults: number;
-			safeSearch: number;
-			locale: string;
-			timePeriod?: string;
-		},
-	): Promise<Array<any>> {
-		// 1) First regular call to get vqd
-		const baseOpts: any = {
-			safeSearch: options.safeSearch,
-			locale: options.locale,
-			api: '/d.js',
-			o: 'json',
-			v: 'l',
-		};
+  private async webSearchWithSuperPagination(
+    this: IExecuteFunctions,
+    query: string,
+    options: {
+      maxResults: number;
+      safeSearch: number;
+      locale: string;
+      timePeriod?: string;
+    },
+  ): Promise<Array<any>> {
 
-		if (options.timePeriod) {
-			baseOpts.timePeriod = options.timePeriod;
-		}
+    const { parseHtmlResults } = await import('./htmlParser');
 
-		const first = await search(query, baseOpts);
-		let all = Array.isArray(first.results) ? [...first.results] : [];
+    const pageSizeJson = 10; // JSON API usually returns about 10 results
+    const pageSizeHtml = 10; // HTML also has about 10 results per page
+    const results: any[] = [];
 
-		if (!first.vqd) {
-			// If we don't have vqd, just return the one we have
-			return all.slice(0, options.maxResults);
-		}
+    let vqd: string | undefined;
+    let hasMoreJson = true;
+    let hasMoreHtml = true;
+    let offsetHtml = 0;
+    let pageJson = 0;
 
-		// 2) pagination until maxResults are reached
-		let page = 1;
-		const pageSize = 10; // DuckDuckGo usually returns 10 results per page
-		const maxPages = Math.ceil(options.maxResults / pageSize);
-		const maxPageLimit = 5; // Maximum 5 pages to prevent abuse
-		const effectiveMaxPages = Math.min(maxPages, maxPageLimit);
+    // First step: Try to get results from JSON API
+    try {
+      const baseOpts: any = {
+        safeSearch: options.safeSearch,
+        locale: options.locale,
+        api: '/d.js',
+        o: 'json',
+        v: 'l',
+      };
+      if (options.timePeriod) {
+        baseOpts.timePeriod = options.timePeriod;
+      }
 
-		while (all.length < options.maxResults && page < effectiveMaxPages) {
-			const start = page * pageSize;
-			const nextOpts = {
-				...baseOpts,
-				s: start.toString(),
-				dc: (start + 1).toString(),
-				vqd: first.vqd,
-			};
+      const first = await search(query, baseOpts);
+      if (first.results?.length) {
+        results.push(...first.results);
+      }
+      vqd = first.vqd;
 
-			try {
-				const nextPage = await search(query, nextOpts);
-				if (!nextPage.results?.length) break;
-				all.push(...nextPage.results);
-			} catch (error) {
-				// If there's an error, continue with the results we have
-				break;
-			}
+      await sleep(300); // delay
+    } catch (error) {
+      hasMoreJson = false;
+    }
 
-			page++;
-		}
+    // Continue JSON pages until vqd and next pages exist
+    while (results.length < options.maxResults && hasMoreJson && vqd) {
+      pageJson++;
+      if (pageJson > 5) break; // Maximum 5 pages (logical limit)
 
-		return all.slice(0, options.maxResults);
-	}
+      const opts = {
+        safeSearch: options.safeSearch,
+        locale: options.locale,
+        api: '/d.js',
+        o: 'json',
+        v: 'l',
+        s: (pageJson * pageSizeJson).toString(),
+        dc: ((pageJson * pageSizeJson) + 1).toString(),
+        vqd,
+      };
+
+      try {
+        const nextPage = await search(query, opts);
+        if (!nextPage.results?.length) {
+          hasMoreJson = false;
+          break;
+        }
+        results.push(...nextPage.results);
+      } catch (error) {
+        hasMoreJson = false;
+        break;
+      }
+
+      await sleep(300); // delay
+    }
+
+    // If still not enough results: go to HTML scraping
+    while (results.length < options.maxResults && hasMoreHtml) {
+      const htmlUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}&s=${offsetHtml}`;
+
+      try {
+        const html = await this.helpers.httpRequest({
+          url: htmlUrl,
+          method: 'GET',
+          headers: {
+            'User-Agent': getRandomUserAgent(),
+          },
+        });
+        const page = parseHtmlResults(html);
+
+        if (!page.length) {
+          hasMoreHtml = false;
+          break;
+        }
+
+        const convertedResults = page.map(item => ({
+          title: item.title,
+          url: item.url,
+          description: item.snippet,
+          rawDescription: item.snippet,
+          hostname: new URL(item.url).hostname,
+          icon: '', // HTML results don't have icons
+        }));
+
+        results.push(...convertedResults);
+        if (page.length < pageSizeHtml) {
+          hasMoreHtml = false;
+        }
+
+        offsetHtml += pageSizeHtml;
+      } catch (error) {
+        hasMoreHtml = false;
+        break;
+      }
+
+      await sleep(300); // delay
+    }
+
+    // In the end, return only the requested number of results
+    return results.slice(0, options.maxResults);
+  }
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
@@ -875,8 +956,8 @@ export class DuckDuckGo implements INodeType {
               // For maxResults > 10, we need to use our enhanced method
               if (maxResults > DEFAULT_PARAMETERS.MAX_RESULTS && result.results && result.results.length > 0) {
                 try {
-                  // Use the webSearchWithFallback method for better pagination - using proper this context
-                  const rawResults = await (this as unknown as DuckDuckGo).webSearchWithFallback.call(
+                  // Use the webSearchWithSuperPagination method for better pagination
+                  const rawResults = await (this as unknown as DuckDuckGo).webSearchWithSuperPagination.call(
                     this,
                     query,
                     {
