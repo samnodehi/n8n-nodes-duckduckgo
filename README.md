@@ -8,11 +8,13 @@
 
 <img src="nodes/DuckDuckGo/duckduckgo.svg" width="100" alt="DuckDuckGo Logo" />
 
-**Integrate DuckDuckGo search seamlessly into your n8n workflows. Enhance automation with advanced searches and tailored queries.**
+**Integrate DuckDuckGo search seamlessly into your n8n workflows with advanced pagination and human-like behavior. Get more results without hitting rate limits.**
 
 ## Features
 
 - **Multiple Search Types**: Web search, image search, news search, and video search
+- **Advanced Pagination**: Smart pagination to get more results than standard API limits allow
+- **Human-like Behavior**: Random delays and rotating user agents to avoid detection and rate limits
 - **Customizable Parameters**: Control results with locale, safe search level, and time period filters
 - **Privacy-Focused**: Leverages DuckDuckGo's privacy-oriented search engine
 - **No Authentication Required**: Works out of the box without API keys
@@ -62,7 +64,7 @@ docker run -it --rm \
 #### Optional Parameters:
 - **Locale**: Select language and region for search results (default: en-us)
 - **Safe Search**: Control filtering of explicit content (Strict, Moderate, Off)
-- **Max Results**: Limit number of results (default: 25)
+- **Max Results**: Limit number of results (default: 25, can fetch up to 100 with the advanced pagination)
 - **Time Period**: Filter by time (All Time, Past Day, Past Week, Past Month, Past Year)
 
 ### Example Configuration:
@@ -130,3 +132,19 @@ npm test
 ## License
 
 This project is licensed under the [MIT License](LICENSE.md).
+
+## Recent Changes (v0.3.0)
+
+### Advanced Pagination Features
+
+The latest version includes significant improvements to the search pagination system:
+
+- **Super Pagination**: New algorithm that combines JSON API and HTML scraping for comprehensive results
+- **Higher Result Limits**: Get up to 100 search results (depending on query popularity)
+- **Intelligent Fallbacks**: Automatically switches between different methods to maximize result gathering
+- **Rate Limit Prevention**: Human-like pauses and varying user agents reduce the risk of being blocked
+
+### Technical Notes
+
+- **For Developers**: There is a known security audit warning about axios in development dependencies which does not affect the production build.
+- **Version Warning**: If upgrading from v0.2.x, be aware that the pagination behavior has been improved significantly.
