@@ -681,6 +681,68 @@ export class DuckDuckGo implements INodeType {
   /**
    * Main execution method
    */
+	private async webSearchWithFallback(
+		this: IExecuteFunctions,
+		query: string,
+		options: {
+			maxResults: number;
+			safeSearch: number;
+			locale: string;
+			timePeriod?: string;
+		},
+	): Promise<Array<any>> {
+		// 1) اولین فراخوانی معمولی برای گرفتن vqd
+		const baseOpts: any = {
+			safeSearch: options.safeSearch,
+			locale: options.locale,
+			api: '/d.js',
+			o: 'json',
+			v: 'l',
+		};
+
+		if (options.timePeriod) {
+			baseOpts.timePeriod = options.timePeriod;
+		}
+
+		const first = await search(query, baseOpts);
+		let all = Array.isArray(first.results) ? [...first.results] : [];
+
+		if (!first.vqd) {
+			// اگر vqd نداشتیم، فقط همونی که هست رو برگردون
+			return all.slice(0, options.maxResults);
+		}
+
+		// 2) pagination تا رسیدن به maxResults
+		let page = 1;
+		const pageSize = 10; // داک داک معمولاً 10 تا در هر صفحه
+		const maxPages = Math.ceil(options.maxResults / pageSize);
+		const maxPageLimit = 5; // حداکثر 5 صفحه برای جلوگیری از سوءاستفاده
+		const effectiveMaxPages = Math.min(maxPages, maxPageLimit);
+
+		while (all.length < options.maxResults && page < effectiveMaxPages) {
+			const start = page * pageSize;
+			const nextOpts = {
+				...baseOpts,
+				s: start.toString(),
+				dc: (start + 1).toString(),
+				vqd: first.vqd,
+			};
+
+			try {
+				const nextPage = await search(query, nextOpts);
+				if (!nextPage.results?.length) break;
+				all.push(...nextPage.results);
+			} catch (error) {
+				// اگر خطا داشت، با نتایج موجود ادامه می‌دهیم
+				break;
+			}
+
+			page++;
+		}
+
+		return all.slice(0, options.maxResults);
+	}
+
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
@@ -807,83 +869,101 @@ export class DuckDuckGo implements INodeType {
                 console.log(JSON.stringify(logEntry));
               }
 
-              // Execute search
+              // Execute primary search
               result = await search(query, searchOptions);
 
-              // For maxResults > 10, we need to fetch additional results
-              // Note: duck-duck-scrape library has a limit of ~10 results per request
-              const maxResults = options.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
-              if (maxResults > 10 && result.results && result.results.length > 0) {
-                // Only attempt to get more results if we got some results initially
-                // and we need more than the default ~10 results
-                let page = 2;
-                const maxPages = Math.ceil(maxResults / 10);
-                const allResults = [...result.results];
+              // For maxResults > 10, we need to use our enhanced method
+              if (maxResults > DEFAULT_PARAMETERS.MAX_RESULTS && result.results && result.results.length > 0) {
+                try {
+                  // Use the webSearchWithFallback method for better pagination - using proper this context
+                  const rawResults = await (this as unknown as DuckDuckGo).webSearchWithFallback.call(
+                    this,
+                    query,
+                    {
+                      maxResults: maxResults,
+                      safeSearch: options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH,
+                      locale: options.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
+                      timePeriod: options.timePeriod ?? DEFAULT_PARAMETERS.TIME_PERIOD,
+                    }
+                  );
 
-                // We need to limit to a reasonable number of pages to avoid abuse
-                const maxPageLimit = 5; // Limit to 5 pages (approximately 50 results)
-                const effectiveMaxPages = Math.min(maxPages, maxPageLimit);
-
-                while (allResults.length < maxResults && page <= effectiveMaxPages) {
+                  // Update results with enhanced pagination results
+                  result.results = rawResults;
+                } catch (fallbackError) {
+                  // Log fallback error if debug is enabled
                   if (debugMode) {
                     const logEntry = createLogEntry(
-                      LogLevel.INFO,
-                      `Fetching additional results (page ${page}) for: ${query}`,
+                      LogLevel.ERROR,
+                      `Enhanced pagination error: ${fallbackError.message}. Falling back to standard pagination.`,
                       operation,
-                      { query, options: searchOptions, page }
+                      { query, options: searchOptions }
                     );
-                    console.log(JSON.stringify(logEntry));
+                    console.error(JSON.stringify(logEntry));
                   }
 
-                  try {
-                    // For subsequent requests, we need the vqd parameter from the first request
-                    if (result.vqd) {
-                      // Add start parameter to indicate the page we want
-                      // DuckDuckGo uses increments of 30 for pagination
-                      const startPosition = (page - 1) * 30;
-                      const nextPageOptions = {
-                        ...searchOptions,
-                        s: startPosition.toString(), // Add start parameter for pagination
-                        dc: (startPosition + 1).toString(), // Add additional dc parameter required for pagination
-                        v: 'l', // Required for pagination
-                        o: 'json', // Required for pagination
-                        api: '/d.js', // Required for pagination
-                        vqd: result.vqd,
-                      };
+                  // Fall back to standard pagination code
+                  let page = 2;
+                  const maxPages = Math.ceil(maxResults / 10);
+                  const allResults = [...result.results];
 
-                      // Make the additional request
-                      const nextPageResult = await search(query, nextPageOptions);
+                  // We need to limit to a reasonable number of pages to avoid abuse
+                  const maxPageLimit = 5; // Limit to 5 pages (approximately 50 results)
+                  const effectiveMaxPages = Math.min(maxPages, maxPageLimit);
 
-                      // If we got results, add them to our collection
-                      if (nextPageResult.results && nextPageResult.results.length > 0) {
-                        allResults.push(...nextPageResult.results);
-                      } else {
-                        // No more results available
-                        break;
-                      }
-                    } else {
-                      // Can't continue without vqd
-                      break;
-                    }
-                  } catch (pageError) {
-                    // Log the error but continue with what we have
+                  while (allResults.length < maxResults && page <= effectiveMaxPages) {
                     if (debugMode) {
                       const logEntry = createLogEntry(
-                        LogLevel.ERROR,
-                        `Error fetching additional results: ${pageError.message}`,
+                        LogLevel.INFO,
+                        `Fetching additional results (page ${page}) for: ${query}`,
                         operation,
                         { query, options: searchOptions, page }
                       );
-                      console.error(JSON.stringify(logEntry));
+                      console.log(JSON.stringify(logEntry));
                     }
-                    break;
+
+                    try {
+                      // Original pagination code with vqd
+                      if (result.vqd) {
+                        const startPosition = (page - 1) * 30;
+                        const nextPageOptions = {
+                          ...searchOptions,
+                          s: startPosition.toString(),
+                          dc: (startPosition + 1).toString(),
+                          v: 'l',
+                          o: 'json',
+                          api: '/d.js',
+                          vqd: result.vqd,
+                        };
+
+                        const nextPageResult = await search(query, nextPageOptions);
+
+                        if (nextPageResult.results && nextPageResult.results.length > 0) {
+                          allResults.push(...nextPageResult.results);
+                        } else {
+                          break;
+                        }
+                      } else {
+                        break;
+                      }
+                    } catch (pageError) {
+                      if (debugMode) {
+                        const logEntry = createLogEntry(
+                          LogLevel.ERROR,
+                          `Error fetching additional results: ${pageError.message}`,
+                          operation,
+                          { query, options: searchOptions, page }
+                        );
+                        console.error(JSON.stringify(logEntry));
+                      }
+                      break;
+                    }
+
+                    page++;
                   }
 
-                  page++;
+                  // Update results with what we collected
+                  result.results = allResults;
                 }
-
-                // Update the result with all collected results
-                result.results = allResults;
               }
 
               // Cache the result if cache is enabled
@@ -1109,9 +1189,11 @@ export class DuckDuckGo implements INodeType {
               // For maxResults > 10, we need to fetch additional results
               // Note: duck-duck-scrape library has a limit of ~10 results per request
               const maxResults = imageSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
-              if (maxResults > 10 && result.results && result.results.length > 0) {
+
+              // Check if user explicitly set maxResults (not using default)
+              // Always attempt pagination if user explicitly requested a specific number of results
+              if (imageSearchOptions.maxResults !== undefined && result.results && result.results.length > 0) {
                 // Only attempt to get more results if we got some results initially
-                // and we need more than the default ~10 results
                 let page = 2;
                 const maxPages = Math.ceil(maxResults / 10);
                 const allResults = [...result.results];
@@ -1406,9 +1488,11 @@ export class DuckDuckGo implements INodeType {
               // For maxResults > 10, we need to fetch additional results
               // Note: duck-duck-scrape library has a limit of ~10 results per request
               const maxResults = newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
-              if (maxResults > 10 && result.results && result.results.length > 0) {
+
+              // Check if user explicitly set maxResults (not using default)
+              // Always attempt pagination if user explicitly requested a specific number of results
+              if (newsSearchOptions.maxResults !== undefined && result.results && result.results.length > 0) {
                 // Only attempt to get more results if we got some results initially
-                // and we need more than the default ~10 results
                 let page = 2;
                 const maxPages = Math.ceil(maxResults / 10);
                 const allResults = [...result.results];
@@ -1701,9 +1785,11 @@ export class DuckDuckGo implements INodeType {
               // For maxResults > 10, we need to fetch additional results
               // Note: duck-duck-scrape library has a limit of ~10 results per request
               const maxResults = videoSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
-              if (maxResults > 10 && result.results && result.results.length > 0) {
+
+              // Check if user explicitly set maxResults (not using default)
+              // Always attempt pagination if user explicitly requested a specific number of results
+              if (videoSearchOptions.maxResults !== undefined && result.results && result.results.length > 0) {
                 // Only attempt to get more results if we got some results initially
-                // and we need more than the default ~10 results
                 let page = 2;
                 const maxPages = Math.ceil(maxResults / 10);
                 const allResults = [...result.results];
