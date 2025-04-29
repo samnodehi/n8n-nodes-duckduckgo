@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-duckduckgo-search",
-  "version": "0.2.0",
-  "description": "Integrate DuckDuckGo search seamlessly into your n8n workflows. Enhance automation with advanced searches and tailored queries.",
+  "version": "0.3.0",
+  "description": "Integrate DuckDuckGo search seamlessly into your n8n workflows with advanced pagination and human-like behavior. Get more results without hitting rate limits.",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
@@ -11,7 +11,10 @@
     "search-engine",
     "automation",
     "workflow",
-    "data-pipeline"
+    "data-pipeline",
+    "pagination",
+    "web-scraping",
+    "search-results"
   ],
   "license": "MIT",
   "homepage": "",
