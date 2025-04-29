@@ -772,8 +772,8 @@ export class DuckDuckGo implements INodeType {
       }
     }
 
-    const enableCache = cacheSettings.enableCache !== false;
-    const cacheTTL = cacheSettings.cacheTTL || 300; // Default to 5 minutes if not specified
+    const enableCache = cacheSettings?.enableCache !== false;
+    const cacheTTL = cacheSettings?.cacheTTL || 300; // Default to 5 minutes if not specified
 
     // Get the global locale setting
     const globalLocale = this.getNodeParameter('locale', 0, 'en-us') as string;
