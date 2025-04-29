@@ -691,7 +691,7 @@ export class DuckDuckGo implements INodeType {
 			timePeriod?: string;
 		},
 	): Promise<Array<any>> {
-		// 1) اولین فراخوانی معمولی برای گرفتن vqd
+		// 1) First regular call to get vqd
 		const baseOpts: any = {
 			safeSearch: options.safeSearch,
 			locale: options.locale,
@@ -708,15 +708,15 @@ export class DuckDuckGo implements INodeType {
 		let all = Array.isArray(first.results) ? [...first.results] : [];
 
 		if (!first.vqd) {
-			// اگر vqd نداشتیم، فقط همونی که هست رو برگردون
+			// If we don't have vqd, just return the one we have
 			return all.slice(0, options.maxResults);
 		}
 
-		// 2) pagination تا رسیدن به maxResults
+		// 2) pagination until maxResults are reached
 		let page = 1;
-		const pageSize = 10; // داک داک معمولاً 10 تا در هر صفحه
+		const pageSize = 10; // DuckDuckGo usually returns 10 results per page
 		const maxPages = Math.ceil(options.maxResults / pageSize);
-		const maxPageLimit = 5; // حداکثر 5 صفحه برای جلوگیری از سوءاستفاده
+		const maxPageLimit = 5; // Maximum 5 pages to prevent abuse
 		const effectiveMaxPages = Math.min(maxPages, maxPageLimit);
 
 		while (all.length < options.maxResults && page < effectiveMaxPages) {
@@ -733,7 +733,7 @@ export class DuckDuckGo implements INodeType {
 				if (!nextPage.results?.length) break;
 				all.push(...nextPage.results);
 			} catch (error) {
-				// اگر خطا داشت، با نتایج موجود ادامه می‌دهیم
+				// If there's an error, continue with the results we have
 				break;
 			}
 
