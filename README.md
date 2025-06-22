@@ -8,11 +8,19 @@
 
 <img src="nodes/DuckDuckGo/duckduckgo.svg" width="100" alt="DuckDuckGo Logo" />
 
-**Integrate DuckDuckGo search seamlessly into your n8n workflows with advanced pagination and human-like behavior. Get more results without hitting rate limits.**
+**Integrate DuckDuckGo search seamlessly into your n8n workflows with advanced pagination, AI chat, maps, shopping, and human-like behavior. Get more results without hitting rate limits.**
 
-## Features
+## 🚀 Features
 
-- **Multiple Search Types**: Web search, image search, news search, and video search
+- **Multiple Search Types**: 
+  - 🌐 Web search
+  - 🖼️ Image search
+  - 📰 News search
+  - 🎥 Video search
+  - 🗺️ Maps search (NEW!)
+  - 🛍️ Shopping search (NEW!)
+  - 🤖 AI Chat with privacy-focused models (NEW!)
+- **AI Chat Models**: GPT-3.5 Turbo, Claude 3 Haiku, Llama 3 70B, Mixtral 8x7B
 - **Advanced Pagination**: Smart pagination to get more results than standard API limits allow
 - **Human-like Behavior**: Random delays and rotating user agents to avoid detection and rate limits
 - **Customizable Parameters**: Control results with locale, safe search level, and time period filters
@@ -20,8 +28,10 @@
 - **No Authentication Required**: Works out of the box without API keys
 - **Optional API Authentication**: Supports API key for enterprise use cases
 - **Rich Response Format**: Well-structured results with titles, URLs, snippets, and more
+- **Intelligent Caching**: Built-in cache system to reduce API calls and improve performance
+- **Telemetry Support**: Optional usage analytics to help improve the node
 
-## Installation
+## 📦 Installation
 
 ### Manual Installation via Docker Volume
 
@@ -55,10 +65,10 @@ docker run -it --rm \
 3. Select the DuckDuckGo node
 4. Configure the node settings:
 
-### Parameter Setup
+### 📋 Parameter Setup
 
 #### Required Parameters:
-- **Operation**: Choose the type of search (Web Search, Image Search, News Search, Video Search)
+- **Operation**: Choose the type of search (Web Search, Image Search, News Search, Video Search, Maps Search, Shopping Search, AI Chat)
 - **Query**: Enter your search terms
 
 #### Optional Parameters:
@@ -67,33 +77,104 @@ docker run -it --rm \
 - **Max Results**: Limit number of results (default: 25, can fetch up to 100 with the advanced pagination)
 - **Time Period**: Filter by time (All Time, Past Day, Past Week, Past Month, Past Year)
 
-### Example Configuration:
+### 🌟 What's New in v1.1.0
 
-Web Search:
+#### 🤖 AI Chat Integration
+Chat privately with popular AI models through DuckDuckGo's Duck.ai service:
+- **Models**: GPT-3.5 Turbo, Claude 3 Haiku, Llama 3 70B, Mixtral 8x7B
+- **Privacy**: No data training on your conversations
+- **No Account Required**: Start chatting immediately
+
 ```json
 {
-  "operation": "search",
-  "query": "workflow automation tools",
-  "webSearchOptions": {
+  "operation": "aiChat",
+  "aiChatMessage": "Explain quantum computing in simple terms",
+  "aiModel": "gpt-3.5-turbo",
+  "aiChatOptions": {
+    "conversationId": "conv_123...", // Optional: continue previous conversation
+    "returnRawResponse": false
+  }
+}
+```
+
+#### 🗺️ Maps Search
+Find locations and businesses:
+```json
+{
+  "operation": "searchMaps",
+  "mapsQuery": "coffee shops near me",
+  "mapsSearchOptions": {
     "maxResults": 10,
-    "region": "en-us",
-    "safeSearch": 1,
-    "timePeriod": "pastMonth"
+    "region": "us-en"
   }
 }
 ```
 
-Image Search:
+#### 🛍️ Shopping Search
+Search for products and compare prices:
 ```json
 {
-  "operation": "searchImages",
-  "imageQuery": "automation workflow diagrams",
-  "imageSearchOptions": {
-    "maxResults": 5,
-    "safeSearch": 1
+  "operation": "searchShopping", 
+  "shoppingQuery": "laptop",
+  "shoppingSearchOptions": {
+    "maxResults": 20,
+    "sortBy": "price_low", // relevance, price_low, price_high, rating
+    "region": "us-en"
   }
 }
 ```
+
+## 🛡️ Privacy & Security
+
+- All searches are routed through DuckDuckGo's privacy-focused infrastructure
+- AI Chat conversations are anonymized and not used for training
+- No personal data is collected or stored
+- Optional telemetry can be disabled completely
+- Secure caching system stores data locally only
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE.md).
+
+## 🐛 Known Issues
+
+- Maps and Shopping search features are simulated in the current version pending official DuckDuckGo API support
+- AI Chat requires internet connection and may have rate limits
+- Some locales may not support all search types
+
+## 🚀 Roadmap
+
+- [ ] Real-time Maps integration when API becomes available
+- [ ] Shopping price tracking and alerts
+- [ ] Enhanced AI Chat with image support
+- [ ] Support for more AI models
+- [ ] Batch search operations
+- [ ] Export results to various formats
+
+## ✨ Recent Changes (v1.1.0)
+
+### New Features
+
+- **AI Chat Integration**: Chat with GPT-3.5, Claude, Llama, and Mixtral models privately
+- **Maps Search**: Find locations and businesses (simulated)
+- **Shopping Search**: Product search with sorting options (simulated)
+- **Improved Error Handling**: Better error messages and debugging support
+- **Enhanced TypeScript Support**: Updated to TypeScript 4.9.5
+- **Security Updates**: Fixed telemetry endpoint and updated dependencies
+
+### Bug Fixes
+
+- Fixed telemetry endpoint security issue
+- Resolved npm audit vulnerabilities
+- Improved caching mechanism
+- Better handling of empty results
+
+### Technical Improvements
+
+- Updated TypeScript to v4.9.5
+- Added comprehensive type definitions for new features
+- Improved code organization and modularity
+- Enhanced testing coverage
 
 ## Development
 
@@ -128,23 +209,3 @@ npm test
 ```
 
 6. Make your changes and submit a pull request with a clear description of the improvements
-
-## License
-
-This project is licensed under the [MIT License](LICENSE.md).
-
-## Recent Changes (v0.3.0)
-
-### Advanced Pagination Features
-
-The latest version includes significant improvements to the search pagination system:
-
-- **Super Pagination**: New algorithm that combines JSON API and HTML scraping for comprehensive results
-- **Higher Result Limits**: Get up to 100 search results (depending on query popularity)
-- **Intelligent Fallbacks**: Automatically switches between different methods to maximize result gathering
-- **Rate Limit Prevention**: Human-like pauses and varying user agents reduce the risk of being blocked
-
-### Technical Notes
-
-- **For Developers**: There is a known security audit warning about axios in development dependencies which does not affect the production build.
-- **Version Warning**: If upgrading from v0.2.x, be aware that the pagination behavior has been improved significantly.

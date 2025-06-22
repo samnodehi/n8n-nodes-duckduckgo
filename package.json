@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-duckduckgo-search",
-  "version": "1.0.0",
-  "description": "Integrate DuckDuckGo search seamlessly into your n8n workflows with advanced pagination and human-like behavior. Get more results without hitting rate limits.",
+  "version": "1.1.0",
+  "description": "Integrate DuckDuckGo search seamlessly into your n8n workflows with advanced pagination, AI chat support, maps, shopping and human-like behavior. Get more results without hitting rate limits.",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
@@ -14,7 +14,11 @@
     "data-pipeline",
     "pagination",
     "web-scraping",
-    "search-results"
+    "search-results",
+    "ai-chat",
+    "duck-ai",
+    "maps-search",
+    "shopping-search"
   ],
   "license": "MIT",
   "homepage": "",
@@ -76,13 +80,14 @@
     "rimraf": "^5.0.1",
     "semantic-release": "^24.2.3",
     "ts-jest": "^29.4.0",
-    "typescript": "~4.8.4"
+    "typescript": "~4.9.5"
   },
   "dependencies": {
     "@types/cheerio": "^0.22.35",
     "cheerio": "^1.0.0",
     "duck-duck-scrape": "^2.2.7",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "node-fetch": "^2.7.0"
   },
   "engines": {
     "node": ">=16.0.0"

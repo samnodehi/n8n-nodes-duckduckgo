@@ -23,6 +23,29 @@ export enum DuckDuckGoOperation {
   SearchImages = 'searchImages',
   SearchNews = 'searchNews',
   SearchVideos = 'searchVideos',
+  SearchMaps = 'searchMaps',
+  SearchShopping = 'searchShopping',
+  AIChat = 'aiChat',
+}
+
+/**
+ * AI Chat models available
+ */
+export enum AIModel {
+  GPT35Turbo = 'gpt-3.5-turbo',
+  Claude3Haiku = 'claude-3-haiku',
+  Llama370B = 'llama-3-70b',
+  Mixtral8x7B = 'mixtral-8x7b',
+}
+
+/**
+ * Shopping sort options
+ */
+export enum ShoppingSortBy {
+  Relevance = '',
+  PriceLowToHigh = 'price_low',
+  PriceHighToLow = 'price_high',
+  Rating = 'rating',
 }
 
 /**
@@ -104,6 +127,53 @@ export interface IDuckDuckGoVideoResult {
 }
 
 /**
+ * Maps search result interface
+ */
+export interface IDuckDuckGoMapsResult {
+  title?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  hours?: string | null;
+  category?: string | null;
+  rating?: number | null;
+  reviews?: number | null;
+  url?: string | null;
+  website?: string | null;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  } | null;
+  distance?: string | null;
+}
+
+/**
+ * Shopping search result interface
+ */
+export interface IDuckDuckGoShoppingResult {
+  title?: string | null;
+  price?: string | null;
+  currency?: string | null;
+  store?: string | null;
+  url?: string | null;
+  image?: string | null;
+  rating?: number | null;
+  reviews?: number | null;
+  shipping?: string | null;
+  condition?: string | null;
+  inStock?: boolean | null;
+}
+
+/**
+ * AI Chat response interface
+ */
+export interface IDuckDuckGoAIChatResponse {
+  message?: string | null;
+  model?: string | null;
+  conversationId?: string | null;
+  timestamp?: number | null;
+}
+
+/**
  * Output types that include sourceType
  */
 export interface IWebSearchOutput extends IDuckDuckGoSearchResult {
@@ -122,6 +192,18 @@ export interface IVideoSearchOutput extends IDuckDuckGoVideoResult {
   sourceType: 'video';
 }
 
+export interface IMapsSearchOutput extends IDuckDuckGoMapsResult {
+  sourceType: 'maps';
+}
+
+export interface IShoppingSearchOutput extends IDuckDuckGoShoppingResult {
+  sourceType: 'shopping';
+}
+
+export interface IAIChatOutput extends IDuckDuckGoAIChatResponse {
+  sourceType: 'aiChat';
+}
+
 /**
  * Union type for all output types
  */
@@ -129,4 +211,7 @@ export type DuckDuckGoOutput =
   IWebSearchOutput |
   IImageSearchOutput |
   INewsSearchOutput |
-  IVideoSearchOutput;
+  IVideoSearchOutput |
+  IMapsSearchOutput |
+  IShoppingSearchOutput |
+  IAIChatOutput;

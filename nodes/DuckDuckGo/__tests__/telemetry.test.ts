@@ -54,9 +54,32 @@ describe('Telemetry Module', () => {
     expect(https.request).not.toHaveBeenCalled();
   });
 
-  it('should send telemetry when enabled', async () => {
-    // Set telemetry to enabled
+  it('should not send telemetry when enabled but no endpoint configured', async () => {
+    // Set telemetry to enabled but no endpoint
     mockTelemetryEnabled = true;
+    mockNodeStaticData.telemetryEndpoint = '';
+
+    // Call the reportEvent function
+    await reportEvent(mockExecuteFunction, 'test_event', { test: 'data' });
+
+    // Verify no request was made (no endpoint configured)
+    expect(https.request).not.toHaveBeenCalled();
+  });
+
+  it('should send telemetry when enabled and endpoint is configured', async () => {
+    // Set telemetry to enabled and configure endpoint
+    mockTelemetryEnabled = true;
+    mockNodeStaticData.telemetryEndpoint = 'https://telemetry.example.com/collect';
+
+    // Mock successful response
+    const mockResponse = {
+      statusCode: 200,
+      on: jest.fn(),
+    };
+    (https.request as jest.Mock).mockImplementation((options, callback) => {
+      callback(mockResponse);
+      return mockRequest;
+    });
 
     // Call the reportEvent function
     await reportEvent(mockExecuteFunction, 'test_event', { test: 'data' });
@@ -68,8 +91,19 @@ describe('Telemetry Module', () => {
   });
 
   it('should generate and reuse a node run ID', async () => {
-    // Set telemetry to enabled
+    // Set telemetry to enabled and configure endpoint
     mockTelemetryEnabled = true;
+    mockNodeStaticData.telemetryEndpoint = 'https://telemetry.example.com/collect';
+
+    // Mock successful response
+    const mockResponse = {
+      statusCode: 200,
+      on: jest.fn(),
+    };
+    (https.request as jest.Mock).mockImplementation((options, callback) => {
+      callback(mockResponse);
+      return mockRequest;
+    });
 
     // Call the reportEvent function twice
     await reportEvent(mockExecuteFunction, 'test_event1', { test: 'data1' });
@@ -96,6 +130,16 @@ describe('Telemetry Module', () => {
     // Set a custom endpoint
     const customEndpoint = 'https://custom.example.com/telemetry';
     setTelemetryEndpoint(mockExecuteFunction, customEndpoint);
+
+    // Mock successful response
+    const mockResponse = {
+      statusCode: 200,
+      on: jest.fn(),
+    };
+    (https.request as jest.Mock).mockImplementation((options, callback) => {
+      callback(mockResponse);
+      return mockRequest;
+    });
 
     // Call the reportEvent function
     await reportEvent(mockExecuteFunction, 'test_event', { test: 'data' });

@@ -25,6 +25,9 @@ import {
   DuckDuckGoOperation,
   SafeSearchLevel,
   TimePeriod,
+  AIModel,
+  ShoppingSortBy,
+  IDuckDuckGoAIChatResponse,
 } from './types';
 
 import {
@@ -32,6 +35,7 @@ import {
   processImageSearchResults,
   processNewsSearchResults,
   processVideoSearchResults,
+  processAIChatResponse,
 } from './processors';
 
 import { DEFAULT_PARAMETERS, NODE_INFO, REGIONS } from './constants';
@@ -51,6 +55,10 @@ import {
   reportEvent,
   ITelemetryEventData
 } from './telemetry';
+
+import {
+  sendAIChat,
+} from './aiChat';
 
 // Add locale options constant
 const LOCALE_OPTIONS = [
@@ -154,6 +162,24 @@ export class DuckDuckGo implements INodeType {
             value: DuckDuckGoOperation.SearchVideos,
             description: 'Find videos from various sources',
             action: 'Search for videos',
+          },
+          {
+            name: 'Maps Search',
+            value: DuckDuckGoOperation.SearchMaps,
+            description: 'Find locations and businesses on maps',
+            action: 'Search maps',
+          },
+          {
+            name: 'Shopping Search',
+            value: DuckDuckGoOperation.SearchShopping,
+            description: 'Find products and compare prices',
+            action: 'Search for products',
+          },
+          {
+            name: 'AI Chat',
+            value: DuckDuckGoOperation.AIChat,
+            description: 'Chat with AI models privately',
+            action: 'Chat with AI',
           }
         ],
       },
@@ -621,6 +647,270 @@ export class DuckDuckGo implements INodeType {
             type: 'boolean',
             default: false,
             description: 'Whether to return the raw API response instead of processed results',
+          },
+        ],
+      },
+
+      // ----------------------------------------
+      // Maps Search Operation Parameters
+      // ----------------------------------------
+      {
+        displayName: 'Maps Search Query',
+        name: 'mapsQuery',
+        type: 'string',
+        required: true,
+        default: '',
+        description: 'The search terms to find locations for',
+        placeholder: 'Enter maps search query',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.SearchMaps,
+            ],
+          },
+        },
+        typeOptions: {
+          minLength: 1,
+        },
+      },
+
+      // Maps Search Configuration
+      {
+        displayName: 'Maps Search Options',
+        name: 'mapsSearchOptions',
+        type: 'collection',
+        placeholder: 'Add Option',
+        default: {
+          maxResults: DEFAULT_PARAMETERS.MAX_RESULTS,
+          region: DEFAULT_PARAMETERS.REGION,
+        },
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.SearchMaps,
+            ],
+          },
+        },
+        options: [
+          {
+            displayName: 'Maximum Results',
+            name: 'maxResults',
+            type: 'number',
+            default: DEFAULT_PARAMETERS.MAX_RESULTS,
+            description: 'Maximum number of map results to return',
+            typeOptions: {
+              minValue: 1,
+              maxValue: 100,
+            },
+          },
+          {
+            displayName: 'Region',
+            name: 'region',
+            type: 'options',
+            default: DEFAULT_PARAMETERS.REGION,
+            description: 'The region to target for maps search',
+            options: REGIONS,
+          },
+          {
+            displayName: 'Return Raw Results',
+            name: 'returnRawResults',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to return the raw API response instead of processed results',
+          },
+        ],
+      },
+
+      // ----------------------------------------
+      // Shopping Search Operation Parameters
+      // ----------------------------------------
+      {
+        displayName: 'Shopping Search Query',
+        name: 'shoppingQuery',
+        type: 'string',
+        required: true,
+        default: '',
+        description: 'The search terms to find products for',
+        placeholder: 'Enter shopping search query',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.SearchShopping,
+            ],
+          },
+        },
+        typeOptions: {
+          minLength: 1,
+        },
+      },
+
+      // Shopping Search Configuration
+      {
+        displayName: 'Shopping Search Options',
+        name: 'shoppingSearchOptions',
+        type: 'collection',
+        placeholder: 'Add Option',
+        default: {
+          maxResults: DEFAULT_PARAMETERS.MAX_RESULTS,
+          region: DEFAULT_PARAMETERS.REGION,
+          sortBy: ShoppingSortBy.Relevance,
+        },
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.SearchShopping,
+            ],
+          },
+        },
+        options: [
+          {
+            displayName: 'Maximum Results',
+            name: 'maxResults',
+            type: 'number',
+            default: DEFAULT_PARAMETERS.MAX_RESULTS,
+            description: 'Maximum number of products to return',
+            typeOptions: {
+              minValue: 1,
+              maxValue: 100,
+            },
+          },
+          {
+            displayName: 'Region',
+            name: 'region',
+            type: 'options',
+            default: DEFAULT_PARAMETERS.REGION,
+            description: 'The region to target for shopping',
+            options: REGIONS,
+          },
+          {
+            displayName: 'Sort By',
+            name: 'sortBy',
+            type: 'options',
+            default: ShoppingSortBy.Relevance,
+            description: 'How to sort the shopping results',
+            options: [
+              {
+                name: 'Relevance',
+                value: ShoppingSortBy.Relevance,
+                description: 'Sort by relevance to search query',
+              },
+              {
+                name: 'Price: Low to High',
+                value: ShoppingSortBy.PriceLowToHigh,
+                description: 'Sort by price ascending',
+              },
+              {
+                name: 'Price: High to Low',
+                value: ShoppingSortBy.PriceHighToLow,
+                description: 'Sort by price descending',
+              },
+              {
+                name: 'Rating',
+                value: ShoppingSortBy.Rating,
+                description: 'Sort by customer rating',
+              },
+            ],
+          },
+          {
+            displayName: 'Return Raw Results',
+            name: 'returnRawResults',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to return the raw API response instead of processed results',
+          },
+        ],
+      },
+
+      // ----------------------------------------
+      // AI Chat Operation Parameters
+      // ----------------------------------------
+      {
+        displayName: 'AI Chat Message',
+        name: 'aiChatMessage',
+        type: 'string',
+        required: true,
+        default: '',
+        description: 'Your message to the AI',
+        placeholder: 'Ask AI anything...',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.AIChat,
+            ],
+          },
+        },
+        typeOptions: {
+          minLength: 1,
+          rows: 4,
+        },
+      },
+
+      // AI Chat Configuration
+      {
+        displayName: 'AI Model',
+        name: 'aiModel',
+        type: 'options',
+        default: AIModel.GPT35Turbo,
+        description: 'Choose the AI model to use',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.AIChat,
+            ],
+          },
+        },
+        options: [
+          {
+            name: 'GPT-3.5 Turbo',
+            value: AIModel.GPT35Turbo,
+            description: 'Fast and capable model from OpenAI',
+          },
+          {
+            name: 'Claude 3 Haiku',
+            value: AIModel.Claude3Haiku,
+            description: 'Fast and efficient model from Anthropic',
+          },
+          {
+            name: 'Llama 3 70B',
+            value: AIModel.Llama370B,
+            description: 'Powerful open-source model from Meta',
+          },
+          {
+            name: 'Mixtral 8x7B',
+            value: AIModel.Mixtral8x7B,
+            description: 'Efficient mixture-of-experts model',
+          },
+        ],
+      },
+
+      {
+        displayName: 'AI Chat Options',
+        name: 'aiChatOptions',
+        type: 'collection',
+        placeholder: 'Add Option',
+        default: {},
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.AIChat,
+            ],
+          },
+        },
+        options: [
+          {
+            displayName: 'Conversation ID',
+            name: 'conversationId',
+            type: 'string',
+            default: '',
+            description: 'ID to continue a previous conversation',
+            placeholder: 'conv_...',
+          },
+          {
+            displayName: 'Return Raw Response',
+            name: 'returnRawResponse',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to return the raw API response',
           },
         ],
       },
@@ -2066,6 +2356,198 @@ export class DuckDuckGo implements INodeType {
               await reportEvent(this, 'search_failed', {
                 operation,
                 query: videoQuery,
+                durationMs: Date.now() - startTime,
+                error: errorMessage,
+                errorType: error?.constructor?.name || 'Error',
+              });
+            }
+          }
+        }
+        else if (operation === DuckDuckGoOperation.AIChat) {
+          // Get AI chat specific parameters
+          const aiChatMessage = this.getNodeParameter('aiChatMessage', itemIndex) as string;
+          const aiModel = this.getNodeParameter('aiModel', itemIndex) as AIModel;
+          const aiChatOptions = this.getNodeParameter('aiChatOptions', itemIndex, {}) as {
+            conversationId?: string;
+            returnRawResponse?: boolean;
+          };
+
+          // Create a cache key based on operation and parameters
+          const cacheKey = JSON.stringify({
+            operation,
+            message: aiChatMessage,
+            model: aiModel,
+            conversationId: aiChatOptions.conversationId,
+          });
+
+          // Track operation start time for telemetry
+          const startTime = Date.now();
+
+          // Report search_started telemetry event
+          const telemetryData: ITelemetryEventData = {
+            operation,
+            query: aiChatMessage,
+            model: aiModel,
+          };
+          if (enableTelemetry) {
+            await reportEvent(this, 'search_started', telemetryData);
+          }
+
+          // Try to get cached result if cache is enabled
+          let result: IDuckDuckGoAIChatResponse | undefined;
+          let cachedResult: IDuckDuckGoAIChatResponse | undefined;
+          if (enableCache && !aiChatOptions.conversationId) {
+            cachedResult = getCached<IDuckDuckGoAIChatResponse>(cacheKey);
+
+            if (cachedResult) {
+              // Log cache hit if debug is enabled
+              if (debugMode) {
+                const logEntry = createLogEntry(
+                  LogLevel.INFO,
+                  `Cache hit for AI chat: ${aiChatMessage}`,
+                  operation,
+                  { message: aiChatMessage, model: aiModel, cacheKey }
+                );
+                console.log(JSON.stringify(logEntry));
+              }
+
+              result = cachedResult;
+            }
+          }
+
+          try {
+            // If result is not in cache, execute the chat
+            if (!result) {
+              // Log request attempt if debug is enabled
+              if (debugMode) {
+                const logEntry = createLogEntry(
+                  LogLevel.INFO,
+                  `Executing AI chat for: ${aiChatMessage}`,
+                  operation,
+                  { message: aiChatMessage, model: aiModel, cacheEnabled: enableCache }
+                );
+                console.log(JSON.stringify(logEntry));
+              }
+
+              // Execute AI chat
+              result = await sendAIChat.call(this, {
+                message: aiChatMessage,
+                model: aiModel,
+                conversationId: aiChatOptions.conversationId,
+              });
+
+              // Cache the result if cache is enabled and no conversation ID
+              if (enableCache && result && !aiChatOptions.conversationId) {
+                setCache(cacheKey, result, cacheTTL);
+
+                // Log cache store if debug is enabled
+                if (debugMode) {
+                  const logEntry = createLogEntry(
+                    LogLevel.INFO,
+                    `Cached AI chat result for: ${aiChatMessage}`,
+                    operation,
+                    { message: aiChatMessage, model: aiModel, cacheTTL, cacheKey }
+                  );
+                  console.log(JSON.stringify(logEntry));
+                }
+              }
+            }
+
+            if (!result || !result.message) {
+              // Log empty results if debug is enabled
+              if (debugMode) {
+                const logEntry = createLogEntry(
+                  LogLevel.INFO,
+                  `No response from AI chat for message: ${aiChatMessage}`,
+                  operation,
+                  { message: aiChatMessage, model: aiModel }
+                );
+                console.log(JSON.stringify(logEntry));
+              }
+
+              results = [{
+                json: {
+                  success: false,
+                  message: 'No response from AI chat',
+                  query: aiChatMessage,
+                  model: aiModel,
+                  ...(debugMode ? { fromCache: result !== undefined } : {}),
+                },
+                pairedItem: {
+                  item: itemIndex,
+                },
+              }];
+            } else {
+              // Return raw results if requested
+              if (aiChatOptions.returnRawResponse || debugMode) {
+                results = [{
+                  json: {
+                    success: true,
+                    query: aiChatMessage,
+                    result,
+                    ...(debugMode ? { fromCache: !!cachedResult } : {}),
+                  },
+                  pairedItem: {
+                    item: itemIndex,
+                  },
+                }];
+              } else {
+                // Process and return the results
+                results = [processAIChatResponse(result, itemIndex)];
+
+                // Add cache information to the first result if in debug mode
+                if (debugMode && results.length > 0) {
+                  results[0].json.fromCache = !!cachedResult;
+                }
+              }
+
+              // Report search_completed with result count
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_completed', {
+                  operation,
+                  query: aiChatMessage,
+                  durationMs: Date.now() - startTime,
+                  resultCount: 1,
+                  fromCache: !!cachedResult,
+                });
+              }
+            }
+          } catch (error) {
+            // Create a user-friendly error message
+            const errorMessage = parseApiError(error instanceof Error ? error : new Error(String(error)), 'AI chat');
+
+            // Log detailed error if debug is enabled
+            if (debugMode) {
+              const logEntry = createLogEntry(
+                LogLevel.ERROR,
+                `AI chat error: ${errorMessage}`,
+                operation,
+                { message: aiChatMessage, model: aiModel },
+                error instanceof Error ? error : new Error(String(error))
+              );
+              console.error(JSON.stringify(logEntry));
+            }
+
+            results = [{
+              json: {
+                success: false,
+                error: errorMessage,
+                query: aiChatMessage,
+                model: aiModel,
+                ...(debugMode ? {
+                  errorDetails: error instanceof Error ? error.stack : String(error),
+                } : {}),
+              },
+              pairedItem: {
+                item: itemIndex,
+              },
+            }];
+
+            // Report search_failed telemetry
+            if (enableTelemetry) {
+              await reportEvent(this, 'search_failed', {
+                operation,
+                query: aiChatMessage,
                 durationMs: Date.now() - startTime,
                 error: errorMessage,
                 errorType: error?.constructor?.name || 'Error',

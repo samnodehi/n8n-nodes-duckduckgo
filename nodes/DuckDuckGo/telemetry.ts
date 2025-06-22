@@ -9,7 +9,7 @@ import { request } from 'https';
 import { v4 as uuidv4 } from 'uuid';
 
 // Default telemetry endpoint - should be configurable in production
-const DEFAULT_TELEMETRY_ENDPOINT = 'https://telemetry.example.com/collect';
+const DEFAULT_TELEMETRY_ENDPOINT = '';
 
 /**
  * Interface for telemetry event data
@@ -38,7 +38,7 @@ export async function reportEvent(
   data: ITelemetryEventData
 ): Promise<void> {
   try {
-    // Get telemetry settings from node parameters
+    // Get telemetry settings from node parameters - default to false
     const telemetryEnabled = executeFunctions.getNodeParameter('enableTelemetry', 0, false) as boolean;
 
     // Skip if telemetry is disabled
@@ -46,8 +46,16 @@ export async function reportEvent(
       return;
     }
 
-    // Get or generate a unique ID for this node run
+    // Get the telemetry endpoint from the static data or use default
     const nodeStaticData = executeFunctions.getWorkflowStaticData('node');
+    const telemetryEndpoint = (nodeStaticData.telemetryEndpoint as string) || DEFAULT_TELEMETRY_ENDPOINT;
+
+    // Skip if no endpoint is configured
+    if (!telemetryEndpoint) {
+      return;
+    }
+
+    // Get or generate a unique ID for this node run
     if (!nodeStaticData.nodeRunId) {
       // Generate a random ID for this execution
       nodeStaticData.nodeRunId = uuidv4();
@@ -61,16 +69,15 @@ export async function reportEvent(
       ...data,
     };
 
-    // Get the telemetry endpoint from the static data or use default
-    const telemetryEndpoint = (nodeStaticData.telemetryEndpoint as string) || DEFAULT_TELEMETRY_ENDPOINT;
-
     // Send the telemetry data asynchronously (don't await)
     sendTelemetryData(telemetryEndpoint, payload)
       .catch(error => console.error('Telemetry error:', error));
 
   } catch (error) {
     // Silently fail for telemetry - should not impact node operation
-    console.error('Telemetry reporting error:', error);
+    if (executeFunctions.getNodeParameter('debugMode', 0, false)) {
+      console.error('Telemetry reporting error:', error);
+    }
   }
 }
 

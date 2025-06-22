@@ -13,6 +13,9 @@ import {
   IDuckDuckGoImageResult,
   IDuckDuckGoNewsResult,
   IDuckDuckGoVideoResult,
+  IDuckDuckGoMapsResult,
+  IDuckDuckGoShoppingResult,
+  IDuckDuckGoAIChatResponse,
 } from './types';
 
 /**
@@ -127,6 +130,95 @@ export function processVideoSearchResults(
       item: itemIndex,
     },
   }));
+}
+
+/**
+ * Processes maps search results
+ *
+ * @param results - Maps search results to process
+ * @param itemIndex - Index of the input item
+ * @returns Processed node execution data
+ */
+export function processMapsSearchResults(
+  results: IDuckDuckGoMapsResult[],
+  itemIndex: number,
+): INodeExecutionData[] {
+  return results.map((item) => ({
+    json: {
+      title: decodeHtmlEntities(item.title),
+      address: item.address,
+      phone: item.phone,
+      hours: item.hours,
+      category: item.category,
+      rating: item.rating,
+      reviews: item.reviews,
+      url: item.url,
+      website: item.website,
+      coordinates: item.coordinates,
+      distance: item.distance,
+      sourceType: 'maps',
+    } as IDataObject,
+    pairedItem: {
+      item: itemIndex,
+    },
+  }));
+}
+
+/**
+ * Processes shopping search results
+ *
+ * @param results - Shopping search results to process
+ * @param itemIndex - Index of the input item
+ * @returns Processed node execution data
+ */
+export function processShoppingSearchResults(
+  results: IDuckDuckGoShoppingResult[],
+  itemIndex: number,
+): INodeExecutionData[] {
+  return results.map((item) => ({
+    json: {
+      title: decodeHtmlEntities(item.title),
+      price: item.price,
+      currency: item.currency,
+      store: item.store,
+      url: item.url,
+      image: item.image,
+      rating: item.rating,
+      reviews: item.reviews,
+      shipping: item.shipping,
+      condition: item.condition,
+      inStock: item.inStock,
+      sourceType: 'shopping',
+    } as IDataObject,
+    pairedItem: {
+      item: itemIndex,
+    },
+  }));
+}
+
+/**
+ * Processes AI chat response
+ *
+ * @param response - AI chat response to process
+ * @param itemIndex - Index of the input item
+ * @returns Processed node execution data
+ */
+export function processAIChatResponse(
+  response: IDuckDuckGoAIChatResponse,
+  itemIndex: number,
+): INodeExecutionData {
+  return {
+    json: {
+      message: response.message,
+      model: response.model,
+      conversationId: response.conversationId,
+      timestamp: response.timestamp,
+      sourceType: 'aiChat',
+    } as IDataObject,
+    pairedItem: {
+      item: itemIndex,
+    },
+  };
 }
 
 /**
