@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-duckduckgo-search",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Integrate DuckDuckGo search seamlessly into your n8n workflows with advanced pagination and human-like behavior. Get more results without hitting rate limits.",
   "keywords": [
     "n8n-community-node-package",
