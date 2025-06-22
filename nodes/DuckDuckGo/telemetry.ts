@@ -5,7 +5,8 @@
  */
 
 import { IExecuteFunctions, IDataObject } from 'n8n-workflow';
-import { request } from 'https';
+import { request as httpsRequest } from 'https';
+import { request as httpRequest } from 'http';
 import { v4 as uuidv4 } from 'uuid';
 
 // Default telemetry endpoint - should be configurable in production
@@ -94,7 +95,7 @@ function sendTelemetryData(endpoint: string, data: IDataObject): Promise<void> {
       const options = {
         hostname: url.hostname,
         port: url.port || (url.protocol === 'https:' ? 443 : 80),
-        path: url.pathname,
+        path: url.pathname + url.search,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -102,8 +103,11 @@ function sendTelemetryData(endpoint: string, data: IDataObject): Promise<void> {
         },
       };
 
+      // Pick HTTP or HTTPS based on protocol
+      const requestFn = url.protocol === 'https:' ? httpsRequest : httpRequest;
+
       // Send the request
-      const req = request(options, (res) => {
+      const req = requestFn(options, (res) => {
         // Get the response data
         const statusCode = res.statusCode || 500;
 
