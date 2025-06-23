@@ -1700,7 +1700,7 @@ export class DuckDuckGo implements INodeType {
               }
             }
 
-                         if (!result || (!result.Answer && !result.Abstract && !result.Definition && (!result.Results || !result.Results.length))) {
+                         if (!result || !result.results || !result.results.length) {
               // Log empty results if debug is enabled
               if (debugMode) {
                 const logEntry = createLogEntry(
