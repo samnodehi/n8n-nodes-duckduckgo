@@ -55,12 +55,19 @@ describe('DuckDuckGo Error Classes', () => {
 
     it('should convert to NodeOperationError', () => {
       const error = new DuckDuckGoError('Test error', DuckDuckGoErrorType.API_ERROR);
-      const mockNode = { name: 'DuckDuckGo' };
+      const mockNode = {
+        name: 'DuckDuckGo',
+        id: 'test-node-id',
+        typeVersion: 1,
+        type: 'n8n-nodes-duckduckgo.duckDuckGo',
+        position: [0, 0] as [number, number],
+        parameters: {}
+      };
 
       const nodeError = error.toNodeOperationError(mockNode, 0);
 
       expect(nodeError).toBeInstanceOf(NodeOperationError);
-      expect(nodeError.message).toContain('DuckDuckGo API returned an error');
+      expect(nodeError.message).toBe('DuckDuckGo API returned an error. Please try again later.');
       expect((nodeError as any).errorType).toBe(DuckDuckGoErrorType.API_ERROR);
     });
   });
@@ -194,7 +201,7 @@ describe('DuckDuckGo Error Classes', () => {
       });
 
       expect(result).toBeInstanceOf(NodeOperationError);
-      expect(result.message).toContain('Unable to connect to DuckDuckGo servers');
+      expect(result.message).toBe('Unable to connect to DuckDuckGo servers. The service might be temporarily unavailable.');
     });
 
     it('should handle rate limit errors', () => {
@@ -205,7 +212,7 @@ describe('DuckDuckGo Error Classes', () => {
       });
 
       expect(result).toBeInstanceOf(NodeOperationError);
-      expect(result.message).toContain('Too many requests');
+      expect(result.message).toBe('Too many requests sent. Please wait a moment before trying again.');
     });
 
     it('should handle validation errors', () => {

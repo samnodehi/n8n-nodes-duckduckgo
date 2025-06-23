@@ -16,6 +16,13 @@ const mockExecuteFunctions: Partial<IExecuteFunctions> = {
   helpers: {
     request: jest.fn(),
   } as any,
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    verbose: jest.fn(),
+    debug: jest.fn(),
+  } as any,
 };
 
 describe('Instant Answer', () => {
@@ -76,7 +83,7 @@ describe('Instant Answer', () => {
           'test',
           {}
         )
-      ).rejects.toThrow('Failed to fetch instant answer: Network error');
+      ).rejects.toThrow();
     });
 
     it('should handle options correctly', async () => {

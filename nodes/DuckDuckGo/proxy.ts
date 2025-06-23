@@ -27,31 +27,32 @@ export interface IProxyConfig {
  * Parse proxy URL into configuration object
  */
 export function parseProxyUrl(proxyUrl: string): IProxyConfig {
+  let url: URL;
   try {
-    const url = new URL(proxyUrl);
-
-    const protocol = url.protocol.replace(':', '') as IProxyConfig['protocol'];
-    if (!['http', 'https', 'socks4', 'socks5'].includes(protocol)) {
-      throw new Error(`Unsupported proxy protocol: ${protocol}`);
-    }
-
-    const config: IProxyConfig = {
-      protocol,
-      host: url.hostname,
-      port: parseInt(url.port) || getDefaultPort(protocol),
-    };
-
-    if (url.username && url.password) {
-      config.auth = {
-        username: decodeURIComponent(url.username),
-        password: decodeURIComponent(url.password),
-      };
-    }
-
-    return config;
+    url = new URL(proxyUrl);
   } catch (error) {
     throw new Error(`Invalid proxy URL: ${proxyUrl}. Expected format: protocol://[user:pass@]host:port`);
   }
+
+  const protocol = url.protocol.replace(':', '') as string;
+  if (!['http', 'https', 'socks4', 'socks5'].includes(protocol)) {
+    throw new Error(`Unsupported proxy protocol: ${protocol}`);
+  }
+
+  const config: IProxyConfig = {
+    protocol: protocol as IProxyConfig['protocol'],
+    host: url.hostname,
+    port: parseInt(url.port) || getDefaultPort(protocol),
+  };
+
+  if (url.username && url.password) {
+    config.auth = {
+      username: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+    };
+  }
+
+  return config;
 }
 
 /**
