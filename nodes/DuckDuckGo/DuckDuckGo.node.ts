@@ -32,6 +32,10 @@ import {
   processImageSearchResults,
   processNewsSearchResults,
   processVideoSearchResults,
+  processInstantAnswerResult,
+  processDictionaryResults,
+  processStockResult,
+  processCurrencyResult,
 } from './processors';
 
 import { DEFAULT_PARAMETERS, NODE_INFO, REGIONS } from './constants';
@@ -51,6 +55,17 @@ import {
   reportEvent,
   ITelemetryEventData
 } from './telemetry';
+
+import {
+  getInstantAnswer,
+} from './instantAnswer';
+
+import { getDictionaryDefinition } from './dictionary';
+import { getStockInfo } from './stocks';
+import { convertCurrency } from './currency';
+
+import { buildSearchQuery, validateSearchOperators, OPERATOR_INFO, ISearchOperators } from './searchOperators';
+import { paginateWithVqd, DEFAULT_PAGINATION_CONFIG } from './vqdPagination';
 
 // Add locale options constant
 const LOCALE_OPTIONS = [
@@ -154,6 +169,30 @@ export class DuckDuckGo implements INodeType {
             value: DuckDuckGoOperation.SearchVideos,
             description: 'Find videos from various sources',
             action: 'Search for videos',
+          },
+          {
+            name: 'Instant Answer',
+            value: DuckDuckGoOperation.InstantAnswer,
+            description: 'Get instant answers, definitions, and summaries',
+            action: 'Get instant answer',
+          },
+          {
+            name: 'Dictionary',
+            value: DuckDuckGoOperation.Dictionary,
+            description: 'Get word definitions, synonyms, and examples',
+            action: 'Look up dictionary',
+          },
+          {
+            name: 'Stock Quote',
+            value: DuckDuckGoOperation.Stocks,
+            description: 'Get real-time stock market information',
+            action: 'Get stock quote',
+          },
+          {
+            name: 'Currency Conversion',
+            value: DuckDuckGoOperation.Currency,
+            description: 'Convert between currencies with live exchange rates',
+            action: 'Convert currency',
           }
         ],
       },
@@ -302,6 +341,156 @@ export class DuckDuckGo implements INodeType {
             type: 'boolean',
             default: false,
             description: 'Whether to return the raw API response instead of processed results',
+          },
+          {
+            displayName: 'Use Search Operators',
+            name: 'useSearchOperators',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to enable advanced search operators',
+          },
+          {
+            displayName: 'Search Operators',
+            name: 'searchOperators',
+            type: 'collection',
+            placeholder: 'Add Search Operator',
+            default: {},
+            displayOptions: {
+              show: {
+                useSearchOperators: [true],
+              },
+            },
+            description: 'Advanced search operators to refine your search',
+            options: [
+              {
+                displayName: 'Site',
+                name: 'site',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.site.placeholder,
+                description: `${OPERATOR_INFO.site.description}. Example: ${OPERATOR_INFO.site.example}`,
+              },
+              {
+                displayName: 'File Type',
+                name: 'filetype',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.filetype.placeholder,
+                description: `${OPERATOR_INFO.filetype.description}. Example: ${OPERATOR_INFO.filetype.example}`,
+              },
+              {
+                displayName: 'In Title',
+                name: 'intitle',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.intitle.placeholder,
+                description: `${OPERATOR_INFO.intitle.description}. Example: ${OPERATOR_INFO.intitle.example}`,
+              },
+              {
+                displayName: 'In URL',
+                name: 'inurl',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.inurl.placeholder,
+                description: `${OPERATOR_INFO.inurl.description}. Example: ${OPERATOR_INFO.inurl.example}`,
+              },
+              {
+                displayName: 'In Body',
+                name: 'inbody',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.inbody.placeholder,
+                description: `${OPERATOR_INFO.inbody.description}. Example: ${OPERATOR_INFO.inbody.example}`,
+              },
+              {
+                displayName: 'Exclude Words',
+                name: 'exclude',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.exclude.placeholder,
+                description: `${OPERATOR_INFO.exclude.description}. Example: ${OPERATOR_INFO.exclude.example}`,
+              },
+              {
+                displayName: 'Exact Phrase',
+                name: 'exact',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.exact.placeholder,
+                description: `${OPERATOR_INFO.exact.description}. Example: ${OPERATOR_INFO.exact.example}`,
+              },
+              {
+                displayName: 'OR Terms',
+                name: 'or',
+                type: 'string',
+                default: '',
+                placeholder: 'term1, term2, term3',
+                description: 'Search for any of these terms (comma-separated). Example: python, javascript, typescript',
+              },
+              {
+                displayName: 'Related',
+                name: 'related',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.related.placeholder,
+                description: `${OPERATOR_INFO.related.description}. Example: ${OPERATOR_INFO.related.example}`,
+              },
+              {
+                displayName: 'Cache',
+                name: 'cache',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.cache.placeholder,
+                description: `${OPERATOR_INFO.cache.description}. Example: ${OPERATOR_INFO.cache.example}`,
+              },
+              {
+                displayName: 'Define',
+                name: 'define',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.define.placeholder,
+                description: `${OPERATOR_INFO.define.description}. Example: ${OPERATOR_INFO.define.example}`,
+              },
+              {
+                displayName: 'All In Title',
+                name: 'allintitle',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.allintitle.placeholder,
+                description: `${OPERATOR_INFO.allintitle.description}. Example: ${OPERATOR_INFO.allintitle.example}`,
+              },
+              {
+                displayName: 'All In URL',
+                name: 'allinurl',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.allinurl.placeholder,
+                description: `${OPERATOR_INFO.allinurl.description}. Example: ${OPERATOR_INFO.allinurl.example}`,
+              },
+              {
+                displayName: 'All In Text',
+                name: 'allintext',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.allintext.placeholder,
+                description: `${OPERATOR_INFO.allintext.description}. Example: ${OPERATOR_INFO.allintext.example}`,
+              },
+              {
+                displayName: 'Location',
+                name: 'location',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.location.placeholder,
+                description: `${OPERATOR_INFO.location.description}. Example: ${OPERATOR_INFO.location.example}`,
+              },
+              {
+                displayName: 'Language Code',
+                name: 'language',
+                type: 'string',
+                default: '',
+                placeholder: OPERATOR_INFO.language.placeholder,
+                description: `${OPERATOR_INFO.language.description}. Example: ${OPERATOR_INFO.language.example}`,
+              },
+            ],
           },
         ],
       },
@@ -625,6 +814,177 @@ export class DuckDuckGo implements INodeType {
         ],
       },
 
+      // ----------------------------------------
+      // Instant Answer Operation Parameters
+      // ----------------------------------------
+      {
+        displayName: 'Instant Answer Query',
+        name: 'instantAnswerQuery',
+        type: 'string',
+        required: true,
+        default: '',
+        description: 'The query to get instant answer for',
+        placeholder: 'Enter your question or search term',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.InstantAnswer,
+            ],
+          },
+        },
+        typeOptions: {
+          minLength: 1,
+        },
+      },
+
+      // Instant Answer Configuration
+      {
+        displayName: 'Instant Answer Options',
+        name: 'instantAnswerOptions',
+        type: 'collection',
+        placeholder: 'Add Option',
+        default: {},
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.InstantAnswer,
+            ],
+          },
+        },
+        options: [
+          {
+            displayName: 'No Redirect',
+            name: 'noRedirect',
+            type: 'boolean',
+            default: true,
+            description: 'Whether to skip redirects to external sources',
+          },
+          {
+            displayName: 'No HTML',
+            name: 'noHtml',
+            type: 'boolean',
+            default: true,
+            description: 'Whether to return plain text instead of HTML formatted content',
+          },
+          {
+            displayName: 'Skip Disambiguation',
+            name: 'skipDisambig',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to skip disambiguation pages',
+          },
+        ],
+      },
+
+      // ----------------------------------------
+      // Dictionary Operation Parameters
+      // ----------------------------------------
+      {
+        displayName: 'Word',
+        name: 'dictionaryWord',
+        type: 'string',
+        required: true,
+        default: '',
+        description: 'The word to look up in the dictionary',
+        placeholder: 'Enter a word',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.Dictionary,
+            ],
+          },
+        },
+        typeOptions: {
+          minLength: 1,
+        },
+      },
+
+      // ----------------------------------------
+      // Stock Operation Parameters
+      // ----------------------------------------
+      {
+        displayName: 'Stock Symbol',
+        name: 'stockSymbol',
+        type: 'string',
+        required: true,
+        default: '',
+        description: 'The stock ticker symbol to get information for',
+        placeholder: 'e.g. AAPL, GOOGL, TSLA',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.Stocks,
+            ],
+          },
+        },
+        typeOptions: {
+          minLength: 1,
+        },
+      },
+
+      // ----------------------------------------
+      // Currency Operation Parameters
+      // ----------------------------------------
+      {
+        displayName: 'From Currency',
+        name: 'currencyFrom',
+        type: 'string',
+        required: true,
+        default: 'USD',
+        description: 'The currency code to convert from',
+        placeholder: 'e.g. USD, EUR, GBP',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.Currency,
+            ],
+          },
+        },
+        typeOptions: {
+          minLength: 3,
+          maxLength: 3,
+        },
+      },
+      {
+        displayName: 'To Currency',
+        name: 'currencyTo',
+        type: 'string',
+        required: true,
+        default: 'EUR',
+        description: 'The currency code to convert to',
+        placeholder: 'e.g. USD, EUR, GBP',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.Currency,
+            ],
+          },
+        },
+        typeOptions: {
+          minLength: 3,
+          maxLength: 3,
+        },
+      },
+      {
+        displayName: 'Amount',
+        name: 'currencyAmount',
+        type: 'number',
+        required: true,
+        default: 1,
+        description: 'The amount to convert',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.Currency,
+            ],
+          },
+        },
+        typeOptions: {
+          minValue: 0,
+          numberPrecision: 2,
+        },
+      },
+
       // Common Options for all operations
       {
         displayName: 'Error Handling',
@@ -693,6 +1053,275 @@ export class DuckDuckGo implements INodeType {
         default: false,
         description: 'Whether to send anonymous usage data to help improve the node (no personal data is collected)',
       },
+
+      // Proxy Settings
+      {
+        displayName: 'Proxy Settings',
+        name: 'proxySettings',
+        type: 'collection',
+        placeholder: 'Add Proxy Setting',
+        default: {},
+        description: 'Configure proxy for all requests',
+        options: [
+          {
+            displayName: 'Use Proxy',
+            name: 'useProxy',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to use a proxy for requests',
+          },
+          {
+            displayName: 'Proxy Type',
+            name: 'proxyType',
+            type: 'options',
+            default: 'http',
+            description: 'Type of proxy to use',
+            options: [
+              {
+                name: 'HTTP',
+                value: 'http',
+              },
+              {
+                name: 'HTTPS',
+                value: 'https',
+              },
+              {
+                name: 'SOCKS4',
+                value: 'socks4',
+              },
+              {
+                name: 'SOCKS5',
+                value: 'socks5',
+              },
+            ],
+            displayOptions: {
+              show: {
+                useProxy: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Proxy Host',
+            name: 'proxyHost',
+            type: 'string',
+            default: '',
+            placeholder: 'proxy.example.com',
+            description: 'Hostname or IP address of the proxy server',
+            displayOptions: {
+              show: {
+                useProxy: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Proxy Port',
+            name: 'proxyPort',
+            type: 'number',
+            default: 8080,
+            description: 'Port number of the proxy server',
+            typeOptions: {
+              minValue: 1,
+              maxValue: 65535,
+            },
+            displayOptions: {
+              show: {
+                useProxy: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Proxy Authentication',
+            name: 'proxyAuth',
+            type: 'boolean',
+            default: false,
+            description: 'Whether the proxy requires authentication',
+            displayOptions: {
+              show: {
+                useProxy: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Proxy Username',
+            name: 'proxyUsername',
+            type: 'string',
+            default: '',
+            description: 'Username for proxy authentication',
+            displayOptions: {
+              show: {
+                useProxy: [true],
+                proxyAuth: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Proxy Password',
+            name: 'proxyPassword',
+            type: 'string',
+            typeOptions: {
+              password: true,
+            },
+            default: '',
+            description: 'Password for proxy authentication',
+            displayOptions: {
+              show: {
+                useProxy: [true],
+                proxyAuth: [true],
+              },
+            },
+          },
+        ],
+      },
+
+      // Search Filter Settings
+      {
+        displayName: 'Search Filters',
+        name: 'searchFilters',
+        type: 'collection',
+        placeholder: 'Add Filter',
+        default: {},
+        description: 'Advanced search filters for more precise results',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.Search,
+            ],
+          },
+        },
+        options: [
+          {
+            displayName: 'Region Filter',
+            name: 'useRegionFilter',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to filter results by region',
+          },
+          {
+            displayName: 'Region',
+            name: 'region',
+            type: 'options',
+            default: 'wt-wt',
+            description: 'Region to filter results',
+            options: [
+              { name: 'No Region', value: 'wt-wt' },
+              { name: 'United States', value: 'us-en' },
+              { name: 'United Kingdom', value: 'uk-en' },
+              { name: 'Canada', value: 'ca-en' },
+              { name: 'Australia', value: 'au-en' },
+              { name: 'Germany', value: 'de-de' },
+              { name: 'France', value: 'fr-fr' },
+              { name: 'Spain', value: 'es-es' },
+              { name: 'Italy', value: 'it-it' },
+              { name: 'Netherlands', value: 'nl-nl' },
+              { name: 'Brazil', value: 'br-pt' },
+              { name: 'Mexico', value: 'mx-es' },
+              { name: 'Russia', value: 'ru-ru' },
+              { name: 'Japan', value: 'jp-jp' },
+              { name: 'China', value: 'cn-zh' },
+              { name: 'India', value: 'in-en' },
+              { name: 'South Korea', value: 'kr-kr' },
+              { name: 'Turkey', value: 'tr-tr' },
+              { name: 'Saudi Arabia', value: 'sa-ar' },
+              { name: 'United Arab Emirates', value: 'ae-ar' },
+            ],
+            displayOptions: {
+              show: {
+                useRegionFilter: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Language Filter',
+            name: 'useLanguageFilter',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to filter results by language',
+          },
+          {
+            displayName: 'Language',
+            name: 'language',
+            type: 'options',
+            default: '',
+            description: 'Language to filter results',
+            options: [
+              { name: 'All Languages', value: '' },
+              { name: 'English', value: 'en' },
+              { name: 'Spanish', value: 'es' },
+              { name: 'French', value: 'fr' },
+              { name: 'German', value: 'de' },
+              { name: 'Italian', value: 'it' },
+              { name: 'Portuguese', value: 'pt' },
+              { name: 'Dutch', value: 'nl' },
+              { name: 'Russian', value: 'ru' },
+              { name: 'Japanese', value: 'ja' },
+              { name: 'Korean', value: 'ko' },
+              { name: 'Chinese', value: 'zh' },
+              { name: 'Arabic', value: 'ar' },
+              { name: 'Hindi', value: 'hi' },
+              { name: 'Turkish', value: 'tr' },
+            ],
+            displayOptions: {
+              show: {
+                useLanguageFilter: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Date Filter',
+            name: 'useDateFilter',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to filter results by date',
+          },
+          {
+            displayName: 'Date Range',
+            name: 'dateRangeType',
+            type: 'options',
+            default: 'month',
+            description: 'Time period for results',
+            options: [
+              { name: 'Last Day', value: 'day' },
+              { name: 'Last Week', value: 'week' },
+              { name: 'Last Month', value: 'month' },
+              { name: 'Last Year', value: 'year' },
+              { name: 'Custom Range', value: 'custom' },
+            ],
+            displayOptions: {
+              show: {
+                useDateFilter: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Date From',
+            name: 'dateFrom',
+            type: 'string',
+            default: '',
+            placeholder: 'YYYY-MM-DD',
+            description: 'Start date for custom range',
+            displayOptions: {
+              show: {
+                useDateFilter: [true],
+                dateRangeType: ['custom'],
+              },
+            },
+          },
+          {
+            displayName: 'Date To',
+            name: 'dateTo',
+            type: 'string',
+            default: '',
+            placeholder: 'YYYY-MM-DD',
+            description: 'End date for custom range',
+            displayOptions: {
+              show: {
+                useDateFilter: [true],
+                dateRangeType: ['custom'],
+              },
+            },
+          },
+        ],
+      },
     ],
   };
 
@@ -710,118 +1339,90 @@ export class DuckDuckGo implements INodeType {
       timePeriod?: string;
     },
   ): Promise<Array<any>> {
+    const debugMode = this.getNodeParameter('debugMode', 0, false) as boolean;
 
-    const { parseHtmlResults } = await import('./htmlParser');
-
-    const pageSizeJson = 10; // JSON API usually returns about 10 results
-    const pageSizeHtml = 10; // HTML also has about 10 results per page
-    const results: any[] = [];
-
-    let vqd: string | undefined;
-    let hasMoreJson = true;
-    let hasMoreHtml = true;
-    let offsetHtml = 0;
-    let pageJson = 0;
-
-    // First step: Try to get results from JSON API
-    try {
-      const baseOpts: any = {
+    // Use the enhanced VQD pagination
+    const paginationResult = await paginateWithVqd(
+      query,
+      {
         safeSearch: options.safeSearch,
         locale: options.locale,
-        api: '/d.js',
-        o: 'json',
-        v: 'l',
-      };
-      if (options.timePeriod) {
-        baseOpts.timePeriod = options.timePeriod;
+        timePeriod: options.timePeriod,
+      } as any,
+      {
+        maxResults: options.maxResults,
+        pageSize: DEFAULT_PAGINATION_CONFIG.pageSize,
+        maxPages: Math.min(DEFAULT_PAGINATION_CONFIG.maxPages, Math.ceil(options.maxResults / DEFAULT_PAGINATION_CONFIG.pageSize)),
+        delayBetweenRequests: DEFAULT_PAGINATION_CONFIG.delayBetweenRequests,
+        debugMode,
       }
+    );
 
-      const first = await search(query, baseOpts);
-      if (first.results?.length) {
-        results.push(...first.results);
-      }
-      vqd = first.vqd;
+    // If VQD pagination didn't get enough results and we still need more, try HTML fallback
+    if (paginationResult.results.length < options.maxResults && paginationResult.totalFetched < options.maxResults) {
+      const { parseHtmlResults } = await import('./htmlParser');
+      const remainingNeeded = options.maxResults - paginationResult.results.length;
+      const htmlResults: any[] = [];
+      let offsetHtml = 0;
+      let hasMoreHtml = true;
+      const pageSizeHtml = 10;
 
-      await sleep(300); // delay
-    } catch (error) {
-      hasMoreJson = false;
-    }
+      // Try to get remaining results from HTML
+      while (htmlResults.length < remainingNeeded && hasMoreHtml) {
+        const htmlUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}&s=${offsetHtml}`;
 
-    // Continue JSON pages until vqd and next pages exist
-    while (results.length < options.maxResults && hasMoreJson && vqd) {
-      pageJson++;
-      if (pageJson > 5) break; // Maximum 5 pages (logical limit)
+        try {
+          const html = await this.helpers.httpRequest({
+            url: htmlUrl,
+            method: 'GET',
+            headers: {
+              'User-Agent': getRandomUserAgent(),
+            },
+          });
+          const page = parseHtmlResults(html);
 
-      const opts = {
-        safeSearch: options.safeSearch,
-        locale: options.locale,
-        api: '/d.js',
-        o: 'json',
-        v: 'l',
-        s: (pageJson * pageSizeJson).toString(),
-        dc: ((pageJson * pageSizeJson) + 1).toString(),
-        vqd,
-      };
+          if (!page.length) {
+            hasMoreHtml = false;
+            break;
+          }
 
-      try {
-        const nextPage = await search(query, opts);
-        if (!nextPage.results?.length) {
-          hasMoreJson = false;
-          break;
-        }
-        results.push(...nextPage.results);
-      } catch (error) {
-        hasMoreJson = false;
-        break;
-      }
+          const convertedResults = page.map(item => ({
+            title: item.title,
+            url: item.url,
+            description: item.snippet,
+            rawDescription: item.snippet,
+            hostname: new URL(item.url).hostname,
+            icon: '', // HTML results don't have icons
+          }));
 
-      await sleep(300); // delay
-    }
+          htmlResults.push(...convertedResults);
+          if (page.length < pageSizeHtml) {
+            hasMoreHtml = false;
+          }
 
-    // If still not enough results: go to HTML scraping
-    while (results.length < options.maxResults && hasMoreHtml) {
-      const htmlUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}&s=${offsetHtml}`;
-
-      try {
-        const html = await this.helpers.httpRequest({
-          url: htmlUrl,
-          method: 'GET',
-          headers: {
-            'User-Agent': getRandomUserAgent(),
-          },
-        });
-        const page = parseHtmlResults(html);
-
-        if (!page.length) {
+          offsetHtml += pageSizeHtml;
+        } catch (error) {
           hasMoreHtml = false;
+          if (debugMode) {
+            const logEntry = createLogEntry(
+              LogLevel.ERROR,
+              `HTML fallback error: ${error.message}`,
+              'webSearchWithSuperPagination',
+              { query, error: error.message }
+            );
+            console.error(JSON.stringify(logEntry));
+          }
           break;
         }
 
-        const convertedResults = page.map(item => ({
-          title: item.title,
-          url: item.url,
-          description: item.snippet,
-          rawDescription: item.snippet,
-          hostname: new URL(item.url).hostname,
-          icon: '', // HTML results don't have icons
-        }));
-
-        results.push(...convertedResults);
-        if (page.length < pageSizeHtml) {
-          hasMoreHtml = false;
-        }
-
-        offsetHtml += pageSizeHtml;
-      } catch (error) {
-        hasMoreHtml = false;
-        break;
+        await sleep(DEFAULT_PAGINATION_CONFIG.delayBetweenRequests);
       }
 
-      await sleep(300); // delay
+      // Combine VQD results with HTML results
+      return [...paginationResult.results, ...htmlResults].slice(0, options.maxResults);
     }
 
-    // In the end, return only the requested number of results
-    return results.slice(0, options.maxResults);
+    return paginationResult.results;
   }
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -876,7 +1477,42 @@ export class DuckDuckGo implements INodeType {
             safeSearch?: number;
             timePeriod?: string;
             returnRawResults?: boolean;
+            useSearchOperators?: boolean;
+            searchOperators?: ISearchOperators;
           };
+
+          // Process search operators if enabled
+          let enhancedQuery = query;
+          if (options.useSearchOperators && options.searchOperators) {
+            // Convert OR string to array if needed
+            const operators = { ...options.searchOperators };
+            if (operators.or && typeof operators.or === 'string') {
+              operators.or = (operators.or as string).split(',').map(term => term.trim()).filter(term => term);
+            }
+
+            // Validate search operators
+            const validationErrors = validateSearchOperators(operators);
+            if (validationErrors.length > 0) {
+              throw new NodeOperationError(
+                this.getNode(),
+                `Invalid search operators: ${validationErrors.join('; ')}`
+              );
+            }
+
+            // Build enhanced query with operators
+            enhancedQuery = buildSearchQuery(query, operators);
+
+            // Log enhanced query if debug is enabled
+            if (debugMode) {
+              const logEntry = createLogEntry(
+                LogLevel.INFO,
+                `Enhanced search query with operators: ${enhancedQuery}`,
+                operation,
+                { originalQuery: query, enhancedQuery, operators }
+              );
+              console.log(JSON.stringify(logEntry));
+            }
+          }
 
 					const maxResults = options.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
 
@@ -898,7 +1534,7 @@ export class DuckDuckGo implements INodeType {
           // Create a cache key based on operation and parameters
           const cacheKey = JSON.stringify({
             operation,
-            query,
+            query: enhancedQuery,
             options: searchOptions,
           });
 
@@ -908,7 +1544,7 @@ export class DuckDuckGo implements INodeType {
           // Report search_started telemetry event
           const telemetryData: ITelemetryEventData = {
             operation,
-            query,
+            query: enhancedQuery,
             searchOptions,
           };
           if (enableTelemetry) {
@@ -925,9 +1561,9 @@ export class DuckDuckGo implements INodeType {
               if (debugMode) {
                 const logEntry = createLogEntry(
                   LogLevel.INFO,
-                  `Cache hit for web search: ${query}`,
+                  `Cache hit for web search: ${enhancedQuery}`,
                   operation,
-                  { query, options: searchOptions, cacheKey }
+                  { query: enhancedQuery, options: searchOptions, cacheKey }
                 );
                 console.log(JSON.stringify(logEntry));
               }
@@ -943,15 +1579,15 @@ export class DuckDuckGo implements INodeType {
               if (debugMode) {
                 const logEntry = createLogEntry(
                   LogLevel.INFO,
-                  `Executing web search for: ${query}`,
+                  `Executing web search for: ${enhancedQuery}`,
                   operation,
-                  { query, options: searchOptions, cacheEnabled: enableCache }
+                  { query: enhancedQuery, options: searchOptions, cacheEnabled: enableCache }
                 );
                 console.log(JSON.stringify(logEntry));
               }
 
               // Execute primary search
-              result = await search(query, searchOptions);
+              result = await search(enhancedQuery, searchOptions);
 
               // For maxResults > 10, we need to use our enhanced method
               if (maxResults > DEFAULT_PARAMETERS.MAX_RESULTS && result.results && result.results.length > 0) {
@@ -959,7 +1595,7 @@ export class DuckDuckGo implements INodeType {
                   // Use the webSearchWithSuperPagination method for better pagination
                   const rawResults = await (this as unknown as DuckDuckGo).webSearchWithSuperPagination.call(
                     this,
-                    query,
+                    enhancedQuery,
                     {
                       maxResults: maxResults,
                       safeSearch: options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH,
@@ -977,7 +1613,7 @@ export class DuckDuckGo implements INodeType {
                       LogLevel.ERROR,
                       `Enhanced pagination error: ${fallbackError.message}. Falling back to standard pagination.`,
                       operation,
-                      { query, options: searchOptions }
+                      { query: enhancedQuery, options: searchOptions }
                     );
                     console.error(JSON.stringify(logEntry));
                   }
@@ -995,9 +1631,9 @@ export class DuckDuckGo implements INodeType {
                     if (debugMode) {
                       const logEntry = createLogEntry(
                         LogLevel.INFO,
-                        `Fetching additional results (page ${page}) for: ${query}`,
+                        `Fetching additional results (page ${page}) for: ${enhancedQuery}`,
                         operation,
-                        { query, options: searchOptions, page }
+                        { query: enhancedQuery, options: searchOptions, page }
                       );
                       console.log(JSON.stringify(logEntry));
                     }
@@ -1016,7 +1652,7 @@ export class DuckDuckGo implements INodeType {
                           vqd: result.vqd,
                         };
 
-                        const nextPageResult = await search(query, nextPageOptions);
+                        const nextPageResult = await search(enhancedQuery, nextPageOptions);
 
                         if (nextPageResult.results && nextPageResult.results.length > 0) {
                           allResults.push(...nextPageResult.results);
@@ -1032,7 +1668,7 @@ export class DuckDuckGo implements INodeType {
                           LogLevel.ERROR,
                           `Error fetching additional results: ${pageError.message}`,
                           operation,
-                          { query, options: searchOptions, page }
+                          { query: enhancedQuery, options: searchOptions, page }
                         );
                         console.error(JSON.stringify(logEntry));
                       }
@@ -1055,23 +1691,23 @@ export class DuckDuckGo implements INodeType {
                 if (debugMode) {
                   const logEntry = createLogEntry(
                     LogLevel.INFO,
-                    `Cached web search result for: ${query}`,
+                    `Cached web search result for: ${enhancedQuery}`,
                     operation,
-                    { query, options: searchOptions, cacheTTL, cacheKey }
+                    { query: enhancedQuery, options: searchOptions, cacheTTL, cacheKey }
                   );
                   console.log(JSON.stringify(logEntry));
                 }
               }
             }
 
-            if (!result || !result.results || !result.results.length) {
+                         if (!result || (!result.Answer && !result.Abstract && !result.Definition && (!result.Results || !result.Results.length))) {
               // Log empty results if debug is enabled
               if (debugMode) {
                 const logEntry = createLogEntry(
                   LogLevel.INFO,
-                  `No results found for web search query: ${query}`,
+                  `No results found for web search query: ${enhancedQuery}`,
                   operation,
-                  { query, options: searchOptions }
+                  { query: enhancedQuery, options: searchOptions }
                 );
                 console.log(JSON.stringify(logEntry));
               }
@@ -1079,7 +1715,7 @@ export class DuckDuckGo implements INodeType {
               results = [{
                 json: {
                   success: true,
-                  query,
+                  query: enhancedQuery,
                   count: 0,
                   results: [],
                   ...(debugMode ? { requestOptions: searchOptions, fromCache: result !== undefined } : {}),
@@ -1093,7 +1729,7 @@ export class DuckDuckGo implements INodeType {
               if (enableTelemetry) {
                 await reportEvent(this, 'search_completed', {
                   operation,
-                  query,
+                  query: enhancedQuery,
                   durationMs: Date.now() - startTime,
                   resultCount: 0,
                   fromCache: !!result,
@@ -1105,7 +1741,7 @@ export class DuckDuckGo implements INodeType {
                 results = [{
                   json: {
                     success: true,
-                    query,
+                    query: enhancedQuery,
                     result,
                     ...(debugMode ? { requestOptions: searchOptions, fromCache: result !== undefined } : {}),
                   },
@@ -1129,7 +1765,7 @@ export class DuckDuckGo implements INodeType {
               if (enableTelemetry) {
                 await reportEvent(this, 'search_completed', {
                   operation,
-                  query,
+                  query: enhancedQuery,
                   durationMs: Date.now() - startTime,
                   resultCount,
                   fromCache: result !== undefined && !result.fromCache,
@@ -1146,7 +1782,7 @@ export class DuckDuckGo implements INodeType {
                 LogLevel.ERROR,
                 `Web search error: ${errorMessage}`,
                 operation,
-                { query, options: searchOptions },
+                { query: enhancedQuery, options: searchOptions },
                 error instanceof Error ? error : new Error(String(error))
               );
               console.error(JSON.stringify(logEntry));
@@ -1156,7 +1792,7 @@ export class DuckDuckGo implements INodeType {
               json: {
                 success: false,
                 error: errorMessage,
-                query,
+                query: enhancedQuery,
                 ...(debugMode ? {
                   errorDetails: error instanceof Error ? error.stack : String(error),
                   requestOptions: searchOptions,
@@ -1171,7 +1807,7 @@ export class DuckDuckGo implements INodeType {
             if (enableTelemetry) {
               await reportEvent(this, 'search_failed', {
                 operation,
-                query,
+                query: enhancedQuery,
                 durationMs: Date.now() - startTime,
                 error: errorMessage,
                 errorType: error?.constructor?.name || 'Error',
@@ -2069,6 +2705,409 @@ export class DuckDuckGo implements INodeType {
                 durationMs: Date.now() - startTime,
                 error: errorMessage,
                 errorType: error?.constructor?.name || 'Error',
+              });
+            }
+          }
+        }
+                 else if (operation === DuckDuckGoOperation.InstantAnswer) {
+           // Get instant answer specific parameters
+           const instantAnswerQuery = this.getNodeParameter('instantAnswerQuery', itemIndex) as string;
+           const instantAnswerOptions = this.getNodeParameter('instantAnswerOptions', itemIndex, {}) as {
+             noRedirect?: boolean;
+             noHtml?: boolean;
+             skipDisambig?: boolean;
+           };
+
+          // Set up search options with defaults for any missing values
+          const searchOptions = {
+            locale: globalLocale,
+          } as SearchOptions;
+
+          // Create a cache key based on operation and parameters
+          const cacheKey = JSON.stringify({
+            operation,
+            query: instantAnswerQuery,
+            options: searchOptions,
+          });
+
+          // Track operation start time for telemetry
+          const startTime = Date.now();
+
+          // Report search_started telemetry event
+          const telemetryData: ITelemetryEventData = {
+            operation,
+            query: instantAnswerQuery,
+            searchOptions,
+          };
+          if (enableTelemetry) {
+            await reportEvent(this, 'search_started', telemetryData);
+          }
+
+          // Try to get cached result if cache is enabled
+          let result;
+          if (enableCache) {
+            const cachedResult = getCached<any>(cacheKey);
+
+            if (cachedResult) {
+              // Log cache hit if debug is enabled
+              if (debugMode) {
+                const logEntry = createLogEntry(
+                  LogLevel.INFO,
+                  `Cache hit for instant answer: ${instantAnswerQuery}`,
+                  operation,
+                  { query: instantAnswerQuery, options: searchOptions, cacheKey }
+                );
+                console.log(JSON.stringify(logEntry));
+              }
+
+              result = cachedResult;
+            }
+          }
+
+          try {
+            // If result is not in cache, execute the search
+            if (!result) {
+              // Log request attempt if debug is enabled
+              if (debugMode) {
+                const logEntry = createLogEntry(
+                  LogLevel.INFO,
+                  `Executing instant answer for: ${instantAnswerQuery}`,
+                  operation,
+                  { query: instantAnswerQuery, options: searchOptions, cacheEnabled: enableCache }
+                );
+                console.log(JSON.stringify(logEntry));
+              }
+
+                             // Execute instant answer
+               result = await getInstantAnswer.call(this, instantAnswerQuery, instantAnswerOptions);
+
+              // Cache the result if cache is enabled
+              if (enableCache && result) {
+                setCache(cacheKey, result, cacheTTL);
+
+                // Log cache store if debug is enabled
+                if (debugMode) {
+                  const logEntry = createLogEntry(
+                    LogLevel.INFO,
+                    `Cached instant answer result for: ${instantAnswerQuery}`,
+                    operation,
+                    { query: instantAnswerQuery, options: searchOptions, cacheTTL, cacheKey }
+                  );
+                  console.log(JSON.stringify(logEntry));
+                }
+              }
+            }
+
+            if (!result || !result.results || !result.results.length) {
+              // Log empty results if debug is enabled
+              if (debugMode) {
+                const logEntry = createLogEntry(
+                  LogLevel.INFO,
+                  `No results found for instant answer query: ${instantAnswerQuery}`,
+                  operation,
+                  { query: instantAnswerQuery, options: searchOptions }
+                );
+                console.log(JSON.stringify(logEntry));
+              }
+
+              results = [{
+                json: {
+                  success: true,
+                  query: instantAnswerQuery,
+                  count: 0,
+                  results: [],
+                  ...(debugMode ? { requestOptions: searchOptions, fromCache: result !== undefined } : {}),
+                },
+                pairedItem: {
+                  item: itemIndex,
+                },
+              }];
+
+              // Report search_completed with zero results
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_completed', {
+                  operation,
+                  query: instantAnswerQuery,
+                  durationMs: Date.now() - startTime,
+                  resultCount: 0,
+                  fromCache: !!result,
+                });
+              }
+            } else {
+              // Return raw results if requested
+              if (debugMode) {
+                results = [{
+                  json: {
+                    success: true,
+                    query: instantAnswerQuery,
+                    result,
+                    ...(debugMode ? { requestOptions: searchOptions, fromCache: result !== undefined } : {}),
+                  },
+                  pairedItem: {
+                    item: itemIndex,
+                  },
+                }];
+              } else {
+                // Process and return the results
+                results = [processInstantAnswerResult(result, itemIndex)];
+              }
+
+              // Report search_completed with result count
+              const resultCount = Array.isArray(result.results) ? result.results.length : 0;
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_completed', {
+                  operation,
+                  query: instantAnswerQuery,
+                  durationMs: Date.now() - startTime,
+                  resultCount,
+                  fromCache: result !== undefined && !result.fromCache,
+                });
+              }
+            }
+          } catch (error) {
+            // Create a user-friendly error message
+            const errorMessage = parseApiError(error instanceof Error ? error : new Error(String(error)), 'instant answer');
+
+            // Log detailed error if debug is enabled
+            if (debugMode) {
+              const logEntry = createLogEntry(
+                LogLevel.ERROR,
+                `Instant answer error: ${errorMessage}`,
+                operation,
+                { query: instantAnswerQuery, options: searchOptions },
+                error instanceof Error ? error : new Error(String(error))
+              );
+              console.error(JSON.stringify(logEntry));
+            }
+
+            results = [{
+              json: {
+                success: false,
+                error: errorMessage,
+                query: instantAnswerQuery,
+                ...(debugMode ? {
+                  errorDetails: error instanceof Error ? error.stack : String(error),
+                  requestOptions: searchOptions,
+                } : {}),
+              },
+              pairedItem: {
+                item: itemIndex,
+              },
+            }];
+
+            // Report search_failed telemetry
+            if (enableTelemetry) {
+              await reportEvent(this, 'search_failed', {
+                operation,
+                query: instantAnswerQuery,
+                durationMs: Date.now() - startTime,
+                error: errorMessage,
+                errorType: error?.constructor?.name || 'Error',
+              });
+            }
+          }
+        }
+        else if (operation === DuckDuckGoOperation.Dictionary) {
+          // Get dictionary specific parameters
+          const word = this.getNodeParameter('dictionaryWord', itemIndex) as string;
+
+          // Track operation start time for telemetry
+          const startTime = Date.now();
+
+          // Report operation started telemetry event
+          if (enableTelemetry) {
+            await reportEvent(this, 'dictionary_started', {
+              operation,
+              word,
+            });
+          }
+
+          try {
+            // Execute dictionary lookup
+            const dictionaryResults = await getDictionaryDefinition(word, this, itemIndex);
+
+            if (!dictionaryResults || dictionaryResults.length === 0) {
+              results = [{
+                json: {
+                  success: true,
+                  word,
+                  count: 0,
+                  definitions: [],
+                  sourceType: 'dictionary',
+                },
+                pairedItem: {
+                  item: itemIndex,
+                },
+              }];
+            } else {
+              // Process and return the results
+              results = processDictionaryResults(dictionaryResults, itemIndex);
+            }
+
+            // Report operation completed
+            if (enableTelemetry) {
+              await reportEvent(this, 'dictionary_completed', {
+                operation,
+                word,
+                durationMs: Date.now() - startTime,
+                resultCount: dictionaryResults.length,
+              });
+            }
+          } catch (error) {
+            const errorMessage = parseApiError(error instanceof Error ? error : new Error(String(error)), 'dictionary lookup');
+
+            results = [{
+              json: {
+                success: false,
+                error: errorMessage,
+                word,
+                sourceType: 'dictionary',
+                ...(debugMode ? {
+                  errorDetails: error instanceof Error ? error.stack : String(error),
+                } : {}),
+              },
+              pairedItem: {
+                item: itemIndex,
+              },
+            }];
+
+            // Report operation failed
+            if (enableTelemetry) {
+              await reportEvent(this, 'dictionary_failed', {
+                operation,
+                word,
+                durationMs: Date.now() - startTime,
+                error: errorMessage,
+              });
+            }
+          }
+        }
+        else if (operation === DuckDuckGoOperation.Stocks) {
+          // Get stock specific parameters
+          const symbol = this.getNodeParameter('stockSymbol', itemIndex) as string;
+
+          // Track operation start time for telemetry
+          const startTime = Date.now();
+
+          // Report operation started telemetry event
+          if (enableTelemetry) {
+            await reportEvent(this, 'stock_started', {
+              operation,
+              symbol,
+            });
+          }
+
+          try {
+            // Execute stock lookup
+            const stockResult = await getStockInfo(symbol, this, itemIndex);
+
+            // Process and return the result
+            results = [processStockResult(stockResult, itemIndex)];
+
+            // Report operation completed
+            if (enableTelemetry) {
+              await reportEvent(this, 'stock_completed', {
+                operation,
+                symbol,
+                durationMs: Date.now() - startTime,
+                hasData: !!stockResult.price,
+              });
+            }
+          } catch (error) {
+            const errorMessage = parseApiError(error instanceof Error ? error : new Error(String(error)), 'stock lookup');
+
+            results = [{
+              json: {
+                success: false,
+                error: errorMessage,
+                symbol,
+                sourceType: 'stock',
+                ...(debugMode ? {
+                  errorDetails: error instanceof Error ? error.stack : String(error),
+                } : {}),
+              },
+              pairedItem: {
+                item: itemIndex,
+              },
+            }];
+
+            // Report operation failed
+            if (enableTelemetry) {
+              await reportEvent(this, 'stock_failed', {
+                operation,
+                symbol,
+                durationMs: Date.now() - startTime,
+                error: errorMessage,
+              });
+            }
+          }
+        }
+        else if (operation === DuckDuckGoOperation.Currency) {
+          // Get currency specific parameters
+          const from = this.getNodeParameter('currencyFrom', itemIndex) as string;
+          const to = this.getNodeParameter('currencyTo', itemIndex) as string;
+          const amount = this.getNodeParameter('currencyAmount', itemIndex) as number;
+
+          // Track operation start time for telemetry
+          const startTime = Date.now();
+
+          // Report operation started telemetry event
+          if (enableTelemetry) {
+            await reportEvent(this, 'currency_started', {
+              operation,
+              from,
+              to,
+              amount,
+            });
+          }
+
+          try {
+            // Execute currency conversion
+            const currencyResult = await convertCurrency(from, to, amount, this, itemIndex);
+
+            // Process and return the result
+            results = [processCurrencyResult(currencyResult, itemIndex)];
+
+            // Report operation completed
+            if (enableTelemetry) {
+              await reportEvent(this, 'currency_completed', {
+                operation,
+                from,
+                to,
+                amount,
+                durationMs: Date.now() - startTime,
+                hasData: !!currencyResult.convertedAmount,
+              });
+            }
+          } catch (error) {
+            const errorMessage = parseApiError(error instanceof Error ? error : new Error(String(error)), 'currency conversion');
+
+            results = [{
+              json: {
+                success: false,
+                error: errorMessage,
+                from,
+                to,
+                amount,
+                sourceType: 'currency',
+                ...(debugMode ? {
+                  errorDetails: error instanceof Error ? error.stack : String(error),
+                } : {}),
+              },
+              pairedItem: {
+                item: itemIndex,
+              },
+            }];
+
+            // Report operation failed
+            if (enableTelemetry) {
+              await reportEvent(this, 'currency_failed', {
+                operation,
+                from,
+                to,
+                amount,
+                durationMs: Date.now() - startTime,
+                error: errorMessage,
               });
             }
           }

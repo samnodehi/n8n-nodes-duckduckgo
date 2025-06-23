@@ -23,6 +23,10 @@ export enum DuckDuckGoOperation {
   SearchImages = 'searchImages',
   SearchNews = 'searchNews',
   SearchVideos = 'searchVideos',
+  InstantAnswer = 'instantAnswer',
+  Dictionary = 'dictionary',
+  Stocks = 'stocks',
+  Currency = 'currency',
 }
 
 /**
@@ -104,6 +108,44 @@ export interface IDuckDuckGoVideoResult {
 }
 
 /**
+ * Instant Answer API response interface
+ */
+export interface IDuckDuckGoInstantAnswer {
+  Abstract?: string | null;
+  AbstractText?: string | null;
+  AbstractSource?: string | null;
+  AbstractURL?: string | null;
+  Image?: string | null;
+  Heading?: string | null;
+  Answer?: string | null;
+  AnswerType?: string | null;
+  Definition?: string | null;
+  DefinitionSource?: string | null;
+  DefinitionURL?: string | null;
+  RelatedTopics?: Array<{
+    Result?: string | null;
+    FirstURL?: string | null;
+    Icon?: {
+      URL?: string | null;
+      Height?: number | null;
+      Width?: number | null;
+    } | null;
+    Text?: string | null;
+  }> | null;
+  Results?: Array<{
+    Result?: string | null;
+    FirstURL?: string | null;
+    Icon?: {
+      URL?: string | null;
+      Height?: number | null;
+      Width?: number | null;
+    } | null;
+    Text?: string | null;
+  }> | null;
+  Type?: string | null;
+}
+
+/**
  * Output types that include sourceType
  */
 export interface IWebSearchOutput extends IDuckDuckGoSearchResult {
@@ -122,6 +164,74 @@ export interface IVideoSearchOutput extends IDuckDuckGoVideoResult {
   sourceType: 'video';
 }
 
+export interface IInstantAnswerOutput extends IDuckDuckGoInstantAnswer {
+  sourceType: 'instantAnswer';
+}
+
+/**
+ * Dictionary definition result interface
+ * Compatible with duck-duck-scrape DictionaryDefinitionResult
+ */
+export interface IDuckDuckGoDictionaryResult {
+  word?: string | null;
+  partOfSpeech?: string | null;
+  definition?: string | null;
+  examples?: string[] | null;
+  synonyms?: string[] | null;
+  antonyms?: string[] | null;
+  attributionText?: string | null;
+  attributionUrl?: string | null;
+  wordnikUrl?: string | null;
+}
+
+/**
+ * Stock result interface
+ * Compatible with duck-duck-scrape StocksResult
+ */
+export interface IDuckDuckGoStockResult {
+  symbol?: string | null;
+  name?: string | null;
+  price?: number | null;
+  change?: number | null;
+  changePercent?: number | null;
+  open?: number | null;
+  high?: number | null;
+  low?: number | null;
+  volume?: number | null;
+  marketCap?: number | null;
+  peRatio?: number | null;
+  weekHigh52?: number | null;
+  weekLow52?: number | null;
+  lastUpdated?: string | null;
+}
+
+/**
+ * Currency conversion result interface
+ * Compatible with duck-duck-scrape CurrencyResult
+ */
+export interface IDuckDuckGoCurrencyResult {
+  from?: string | null;
+  to?: string | null;
+  amount?: number | null;
+  convertedAmount?: number | null;
+  exchangeRate?: number | null;
+  fromName?: string | null;
+  toName?: string | null;
+  lastUpdated?: string | null;
+}
+
+export interface IDictionaryOutput extends IDuckDuckGoDictionaryResult {
+  sourceType: 'dictionary';
+}
+
+export interface IStockOutput extends IDuckDuckGoStockResult {
+  sourceType: 'stock';
+}
+
+export interface ICurrencyOutput extends IDuckDuckGoCurrencyResult {
+  sourceType: 'currency';
+}
+
 /**
  * Union type for all output types
  */
@@ -129,4 +239,13 @@ export type DuckDuckGoOutput =
   IWebSearchOutput |
   IImageSearchOutput |
   INewsSearchOutput |
-  IVideoSearchOutput;
+  IVideoSearchOutput |
+  IInstantAnswerOutput |
+  IDictionaryOutput |
+  IStockOutput |
+  ICurrencyOutput;
+
+/**
+ * Re-export search operators interface
+ */
+export { ISearchOperators } from './searchOperators';
