@@ -1,0 +1,44 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Build artifacts
+*.tsbuildinfo
+tsconfig.json
+gulpfile.js
+
+# Source files (only dist is needed)
+nodes/
+src/
+test/
+
+# Config files
+.editorconfig
+.eslintrc.js
+.eslintrc.prepublish.js
+.prettierrc.js
+tslint.json
+
+# Dev dependencies
+node_modules/
+
+# Git related
+.git/
+.github/
+.gitignore
+
+# CI/CD
+*.yml
+*.yaml
+
+# Documentation
+docs/
+*.md
+!README.md
+!LICENSE.md
