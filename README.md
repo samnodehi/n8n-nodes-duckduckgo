@@ -1,6 +1,6 @@
 # DuckDuckGo Search Node for n8n
 
-[![npm version](https://img.shields.io/npm/v/n8n-nodes-duckduckgo-search.svg)](https://www.npmjs.com/package/n8n-nodes-duckduckgo-search)
+[![npm version](https://img.shields.io/npm/v/n8n-nodes-duckduckgo-search.svg?v=30.0.1)](https://www.npmjs.com/package/n8n-nodes-duckduckgo-search)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A powerful and comprehensive n8n community node that seamlessly integrates DuckDuckGo search capabilities into your workflows. Search the web, find images, discover news, and explore videos - all with privacy-focused, reliable results.
