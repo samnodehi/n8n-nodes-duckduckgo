@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-duckduckgo-search",
   "version": "30.0.1",
-  "description": "Integrate DuckDuckGo search seamlessly into your n8n workflows with advanced pagination and human-like behavior. Get more results without hitting rate limits.",
+  "description": "A powerful and comprehensive n8n community node that seamlessly integrates DuckDuckGo search capabilities into your workflows. Search the web, find images, discover news, and explore videos - all with privacy-focused, reliable results.",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
@@ -11,9 +11,11 @@
     "search-engine",
     "automation",
     "workflow",
-    "data-pipeline",
-    "pagination",
-    "web-scraping",
+    "web-search",
+    "image-search",
+    "news-search",
+    "video-search",
+    "privacy-focused",
     "search-results"
   ],
   "license": "MIT",
