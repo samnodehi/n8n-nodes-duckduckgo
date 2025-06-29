@@ -1,7 +1,4 @@
-🚀 **Release: v24.6.25**
-
-🔧 **Introducing the DuckDuckGo Node for n8n!**  
-• Seamlessly integrate powerful DuckDuckGo searches into your n8n workflows.
+# 🎉 DuckDuckGo Search Node for n8n - Initial Release
 
 ## ✨ **Highlights**
 
@@ -9,7 +6,7 @@
 • Perform Web Search, Image Search, News Search, and Video Search – all from a single node.
 
 **Fully Customizable Parameters:**
-• Control locale, safe search levels, region, time period, and more.
+• Control locale, language, safe search levels, region, time period, and more.
 
 **Privacy-First Approach:**
 • Built on DuckDuckGo's privacy-respecting search engine — no personal data tracking.
@@ -18,16 +15,22 @@
 • Supports DuckDuckGo API key for enterprise-grade access (optional).
 
 **Smart Caching System:**
-• Dramatically reduce API load with configurable cache TTL.
+• Intelligent response caching to improve performance and reduce redundant requests.
 
-**Rich, Structured Output:**
-• Clean, detailed results including title, description, URL, source, favicon, and more.
+**Advanced Search Operators:**
+• Full support for search operators like `site:`, `intitle:`, `filetype:`, and more.
 
-**Advanced Error Handling:**
-• Graceful fallback on failures, structured debug mode, and retry-friendly output.
+**Comprehensive Error Handling:**
+• Robust error management with detailed logging and fallback mechanisms.
 
-**Designed for Scalability:**
-• Fully modular, type-safe, and aligned with the latest n8n and TypeScript best practices.
+**Rate Limiting & Throttling:**
+• Built-in protections against API rate limits with automatic retry logic.
+
+**Multi-Language Support:**
+• Search in 50+ languages and regions with automatic locale detection.
+
+**Rich Result Processing:**
+• Clean HTML parsing, metadata extraction, and structured data output.
 
 ## 🧡 **Improvements**
 
@@ -56,10 +59,9 @@
 
 ## 📦 **Installation**
 
-Follow the instructions in the [README](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/README.md)  
-or use manual Docker volume mounting for easy setup.
+Follow the instructions in the [README](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/README.md) or use manual Docker volume mounting for easy setup.
 
-## 🙌 **Huge Thanks**
+## 🙏 **Huge Thanks**
 
 Big thanks to the open-source community and the n8n ecosystem for empowering automation everywhere!
 
