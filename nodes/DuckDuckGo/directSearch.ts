@@ -56,7 +56,7 @@ export async function directWebSearch(query: string, options: {
         kp: options.safeSearch === 'strict' ? '1' : options.safeSearch === 'moderate' ? '-1' : '-2',
       }), {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
@@ -64,7 +64,7 @@ export async function directWebSearch(query: string, options: {
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache',
       },
-      timeout: 10000,
+      timeout: 15000,
     });
 
     const results: DirectSearchResult[] = [];
@@ -104,8 +104,20 @@ export async function directWebSearch(query: string, options: {
 
     return { results };
   } catch (error) {
-    console.error('Direct web search error:', error);
-    throw new Error(`Direct web search failed: ${error.message}`);
+    console.error('Direct web search error:', error.message);
+
+    // Provide more specific error messages based on error type
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('Web search request timed out. Please try again.');
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      throw new Error('Unable to connect to DuckDuckGo. Please check your internet connection.');
+    } else if (error.response && error.response.status === 429) {
+      throw new Error('Too many requests. Please wait a moment before trying again.');
+    } else if (error.response && error.response.status >= 500) {
+      throw new Error('DuckDuckGo server error. Please try again later.');
+    } else {
+      throw new Error(`Web search failed: ${error.message}`);
+    }
   }
 }
 
@@ -130,12 +142,12 @@ export async function directImageSearch(query: string, options: {
 
     const response = await axios.get(searchUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
         'Accept-Encoding': 'gzip, deflate, br',
       },
-      timeout: 10000,
+      timeout: 15000,
     });
 
     // Extract VQD token from the page
@@ -167,14 +179,14 @@ export async function directImageSearch(query: string, options: {
 
     const imageResponse = await axios.get(`https://duckduckgo.com/i.js?${imageParams.toString()}`, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/javascript, */*; q=0.01',
         'Accept-Language': 'en-US,en;q=0.9',
         'Accept-Encoding': 'gzip, deflate, br',
         'Referer': searchUrl,
         'X-Requested-With': 'XMLHttpRequest',
       },
-      timeout: 10000,
+      timeout: 15000,
     });
 
     const imageData = imageResponse.data;
@@ -199,17 +211,32 @@ export async function directImageSearch(query: string, options: {
 
     return { results };
   } catch (error) {
-    console.error('Direct image search error:', error);
-    // Fallback to web search
-    const webResults = await directWebSearch(`${query} images photos`, options);
-    return {
-      results: webResults.results.map(result => ({
-        title: result.title,
-        url: result.url,
-        thumbnail: '',
-        source: result.url,
-      })),
-    };
+    console.error('Direct image search error:', error.message);
+
+    // Try fallback to web search for image-related content
+    try {
+      console.log('Falling back to web search for image content...');
+      const webResults = await directWebSearch(`${query} images photos pictures`, options);
+      return {
+        results: webResults.results.map(result => ({
+          title: result.title,
+          url: result.url,
+          thumbnail: '',
+          source: result.url,
+        })),
+      };
+    } catch (fallbackError) {
+      // If fallback also fails, provide specific error message
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Image search request timed out. Please try again.');
+      } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+        throw new Error('Unable to connect to DuckDuckGo for image search. Please check your internet connection.');
+      } else if (error.response && error.response.status === 429) {
+        throw new Error('Too many image search requests. Please wait a moment before trying again.');
+      } else {
+        throw new Error(`Image search failed: ${error.message}`);
+      }
+    }
   }
 }
 
@@ -218,10 +245,11 @@ export async function directImageSearch(query: string, options: {
  */
 export function getSafeSearchString(value: number): string {
   switch (value) {
-    case 2:
+    case 0:
       return 'strict';
-    case 1:
+    case -1:
       return 'moderate';
+    case -2:
     default:
       return 'off';
   }
