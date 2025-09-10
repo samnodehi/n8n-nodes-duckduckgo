@@ -4,6 +4,7 @@
  */
 
 import axios, { AxiosResponse } from 'axios';
+import { BROWSER_USER_AGENT } from './constants';
 
 export interface SearchAPIResponse {
   organic_results?: Array<{
@@ -148,7 +149,8 @@ export class SearchAPIClient {
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${this.apiKey}`,
       'Content-Type': 'application/json',
-      'User-Agent': 'n8n-duckduckgo-node/1.0'
+      'User-Agent': BROWSER_USER_AGENT,
+      'Accept': 'application/json',
     };
 
         try {

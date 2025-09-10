@@ -1,3 +1,15 @@
+module.exports = {
+  root: true,
+  env: { node: true, es2021: true },
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    sourceType: 'module',
+    ecmaVersion: 2021,
+  },
+  plugins: ['n8n-nodes-base'],
+  extends: ['plugin:n8n-nodes-base/recommended'],
+  ignorePatterns: ['dist/**', 'node_modules/**', 'jest.config.js'],
+};
 /**
  * @type {import('@types/eslint').ESLint.ConfigData}
  */

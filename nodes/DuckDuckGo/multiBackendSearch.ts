@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { BROWSER_USER_AGENT } from './constants';
 import { SearchOptions, search as duckSearch } from 'duck-duck-scrape';
 import { searchWithAPI } from './apiClient';
 
@@ -256,7 +257,7 @@ export class MultiBackendDuckDuckGoSearch {
       }), {
         headers: {
           'Referer': 'https://html.duckduckgo.com/',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': BROWSER_USER_AGENT,
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         timeout: 15000
@@ -289,7 +290,7 @@ export class MultiBackendDuckDuckGoSearch {
       }), {
         headers: {
           'Referer': 'https://lite.duckduckgo.com/',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': BROWSER_USER_AGENT,
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         timeout: 15000
