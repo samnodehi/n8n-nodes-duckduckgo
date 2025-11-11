@@ -61,7 +61,10 @@ import {
   ITelemetryEventData
 } from './telemetry';
 
-
+import {
+  getGlobalReliabilityManager,
+  IReliabilityConfig,
+} from './reliabilityManager';
 
 import { buildSearchQuery, validateSearchOperators, OPERATOR_INFO, ISearchOperators } from './searchOperators';
 import { paginateWithVqd, DEFAULT_PAGINATION_CONFIG } from './vqdPagination';
@@ -250,6 +253,8 @@ export class DuckDuckGo implements INodeType {
     },
     inputs: ['main' as NodeConnectionType],
     outputs: ['main' as NodeConnectionType],
+    // @ts-ignore - Enable this node to be used as an AI Agent tool
+    usableAsTool: true,
     credentials: [
       {
         name: 'duckDuckGoApi',
@@ -1019,6 +1024,124 @@ export class DuckDuckGo implements INodeType {
         description: 'Whether to send anonymous usage data to help improve the node (no personal data is collected)',
       },
 
+      // Reliability settings
+      {
+        displayName: 'Reliability Settings',
+        name: 'reliabilitySettings',
+        type: 'collection',
+        placeholder: 'Add Reliability Setting',
+        default: {},
+        description: 'Advanced reliability and performance settings for handling parallel requests and rate limits',
+        options: [
+          {
+            displayName: 'Enable Reliability Features',
+            name: 'enableReliability',
+            type: 'boolean',
+            default: true,
+            description: 'Whether to enable adaptive backoff, jitter, and circuit breaking for robust operation',
+          },
+          {
+            displayName: 'Empty Result Threshold',
+            name: 'emptyResultThreshold',
+            type: 'number',
+            default: 3,
+            description: 'Number of consecutive empty results before triggering adaptive backoff',
+            typeOptions: {
+              minValue: 1,
+              maxValue: 10,
+            },
+          },
+          {
+            displayName: 'Initial Backoff (ms)',
+            name: 'initialBackoffMs',
+            type: 'number',
+            default: 1000,
+            description: 'Initial backoff delay in milliseconds when empty results are detected',
+            typeOptions: {
+              minValue: 100,
+              maxValue: 10000,
+            },
+          },
+          {
+            displayName: 'Max Backoff (ms)',
+            name: 'maxBackoffMs',
+            type: 'number',
+            default: 30000,
+            description: 'Maximum backoff delay in milliseconds',
+            typeOptions: {
+              minValue: 1000,
+              maxValue: 120000,
+            },
+          },
+          {
+            displayName: 'Min Jitter (ms)',
+            name: 'minJitterMs',
+            type: 'number',
+            default: 100,
+            description: 'Minimum random jitter delay to prevent thundering herd',
+            typeOptions: {
+              minValue: 0,
+              maxValue: 5000,
+            },
+          },
+          {
+            displayName: 'Max Jitter (ms)',
+            name: 'maxJitterMs',
+            type: 'number',
+            default: 500,
+            description: 'Maximum random jitter delay',
+            typeOptions: {
+              minValue: 100,
+              maxValue: 10000,
+            },
+          },
+          {
+            displayName: 'Failure Threshold',
+            name: 'failureThreshold',
+            type: 'number',
+            default: 5,
+            description: 'Number of consecutive failures before opening circuit breaker',
+            typeOptions: {
+              minValue: 2,
+              maxValue: 20,
+            },
+          },
+          {
+            displayName: 'Circuit Reset Timeout (ms)',
+            name: 'resetTimeoutMs',
+            type: 'number',
+            default: 60000,
+            description: 'Time to wait before attempting to close circuit breaker',
+            typeOptions: {
+              minValue: 10000,
+              maxValue: 300000,
+            },
+          },
+          {
+            displayName: 'Max Retries',
+            name: 'maxRetries',
+            type: 'number',
+            default: 3,
+            description: 'Maximum number of retry attempts per request',
+            typeOptions: {
+              minValue: 0,
+              maxValue: 10,
+            },
+          },
+          {
+            displayName: 'Retry Delay (ms)',
+            name: 'retryDelayMs',
+            type: 'number',
+            default: 1000,
+            description: 'Base delay between retry attempts',
+            typeOptions: {
+              minValue: 100,
+              maxValue: 10000,
+            },
+          },
+        ],
+      },
+
       // Proxy Settings
       {
         displayName: 'Proxy Settings',
@@ -1406,6 +1529,50 @@ export class DuckDuckGo implements INodeType {
       enableCache?: boolean;
       cacheTTL?: number;
     };
+
+    // Get reliability settings
+    const reliabilitySettings = this.getNodeParameter('reliabilitySettings', 0, {
+      enableReliability: true,
+    }) as {
+      enableReliability?: boolean;
+      emptyResultThreshold?: number;
+      initialBackoffMs?: number;
+      maxBackoffMs?: number;
+      minJitterMs?: number;
+      maxJitterMs?: number;
+      failureThreshold?: number;
+      resetTimeoutMs?: number;
+      maxRetries?: number;
+      retryDelayMs?: number;
+    } | null;
+
+    // Initialize reliability manager if enabled
+    let reliabilityManager = null;
+    if (reliabilitySettings && reliabilitySettings.enableReliability !== false) {
+      const reliabilityConfig: Partial<IReliabilityConfig> = {
+        emptyResultThreshold: reliabilitySettings.emptyResultThreshold,
+        initialBackoffMs: reliabilitySettings.initialBackoffMs,
+        maxBackoffMs: reliabilitySettings.maxBackoffMs,
+        minJitterMs: reliabilitySettings.minJitterMs,
+        maxJitterMs: reliabilitySettings.maxJitterMs,
+        failureThreshold: reliabilitySettings.failureThreshold,
+        resetTimeoutMs: reliabilitySettings.resetTimeoutMs,
+        maxRetries: reliabilitySettings.maxRetries,
+        retryDelayMs: reliabilitySettings.retryDelayMs,
+      };
+      reliabilityManager = getGlobalReliabilityManager(reliabilityConfig);
+
+      // Log reliability status if debug is enabled
+      if (debugMode) {
+        const logEntry = createLogEntry(
+          LogLevel.INFO,
+          `Reliability Manager initialized: ${reliabilityManager.getSummary()}`,
+          'execute',
+          { config: reliabilityConfig }
+        );
+        console.log(JSON.stringify(logEntry));
+      }
+    }
 
     // Check if using API key
     const useApiKey = this.getNodeParameter('useApiKey', 0, false) as boolean;
