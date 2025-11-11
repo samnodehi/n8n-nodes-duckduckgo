@@ -230,4 +230,187 @@ describe('Reliability Manager Integration', () => {
       expect(metrics.totalRequests).toBe(1);
     });
   });
+
+  describe('CRITICAL: No Double-Counting of Metrics', () => {
+    it('should count each request exactly once (not doubled)', async () => {
+      const manager = new ReliabilityManager({
+        maxRetries: 0, // No retries for this test
+      });
+
+      mockDirectWebSearch.mockResolvedValue({
+        results: [{ title: 'Test', url: 'https://example.com', description: 'Test' }]
+      });
+
+      const executeSearch = async () => {
+        const result = await mockDirectWebSearch('test query', {
+          locale: 'us-en',
+          safeSearch: 'moderate',
+        });
+        return {
+          results: result.results,
+          noResults: result.results.length === 0,
+        };
+      };
+
+      // Execute 5 successful searches
+      for (let i = 0; i < 5; i++) {
+        await manager.executeWithRetry(
+          executeSearch,
+          (res) => res.results && res.results.length > 0,
+          'test search'
+        );
+      }
+
+      const metrics = manager.getMetrics();
+
+      // CRITICAL: Must be exactly 5, not 10 (which would indicate double-counting)
+      expect(metrics.totalRequests).toBe(5);
+      expect(metrics.emptyResponses).toBe(0);
+      expect(metrics.consecutiveEmptyResponses).toBe(0);
+    });
+
+    it('should count empty responses exactly once per request', async () => {
+      const manager = new ReliabilityManager({
+        maxRetries: 0, // No retries
+        emptyResultThreshold: 10, // High threshold so backoff doesn't interfere
+      });
+
+      mockDirectWebSearch.mockResolvedValue({ results: [] });
+
+      const executeSearch = async () => {
+        const result = await mockDirectWebSearch('test query', {
+          locale: 'us-en',
+          safeSearch: 'moderate',
+        });
+        return {
+          results: result.results,
+          noResults: result.results.length === 0,
+        };
+      };
+
+      // Execute 7 searches with empty results
+      for (let i = 0; i < 7; i++) {
+        await manager.executeWithRetry(
+          executeSearch,
+          (res) => res.results && res.results.length > 0,
+          'test search'
+        );
+      }
+
+      const metrics = manager.getMetrics();
+
+      // CRITICAL: Must be exactly 7, not 14
+      expect(metrics.totalRequests).toBe(7);
+      expect(metrics.emptyResponses).toBe(7);
+      expect(metrics.consecutiveEmptyResponses).toBe(7);
+    });
+
+    it('should trip circuit breaker at exact configured threshold', async () => {
+      const manager = new ReliabilityManager({
+        failureThreshold: 10, // Circuit opens after exactly 10 failures
+        resetTimeoutMs: 60000,
+        maxRetries: 0, // No retries
+      });
+
+      mockDirectWebSearch.mockRejectedValue(new Error('Network error'));
+
+      const executeSearch = async () => {
+        const result = await mockDirectWebSearch('test query', {
+          locale: 'us-en',
+          safeSearch: 'moderate',
+        });
+        return {
+          results: result.results,
+          noResults: result.results.length === 0,
+        };
+      };
+
+      // Execute 5 failed requests
+      for (let i = 0; i < 5; i++) {
+        try {
+          await manager.executeWithRetry(
+            executeSearch,
+            (res) => res.results && res.results.length > 0,
+            'test search'
+          );
+        } catch (error) {
+          // Expected to fail
+        }
+      }
+
+      // Circuit should still be CLOSED after 5 failures
+      expect(manager.getCircuitState()).toBe('closed');
+      const metricsAfter5 = manager.getMetrics();
+      expect(metricsAfter5.totalRequests).toBe(5);
+
+      // Execute 5 more failures (total 10)
+      for (let i = 0; i < 5; i++) {
+        try {
+          await manager.executeWithRetry(
+            executeSearch,
+            (res) => res.results && res.results.length > 0,
+            'test search'
+          );
+        } catch (error) {
+          // Expected to fail
+        }
+      }
+
+      // Circuit should NOW be OPEN after exactly 10 failures
+      expect(manager.getCircuitState()).toBe('open');
+      const metricsAfter10 = manager.getMetrics();
+      expect(metricsAfter10.totalRequests).toBe(10);
+      expect(metricsAfter10.circuitBreakerTrips).toBeGreaterThan(0);
+    });
+
+    it('should trigger backoff at exact configured threshold', async () => {
+      const manager = new ReliabilityManager({
+        emptyResultThreshold: 3, // Backoff after exactly 3 empty results
+        initialBackoffMs: 500,
+        maxRetries: 0,
+      });
+
+      mockDirectWebSearch.mockResolvedValue({ results: [] });
+
+      const executeSearch = async () => {
+        const result = await mockDirectWebSearch('test query', {
+          locale: 'us-en',
+          safeSearch: 'moderate',
+        });
+        return {
+          results: result.results,
+          noResults: result.results.length === 0,
+        };
+      };
+
+      // Execute 2 empty requests
+      for (let i = 0; i < 2; i++) {
+        await manager.executeWithRetry(
+          executeSearch,
+          (res) => res.results && res.results.length > 0,
+          'test search'
+        );
+      }
+
+      // No backoff should have been activated yet
+      const metricsAfter2 = manager.getMetrics();
+      expect(metricsAfter2.consecutiveEmptyResponses).toBe(2);
+      expect(metricsAfter2.backoffActivations).toBe(0);
+
+      // Execute 3rd empty request - should trigger backoff
+      const startTime = Date.now();
+      await manager.executeWithRetry(
+        executeSearch,
+        (res) => res.results && res.results.length > 0,
+        'test search'
+      );
+      const elapsed = Date.now() - startTime;
+
+      // Backoff should be activated
+      const metricsAfter3 = manager.getMetrics();
+      expect(metricsAfter3.consecutiveEmptyResponses).toBe(3);
+      expect(metricsAfter3.backoffActivations).toBe(1);
+      expect(elapsed).toBeGreaterThanOrEqual(500); // At least initial backoff delay
+    });
+  });
 });

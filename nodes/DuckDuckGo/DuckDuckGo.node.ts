@@ -1728,42 +1728,25 @@ export class DuckDuckGo implements INodeType {
 
               // Execute search with reliability manager if enabled
               const executeSearch = async () => {
-                const requestStartTime = Date.now();
+                // SIMPLIFIED: Execute search directly using our direct implementation
+                const directResults = await directWebSearch(enhancedQuery, {
+                  locale: searchOptions.locale || 'us-en',
+                  safeSearch: getSafeSearchString(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
+                  maxResults: undefined, // Let it fetch all available results
+                });
 
-                try {
-                  // SIMPLIFIED: Execute search directly using our direct implementation
-                  const directResults = await directWebSearch(enhancedQuery, {
-                    locale: searchOptions.locale || 'us-en',
-                    safeSearch: getSafeSearchString(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-                    maxResults: undefined, // Let it fetch all available results
-                  });
+                // Format results to match duck-duck-scrape structure
+                const searchResult = {
+                  results: directResults.results.map(r => ({
+                    title: r.title,
+                    url: r.url,
+                    description: r.description,
+                    hostname: new URL(r.url).hostname,
+                  })),
+                  noResults: directResults.results.length === 0,
+                };
 
-                  // Format results to match duck-duck-scrape structure
-                  const searchResult = {
-                    results: directResults.results.map(r => ({
-                      title: r.title,
-                      url: r.url,
-                      description: r.description,
-                      hostname: new URL(r.url).hostname,
-                    })),
-                    noResults: directResults.results.length === 0,
-                  };
-
-                  // Record success with reliability manager
-                  if (reliabilityManager) {
-                    const responseTime = Date.now() - requestStartTime;
-                    reliabilityManager.recordSuccess(responseTime, searchResult.results.length);
-                  }
-
-                  return searchResult;
-                } catch (error) {
-                  // Record failure with reliability manager
-                  if (reliabilityManager) {
-                    const responseTime = Date.now() - requestStartTime;
-                    reliabilityManager.recordFailure(responseTime, error as Error);
-                  }
-                  throw error;
-                }
+                return searchResult;
               };
 
               // Execute with retry logic if reliability manager is enabled
@@ -2006,44 +1989,27 @@ export class DuckDuckGo implements INodeType {
 
               // Execute image search with reliability manager if enabled
               const executeImageSearch = async () => {
-                const requestStartTime = Date.now();
+                // SIMPLIFIED: Execute image search directly using our direct implementation
+                const directImageResults = await directImageSearch(imageQuery, {
+                  locale: searchOptions.locale || 'us-en',
+                  safeSearch: getSafeSearchString(imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
+                  maxResults: undefined, // Let it fetch all available results
+                });
 
-                try {
-                  // SIMPLIFIED: Execute image search directly using our direct implementation
-                  const directImageResults = await directImageSearch(imageQuery, {
-                    locale: searchOptions.locale || 'us-en',
-                    safeSearch: getSafeSearchString(imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-                    maxResults: undefined, // Let it fetch all available results
-                  });
+                // Format results to match duck-duck-scrape structure
+                const searchResult = {
+                  results: directImageResults.results.map(r => ({
+                    title: r.title,
+                    image: r.url,
+                    thumbnail: r.thumbnail,
+                    url: r.source,
+                    height: r.height,
+                    width: r.width,
+                  })),
+                  noResults: directImageResults.results.length === 0,
+                };
 
-                  // Format results to match duck-duck-scrape structure
-                  const searchResult = {
-                    results: directImageResults.results.map(r => ({
-                      title: r.title,
-                      image: r.url,
-                      thumbnail: r.thumbnail,
-                      url: r.source,
-                      height: r.height,
-                      width: r.width,
-                    })),
-                    noResults: directImageResults.results.length === 0,
-                  };
-
-                  // Record success with reliability manager
-                  if (reliabilityManager) {
-                    const responseTime = Date.now() - requestStartTime;
-                    reliabilityManager.recordSuccess(responseTime, searchResult.results.length);
-                  }
-
-                  return searchResult;
-                } catch (error) {
-                  // Record failure with reliability manager
-                  if (reliabilityManager) {
-                    const responseTime = Date.now() - requestStartTime;
-                    reliabilityManager.recordFailure(responseTime, error as Error);
-                  }
-                  throw error;
-                }
+                return searchResult;
               };
 
               // Execute with retry logic if reliability manager is enabled
@@ -2281,27 +2247,9 @@ export class DuckDuckGo implements INodeType {
 
               // Execute news search with reliability manager if enabled
               const executeNewsSearch = async () => {
-                const requestStartTime = Date.now();
-
-                try {
-                  // Execute news search
-                  const searchResult = await searchNews(newsQuery, searchOptions);
-
-                  // Record success with reliability manager
-                  if (reliabilityManager) {
-                    const responseTime = Date.now() - requestStartTime;
-                    reliabilityManager.recordSuccess(responseTime, searchResult.results?.length || 0);
-                  }
-
-                  return searchResult;
-                } catch (error) {
-                  // Record failure with reliability manager
-                  if (reliabilityManager) {
-                    const responseTime = Date.now() - requestStartTime;
-                    reliabilityManager.recordFailure(responseTime, error as Error);
-                  }
-                  throw error;
-                }
+                // Execute news search
+                const searchResult = await searchNews(newsQuery, searchOptions);
+                return searchResult;
               };
 
               // Execute with retry logic if reliability manager is enabled
@@ -2648,27 +2596,9 @@ export class DuckDuckGo implements INodeType {
 
               // Execute video search with reliability manager if enabled
               const executeVideoSearch = async () => {
-                const requestStartTime = Date.now();
-
-                try {
-                  // Execute video search
-                  const searchResult = await searchVideos(videoQuery, searchOptions);
-
-                  // Record success with reliability manager
-                  if (reliabilityManager) {
-                    const responseTime = Date.now() - requestStartTime;
-                    reliabilityManager.recordSuccess(responseTime, searchResult.results?.length || 0);
-                  }
-
-                  return searchResult;
-                } catch (error) {
-                  // Record failure with reliability manager
-                  if (reliabilityManager) {
-                    const responseTime = Date.now() - requestStartTime;
-                    reliabilityManager.recordFailure(responseTime, error as Error);
-                  }
-                  throw error;
-                }
+                // Execute video search
+                const searchResult = await searchVideos(videoQuery, searchOptions);
+                return searchResult;
               };
 
               // Execute with retry logic if reliability manager is enabled
