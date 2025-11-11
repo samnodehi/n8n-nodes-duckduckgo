@@ -1547,19 +1547,20 @@ export class DuckDuckGo implements INodeType {
     } | null;
 
     // Initialize reliability manager if enabled
-    let reliabilityManager = null;
+    let reliabilityManager: ReturnType<typeof getGlobalReliabilityManager> | null = null;
     if (reliabilitySettings && reliabilitySettings.enableReliability !== false) {
-      const reliabilityConfig: Partial<IReliabilityConfig> = {
-        emptyResultThreshold: reliabilitySettings.emptyResultThreshold,
-        initialBackoffMs: reliabilitySettings.initialBackoffMs,
-        maxBackoffMs: reliabilitySettings.maxBackoffMs,
-        minJitterMs: reliabilitySettings.minJitterMs,
-        maxJitterMs: reliabilitySettings.maxJitterMs,
-        failureThreshold: reliabilitySettings.failureThreshold,
-        resetTimeoutMs: reliabilitySettings.resetTimeoutMs,
-        maxRetries: reliabilitySettings.maxRetries,
-        retryDelayMs: reliabilitySettings.retryDelayMs,
-      };
+      // Build config object, filtering out undefined values to preserve defaults
+      const reliabilityConfig: Partial<IReliabilityConfig> = {};
+      if (reliabilitySettings.emptyResultThreshold !== undefined) reliabilityConfig.emptyResultThreshold = reliabilitySettings.emptyResultThreshold;
+      if (reliabilitySettings.initialBackoffMs !== undefined) reliabilityConfig.initialBackoffMs = reliabilitySettings.initialBackoffMs;
+      if (reliabilitySettings.maxBackoffMs !== undefined) reliabilityConfig.maxBackoffMs = reliabilitySettings.maxBackoffMs;
+      if (reliabilitySettings.minJitterMs !== undefined) reliabilityConfig.minJitterMs = reliabilitySettings.minJitterMs;
+      if (reliabilitySettings.maxJitterMs !== undefined) reliabilityConfig.maxJitterMs = reliabilitySettings.maxJitterMs;
+      if (reliabilitySettings.failureThreshold !== undefined) reliabilityConfig.failureThreshold = reliabilitySettings.failureThreshold;
+      if (reliabilitySettings.resetTimeoutMs !== undefined) reliabilityConfig.resetTimeoutMs = reliabilitySettings.resetTimeoutMs;
+      if (reliabilitySettings.maxRetries !== undefined) reliabilityConfig.maxRetries = reliabilitySettings.maxRetries;
+      if (reliabilitySettings.retryDelayMs !== undefined) reliabilityConfig.retryDelayMs = reliabilitySettings.retryDelayMs;
+
       reliabilityManager = getGlobalReliabilityManager(reliabilityConfig);
 
       // Log reliability status if debug is enabled
@@ -1726,23 +1727,39 @@ export class DuckDuckGo implements INodeType {
                 console.log(JSON.stringify(logEntry));
               }
 
-              // SIMPLIFIED: Execute search directly using our direct implementation
-              const directResults = await directWebSearch(enhancedQuery, {
-                locale: searchOptions.locale || 'us-en',
-                safeSearch: getSafeSearchString(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-                maxResults: undefined, // Let it fetch all available results
-              });
+              // Execute search with reliability manager if enabled
+              const executeSearch = async () => {
+                // SIMPLIFIED: Execute search directly using our direct implementation
+                const directResults = await directWebSearch(enhancedQuery, {
+                  locale: searchOptions.locale || 'us-en',
+                  safeSearch: getSafeSearchString(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
+                  maxResults: undefined, // Let it fetch all available results
+                });
 
-              // Format results to match duck-duck-scrape structure
-              result = {
-                results: directResults.results.map(r => ({
-                  title: r.title,
-                  url: r.url,
-                  description: r.description,
-                  hostname: new URL(r.url).hostname,
-                })),
-                noResults: directResults.results.length === 0,
+                // Format results to match duck-duck-scrape structure
+                const searchResult = {
+                  results: directResults.results.map(r => ({
+                    title: r.title,
+                    url: r.url,
+                    description: r.description,
+                    hostname: new URL(r.url).hostname,
+                  })),
+                  noResults: directResults.results.length === 0,
+                };
+
+                return searchResult;
               };
+
+              // Execute with retry logic if reliability manager is enabled
+              if (reliabilityManager) {
+                result = await reliabilityManager.executeWithRetry(
+                  executeSearch,
+                  (res) => res.results && res.results.length > 0,
+                  `web search: ${enhancedQuery}`
+                );
+              } else {
+                result = await executeSearch();
+              }
 
               // Note: Direct search doesn't support pagination without VQD token
               // Limit results to what we got from the first request
@@ -1971,25 +1988,41 @@ export class DuckDuckGo implements INodeType {
                 console.log(JSON.stringify(logEntry));
               }
 
-              // SIMPLIFIED: Execute image search directly using our direct implementation
-              const directImageResults = await directImageSearch(imageQuery, {
-                locale: searchOptions.locale || 'us-en',
-                safeSearch: getSafeSearchString(imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-                maxResults: undefined, // Let it fetch all available results
-              });
+              // Execute image search with reliability manager if enabled
+              const executeImageSearch = async () => {
+                // SIMPLIFIED: Execute image search directly using our direct implementation
+                const directImageResults = await directImageSearch(imageQuery, {
+                  locale: searchOptions.locale || 'us-en',
+                  safeSearch: getSafeSearchString(imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
+                  maxResults: undefined, // Let it fetch all available results
+                });
 
-              // Format results to match duck-duck-scrape structure
-              result = {
-                results: directImageResults.results.map(r => ({
-                  title: r.title,
-                  image: r.url,
-                  thumbnail: r.thumbnail,
-                  url: r.source,
-                  height: r.height,
-                  width: r.width,
-                })),
-                noResults: directImageResults.results.length === 0,
+                // Format results to match duck-duck-scrape structure
+                const searchResult = {
+                  results: directImageResults.results.map(r => ({
+                    title: r.title,
+                    image: r.url,
+                    thumbnail: r.thumbnail,
+                    url: r.source,
+                    height: r.height,
+                    width: r.width,
+                  })),
+                  noResults: directImageResults.results.length === 0,
+                };
+
+                return searchResult;
               };
+
+              // Execute with retry logic if reliability manager is enabled
+              if (reliabilityManager) {
+                result = await reliabilityManager.executeWithRetry(
+                  executeImageSearch,
+                  (res) => res.results && res.results.length > 0,
+                  `image search: ${imageQuery}`
+                );
+              } else {
+                result = await executeImageSearch();
+              }
 
               // Note: Direct image search doesn't support pagination without VQD token
               // Limit results to what we got from the first request
@@ -2213,8 +2246,23 @@ export class DuckDuckGo implements INodeType {
                 console.log(JSON.stringify(logEntry));
               }
 
-              // Execute news search
-              result = await searchNews(newsQuery, searchOptions);
+              // Execute news search with reliability manager if enabled
+              const executeNewsSearch = async () => {
+                // Execute news search
+                const searchResult = await searchNews(newsQuery, searchOptions);
+                return searchResult;
+              };
+
+              // Execute with retry logic if reliability manager is enabled
+              if (reliabilityManager) {
+                result = await reliabilityManager.executeWithRetry(
+                  executeNewsSearch,
+                  (res) => res.results && res.results.length > 0,
+                  `news search: ${newsQuery}`
+                );
+              } else {
+                result = await executeNewsSearch();
+              }
 
               // For maxResults > 10, we need to fetch additional results
               // Note: duck-duck-scrape library has a limit of ~10 results per request
@@ -2547,8 +2595,23 @@ export class DuckDuckGo implements INodeType {
                 console.log(JSON.stringify(logEntry));
               }
 
-              // Execute video search
-              result = await searchVideos(videoQuery, searchOptions);
+              // Execute video search with reliability manager if enabled
+              const executeVideoSearch = async () => {
+                // Execute video search
+                const searchResult = await searchVideos(videoQuery, searchOptions);
+                return searchResult;
+              };
+
+              // Execute with retry logic if reliability manager is enabled
+              if (reliabilityManager) {
+                result = await reliabilityManager.executeWithRetry(
+                  executeVideoSearch,
+                  (res) => res.results && res.results.length > 0,
+                  `video search: ${videoQuery}`
+                );
+              } else {
+                result = await executeVideoSearch();
+              }
 
               // For maxResults > 10, we need to fetch additional results
               // Note: duck-duck-scrape library has a limit of ~10 results per request

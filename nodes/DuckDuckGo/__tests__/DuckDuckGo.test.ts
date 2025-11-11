@@ -3,6 +3,7 @@ import { DuckDuckGo } from '../DuckDuckGo.node';
 import * as duckDuckScrape from 'duck-duck-scrape';
 import * as cache from '../cache';
 import * as directSearch from '../directSearch';
+import { resetGlobalReliabilityManager } from '../reliabilityManager';
 
 // Mock the duck-duck-scrape library
 jest.mock('duck-duck-scrape', () => ({
@@ -103,6 +104,9 @@ describe('DuckDuckGo Node', () => {
 
     // Reset all mocks
     jest.clearAllMocks();
+
+    // Reset global reliability manager to prevent state from persisting between tests
+    resetGlobalReliabilityManager();
   });
 
   // Helper function to set up common node parameters

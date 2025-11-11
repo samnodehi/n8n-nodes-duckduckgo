@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [31.0.1] - 2025-11-11
+
+### 🚨 **CRITICAL FIX - Reliability System Now Functional**
+
+This is a **critical patch** that fixes TWO major bugs in v31.0.0 where the reliability system was completely broken.
+
+#### 🐛 **Critical Bug Fixes:**
+
+**Bug #1: Reliability Manager Not Invoked**
+- **FIXED**: Reliability manager is now properly integrated into all search operations
+- **FIXED**: All HTTP requests now wrapped with `executeWithRetry` for retry logic
+- **FIXED**: Adaptive backoff, jitter, and circuit breaking now actually apply
+- **FIXED**: Empty result detection and consecutive failure tracking now functional
+- **FIXED**: Metrics tracking (response times, failures, circuit state) now works
+
+**Bug #2: Double-Counting of Metrics**
+- **FIXED**: Removed duplicate metric recording that counted every request twice
+- **FIXED**: Circuit breaker now trips at exact configured threshold (not half)
+- **FIXED**: Adaptive backoff triggers at correct consecutive empty count
+- **FIXED**: All metrics (totalRequests, emptyResponses, failures) now accurate
+
+#### 📊 **What Was Broken:**
+
+**In v31.0.0:**
+1. The `reliabilityManager` variable was initialized but **never invoked** - all search requests bypassed the reliability system entirely
+2. After the initial fix attempt, metrics were being **counted twice** (manual + executeWithRetry) - breaking all threshold logic
+
+**Result:** All reliability features (backoff, jitter, retries, circuit breaking) were completely non-functional.
+
+#### ✅ **What's Fixed:**
+
+- All search operations (Web, Image, News, Video) now execute through `reliabilityManager.executeWithRetry()`
+- Metric recording handled exclusively by `executeWithRetry` (no double-counting)
+- Circuit breaker trips at exact configured threshold (e.g., 10 failures = 10 counts, not 20)
+- Adaptive backoff triggers at exact consecutive empty count (e.g., 3 = 3, not 6)
+- Success and failure metrics are properly recorded once per request
+- Jittered delays apply to prevent thundering herd
+- Retry logic with exponential backoff now functions correctly
+
+#### 🧪 **Testing:**
+
+- Added comprehensive integration tests proving reliability manager invocation
+- **CRITICAL**: Added tests verifying no double-counting of metrics
+- Verified circuit breaker trips at exact configured threshold
+- Confirmed backoff activates at exact consecutive empty threshold
+- Validated retry logic works correctly
+- Tests prove: 5 requests = 5 totalRequests (not 10), 10 failures trips circuit at threshold 10 (not 5)
+
+#### ⚠️ **Impact:**
+
+**Users who installed v31.0.0 MUST immediately upgrade** to v31.0.1. The reliability features advertised in v31.0.0 were completely broken until this patch.
+
+---
+
 ## [31.0.0] - 2025-11-11
 
 ### 🚀 **Major Release - Agent-Ready & Production-Grade Reliability**
