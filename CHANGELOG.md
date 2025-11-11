@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [31.0.1] - 2025-11-11
+
+### 🚨 **CRITICAL FIX - Reliability System Now Functional**
+
+This is a **critical patch** that fixes a major bug in v31.0.0 where the reliability manager was initialized but never invoked.
+
+#### 🐛 **Critical Bug Fix:**
+
+**Reliability Manager Integration**
+- **FIXED**: Reliability manager is now properly integrated into all search operations
+- **FIXED**: All HTTP requests now wrapped with `executeWithRetry` for retry logic
+- **FIXED**: Adaptive backoff, jitter, and circuit breaking now actually apply
+- **FIXED**: Empty result detection and consecutive failure tracking now functional
+- **FIXED**: Metrics tracking (response times, failures, circuit state) now works
+
+#### 📊 **What Was Broken:**
+
+In v31.0.0, the `reliabilityManager` variable was initialized but **never used**. All search requests bypassed the reliability system entirely, making all the advertised reliability features (backoff, jitter, retries, circuit breaking) completely non-functional.
+
+#### ✅ **What's Fixed:**
+
+- All search operations (Web, Image, News, Video) now execute through `reliabilityManager.executeWithRetry()`
+- Success and failure metrics are properly recorded
+- Adaptive backoff triggers on consecutive empty results
+- Jittered delays apply to prevent thundering herd
+- Circuit breaker activates after consecutive failures
+- Retry logic with exponential backoff now functions
+
+#### 🧪 **Testing:**
+
+- Added integration tests proving reliability manager invocation
+- Verified retry logic works correctly
+- Confirmed metrics tracking is functional
+- Validated backoff and jitter application
+
+#### ⚠️ **Impact:**
+
+Users who installed v31.0.0 should **immediately upgrade** to v31.0.1. The reliability features advertised in v31.0.0 were not functional until this patch.
+
+---
+
 ## [31.0.0] - 2025-11-11
 
 ### 🚀 **Major Release - Agent-Ready & Production-Grade Reliability**
