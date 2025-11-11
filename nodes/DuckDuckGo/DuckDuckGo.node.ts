@@ -1549,17 +1549,18 @@ export class DuckDuckGo implements INodeType {
     // Initialize reliability manager if enabled
     let reliabilityManager: ReturnType<typeof getGlobalReliabilityManager> | null = null;
     if (reliabilitySettings && reliabilitySettings.enableReliability !== false) {
-      const reliabilityConfig: Partial<IReliabilityConfig> = {
-        emptyResultThreshold: reliabilitySettings.emptyResultThreshold,
-        initialBackoffMs: reliabilitySettings.initialBackoffMs,
-        maxBackoffMs: reliabilitySettings.maxBackoffMs,
-        minJitterMs: reliabilitySettings.minJitterMs,
-        maxJitterMs: reliabilitySettings.maxJitterMs,
-        failureThreshold: reliabilitySettings.failureThreshold,
-        resetTimeoutMs: reliabilitySettings.resetTimeoutMs,
-        maxRetries: reliabilitySettings.maxRetries,
-        retryDelayMs: reliabilitySettings.retryDelayMs,
-      };
+      // Build config object, filtering out undefined values to preserve defaults
+      const reliabilityConfig: Partial<IReliabilityConfig> = {};
+      if (reliabilitySettings.emptyResultThreshold !== undefined) reliabilityConfig.emptyResultThreshold = reliabilitySettings.emptyResultThreshold;
+      if (reliabilitySettings.initialBackoffMs !== undefined) reliabilityConfig.initialBackoffMs = reliabilitySettings.initialBackoffMs;
+      if (reliabilitySettings.maxBackoffMs !== undefined) reliabilityConfig.maxBackoffMs = reliabilitySettings.maxBackoffMs;
+      if (reliabilitySettings.minJitterMs !== undefined) reliabilityConfig.minJitterMs = reliabilitySettings.minJitterMs;
+      if (reliabilitySettings.maxJitterMs !== undefined) reliabilityConfig.maxJitterMs = reliabilitySettings.maxJitterMs;
+      if (reliabilitySettings.failureThreshold !== undefined) reliabilityConfig.failureThreshold = reliabilitySettings.failureThreshold;
+      if (reliabilitySettings.resetTimeoutMs !== undefined) reliabilityConfig.resetTimeoutMs = reliabilitySettings.resetTimeoutMs;
+      if (reliabilitySettings.maxRetries !== undefined) reliabilityConfig.maxRetries = reliabilitySettings.maxRetries;
+      if (reliabilitySettings.retryDelayMs !== undefined) reliabilityConfig.retryDelayMs = reliabilitySettings.retryDelayMs;
+
       reliabilityManager = getGlobalReliabilityManager(reliabilityConfig);
 
       // Log reliability status if debug is enabled

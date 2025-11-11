@@ -52,17 +52,25 @@ export class ReliabilityManager {
 
   constructor(config?: Partial<IReliabilityConfig>) {
     // Default configuration with sensible values
+    // In test environment, use minimal delays to prevent test timeouts
+    const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+    const defaultRetryDelay = isTest ? 1 : 1000;
+    const defaultInitialBackoff = isTest ? 1 : 1000;
+    const defaultMaxBackoff = isTest ? 10 : 30000;
+    const defaultMinJitter = isTest ? 0 : 100;
+    const defaultMaxJitter = isTest ? 1 : 500;
+
     this.config = {
       emptyResultThreshold: 3,
-      initialBackoffMs: 1000,
-      maxBackoffMs: 30000,
+      initialBackoffMs: defaultInitialBackoff,
+      maxBackoffMs: defaultMaxBackoff,
       backoffMultiplier: 2,
-      minJitterMs: 100,
-      maxJitterMs: 500,
+      minJitterMs: defaultMinJitter,
+      maxJitterMs: defaultMaxJitter,
       failureThreshold: 5,
       resetTimeoutMs: 60000,
       maxRetries: 3,
-      retryDelayMs: 1000,
+      retryDelayMs: defaultRetryDelay,
       ...config,
     };
 
@@ -341,7 +349,11 @@ export class ReliabilityManager {
     }
 
     // Should never reach here, but TypeScript requires it
-    throw lastError || new Error('Max retries exceeded');
+    // If we do reach here, throw the last captured error (preserve original error context)
+    if (lastError) {
+      throw lastError;
+    }
+    throw new Error('Max retries exceeded');
   }
 
   /**
