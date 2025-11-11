@@ -1,16 +1,30 @@
 # DuckDuckGo Search Node for n8n
 
-[![npm version](https://img.shields.io/npm/v/n8n-nodes-duckduckgo-search.svg?v=30.0.4)](https://www.npmjs.com/package/n8n-nodes-duckduckgo-search)
+[![npm version](https://img.shields.io/npm/v/n8n-nodes-duckduckgo-search.svg?v=31.0.0)](https://www.npmjs.com/package/n8n-nodes-duckduckgo-search)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A powerful and comprehensive n8n community node that seamlessly integrates DuckDuckGo search capabilities into your workflows. Search the web, find images, discover news, and explore videos - all with privacy-focused, reliable results.
 
 ## ✨ Features
 
+### 🤖 **AI Agent Integration** (New in v31.0.0)
+- **Agent Tool Support**: Use as a tool in n8n AI Agent workflows
+- **LLM-Optimized**: Clean interface designed for AI agent consumption
+- **Structured Output**: Predictable format perfect for downstream AI processing
+- **Production-Ready**: Enterprise-grade reliability for agent workloads
+- **Enable**: Set `N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true` environment variable
+
+### 🛡️ **Advanced Reliability System** (New in v31.0.0)
+- **Adaptive Backoff**: Automatically backs off on consecutive empty results
+- **Jittered Delays**: Prevents thundering herd in parallel execution
+- **Circuit Breaker**: Automatic failure detection and recovery
+- **Retry Logic**: Configurable retries with exponential backoff
+- **Metrics Tracking**: Monitor performance, failures, and circuit state
+
 ### 🔍 **Complete Search Coverage**
 - **Web Search**: Comprehensive web search with rich content extraction
 - **Image Search**: High-quality image discovery with metadata
-- **News Search**: Real-time news from diverse sources worldwide  
+- **News Search**: Real-time news from diverse sources worldwide
 - **Video Search**: Video content discovery across multiple platforms
 
 ### 🚀 **Advanced Capabilities**
@@ -24,9 +38,9 @@ A powerful and comprehensive n8n community node that seamlessly integrates DuckD
 ### 🛡️ **Privacy & Performance**
 - **No API Keys Required**: Completely free to use without registration
 - **Privacy-Focused**: No user tracking or data collection
-- **High Performance**: Optimized for speed and reliability
+- **High Performance**: Optimized for speed and reliability under load
 - **Error Handling**: Robust error recovery and retry mechanisms
-- **Rate Limiting**: Built-in protection against overuse
+- **Rate Limiting**: Intelligent protection against overuse
 
 ## 📦 Installation
 
@@ -43,11 +57,25 @@ npm install n8n-nodes-duckduckgo-search
 
 ## 🚀 Quick Start
 
+### Standard Usage
+
 1. **Add Node**: Drag the **DuckDuckGo Search** node into your workflow
 2. **Choose Operation**: Select Web, Image, News, or Video search
 3. **Enter Query**: Type your search terms
 4. **Configure Options**: Set result limits, language, and filters
 5. **Execute**: Run your workflow and get results!
+
+### AI Agent Usage
+
+Use DuckDuckGo Search as a tool in AI Agent workflows for intelligent, autonomous search:
+
+1. **Enable Community Tools**: Set environment variable `N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true`
+2. **Add AI Agent**: Create an AI Agent node in your workflow
+3. **Connect Tool**: Add DuckDuckGo Search node as a tool to your agent
+4. **Configure**: The agent will automatically use the search tool when needed
+5. **Run**: Let your AI agent autonomously search and process results
+
+The node provides clean, structured output optimized for LLM consumption with automatic handling of parallel requests and rate limits.
 
 ## 🔧 Usage Examples
 
@@ -162,6 +190,23 @@ npm install n8n-nodes-duckduckgo-search
 ```
 
 ## ⚙️ Configuration Options
+
+### Reliability Settings (New in v31.0.0)
+
+Advanced reliability features for production workloads:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| **Enable Reliability** | true | Master switch for all reliability features |
+| **Empty Result Threshold** | 3 | Consecutive empty results before backoff |
+| **Initial Backoff** | 1000ms | Starting backoff delay |
+| **Max Backoff** | 30000ms | Maximum backoff delay |
+| **Min Jitter** | 100ms | Minimum random delay |
+| **Max Jitter** | 500ms | Maximum random delay |
+| **Failure Threshold** | 5 | Failures before circuit opens |
+| **Circuit Reset Timeout** | 60000ms | Time before retry after circuit opens |
+| **Max Retries** | 3 | Maximum retry attempts |
+| **Retry Delay** | 1000ms | Base delay between retries |
 
 ### Search Types
 
@@ -284,14 +329,22 @@ Robust error handling provides:
 
 ## 📊 Performance & Limits
 
+### Advanced Reliability (v31.0.0)
+- **Adaptive Backoff**: Automatic delay adjustment based on response patterns
+- **Circuit Breaker**: Prevents cascading failures with automatic recovery
+- **Jittered Delays**: Randomized timing prevents thundering herd
+- **Retry Logic**: Exponential backoff with configurable attempts
+- **Metrics Tracking**: Real-time monitoring of performance and failures
+
 ### Rate Limiting
 - **Built-in protection** against overuse
 - **Intelligent delay mechanisms** between requests
 - **Configurable retry logic** for failed requests
+- **Circuit breaking** for automatic failure handling
 
 ### Result Limits
 - **Web Search**: Up to 50 results per request
-- **Image Search**: Up to 50 images per request  
+- **Image Search**: Up to 50 images per request
 - **News Search**: Up to 50 articles per request
 - **Video Search**: Up to 50 videos per request
 
@@ -300,6 +353,8 @@ Robust error handling provides:
 - Set **appropriate result limits** for your use case
 - Leverage **caching** for repeated searches
 - Use **search operators** to narrow results efficiently
+- Enable **reliability features** for production workloads
+- Monitor **circuit breaker state** in high-volume scenarios
 
 ## 🔒 Privacy & Security
 
