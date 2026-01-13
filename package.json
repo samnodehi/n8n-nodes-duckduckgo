@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-duckduckgo-search",
-  "version": "31.0.0",
+  "version": "32.3.1",
   "description": "Production-grade, AI Agent-ready n8n community node for DuckDuckGo search. Features enterprise reliability with adaptive backoff, circuit breaking, and intelligent rate limiting. Search the web, images, news, and videos with privacy-focused, highly reliable results.",
   "keywords": [
     "n8n-community-node-package",
