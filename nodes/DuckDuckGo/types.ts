@@ -1,6 +1,7 @@
 /**
- * Search configuration options
+ * Types for DuckDuckGo node
  */
+
 export enum SafeSearchLevel {
   Strict = 0,
   Moderate = -1,
@@ -15,9 +16,6 @@ export enum TimePeriod {
   PastYear = 'y',
 }
 
-/**
- * Operation types supported by the node
- */
 export enum DuckDuckGoOperation {
   Search = 'search',
   SearchImages = 'searchImages',
@@ -25,43 +23,14 @@ export enum DuckDuckGoOperation {
   SearchVideos = 'searchVideos',
 }
 
-/**
- * Search options interface with strict types
- * Compatible with duck-duck-scrape package
- */
-export interface IDuckDuckGoSearchOptions {
-  safeSearch: number;
-  locale: string;
-  maxResults?: number;
-  timePeriod?: string;
-}
-
-/**
- * Base result interface with common properties
- */
-export interface IBaseResult {
-  title: string | null;
-  url: string | null;
-}
-
-/**
- * Web search result interface
- * Compatible with duck-duck-scrape SearchResult
- */
 export interface IDuckDuckGoSearchResult {
-  bang?: string | null;
+  title?: string | null;
   description?: string | null;
   hostname?: string | null;
   icon?: string | null;
-  rawDescription?: string | null;
-  title?: string | null;
   url?: string | null;
 }
 
-/**
- * Image search result interface
- * Compatible with duck-duck-scrape DuckbarImageResult
- */
 export interface IDuckDuckGoImageResult {
   height?: number | null;
   image?: string | null;
@@ -72,10 +41,6 @@ export interface IDuckDuckGoImageResult {
   width?: number | null;
 }
 
-/**
- * News search result interface
- * Compatible with duck-duck-scrape NewsResult
- */
 export interface IDuckDuckGoNewsResult {
   date?: number | null;
   excerpt?: string | null;
@@ -87,10 +52,6 @@ export interface IDuckDuckGoNewsResult {
   url?: string | null;
 }
 
-/**
- * Video search result interface
- * Compatible with duck-duck-scrape VideoResult
- */
 export interface IDuckDuckGoVideoResult {
   description?: string | null;
   duration?: string | null;
@@ -102,42 +63,3 @@ export interface IDuckDuckGoVideoResult {
   url?: string | null;
   viewCount?: string | null;
 }
-
-
-
-/**
- * Output types that include sourceType
- */
-export interface IWebSearchOutput extends IDuckDuckGoSearchResult {
-  sourceType: 'web';
-}
-
-export interface IImageSearchOutput extends IDuckDuckGoImageResult {
-  sourceType: 'image';
-}
-
-export interface INewsSearchOutput extends IDuckDuckGoNewsResult {
-  sourceType: 'news';
-}
-
-export interface IVideoSearchOutput extends IDuckDuckGoVideoResult {
-  sourceType: 'video';
-}
-
-
-
-
-
-/**
- * Union type for all output types
- */
-export type DuckDuckGoOutput =
-  IWebSearchOutput |
-  IImageSearchOutput |
-  INewsSearchOutput |
-  IVideoSearchOutput;
-
-/**
- * Re-export search operators interface
- */
-export { ISearchOperators } from './searchOperators';

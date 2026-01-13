@@ -1,46 +1,28 @@
 # DuckDuckGo Search Node for n8n
 
-[![npm version](https://img.shields.io/npm/v/n8n-nodes-duckduckgo-search.svg?v=31.0.0)](https://www.npmjs.com/package/n8n-nodes-duckduckgo-search)
+[![npm version](https://img.shields.io/npm/v/n8n-nodes-duckduckgo-search.svg?v=32.0.0)](https://www.npmjs.com/package/n8n-nodes-duckduckgo-search)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A powerful and comprehensive n8n community node that seamlessly integrates DuckDuckGo search capabilities into your workflows. Search the web, find images, discover news, and explore videos - all with privacy-focused, reliable results.
+A lightweight and fast n8n community node for DuckDuckGo search. Search the web, find images, discover news, and explore videos with privacy-focused results.
 
 ## ✨ Features
 
-### 🤖 **AI Agent Integration** (New in v31.0.0)
-- **Agent Tool Support**: Use as a tool in n8n AI Agent workflows
-- **LLM-Optimized**: Clean interface designed for AI agent consumption
-- **Structured Output**: Predictable format perfect for downstream AI processing
-- **Production-Ready**: Enterprise-grade reliability for agent workloads
-- **Enable**: Set `N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true` environment variable
-
-### 🛡️ **Advanced Reliability System** (New in v31.0.0)
-- **Adaptive Backoff**: Automatically backs off on consecutive empty results
-- **Jittered Delays**: Prevents thundering herd in parallel execution
-- **Circuit Breaker**: Automatic failure detection and recovery
-- **Retry Logic**: Configurable retries with exponential backoff
-- **Metrics Tracking**: Monitor performance, failures, and circuit state
-
 ### 🔍 **Complete Search Coverage**
-- **Web Search**: Comprehensive web search with rich content extraction
+- **Web Search**: Comprehensive web search with clean results
 - **Image Search**: High-quality image discovery with metadata
 - **News Search**: Real-time news from diverse sources worldwide
 - **Video Search**: Video content discovery across multiple platforms
 
-### 🚀 **Advanced Capabilities**
-- **Smart Query Processing**: Intelligent query enhancement and optimization
-- **Rich Results**: Complete metadata including titles, descriptions, sources, and dates
-- **Multiple Formats**: Support for various content types and file formats
-- **Language Support**: 50+ language and region combinations
-- **Search Operators**: Advanced search syntax (`site:`, `intitle:`, `filetype:`, etc.)
-- **Safe Search**: Configurable content filtering options
+### 🚀 **Simple & Fast**
+- **Lightweight Design**: Simplified codebase for better performance
+- **Essential Parameters**: Only the settings you actually need
+- **No Extra Overhead**: Removed complex features for speed
+- **Clean Results**: Focused on delivering quality search results
 
-### 🛡️ **Privacy & Performance**
+### 🛡️ **Privacy-Focused**
 - **No API Keys Required**: Completely free to use without registration
-- **Privacy-Focused**: No user tracking or data collection
-- **High Performance**: Optimized for speed and reliability under load
-- **Error Handling**: Robust error recovery and retry mechanisms
-- **Rate Limiting**: Intelligent protection against overuse
+- **Privacy-First**: No user tracking or data collection
+- **Direct Integration**: Uses DuckDuckGo's search directly
 
 ## 📦 Installation
 
@@ -57,25 +39,11 @@ npm install n8n-nodes-duckduckgo-search
 
 ## 🚀 Quick Start
 
-### Standard Usage
-
 1. **Add Node**: Drag the **DuckDuckGo Search** node into your workflow
 2. **Choose Operation**: Select Web, Image, News, or Video search
 3. **Enter Query**: Type your search terms
 4. **Configure Options**: Set result limits, language, and filters
 5. **Execute**: Run your workflow and get results!
-
-### AI Agent Usage
-
-Use DuckDuckGo Search as a tool in AI Agent workflows for intelligent, autonomous search:
-
-1. **Enable Community Tools**: Set environment variable `N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true`
-2. **Add AI Agent**: Create an AI Agent node in your workflow
-3. **Connect Tool**: Add DuckDuckGo Search node as a tool to your agent
-4. **Configure**: The agent will automatically use the search tool when needed
-5. **Run**: Let your AI agent autonomously search and process results
-
-The node provides clean, structured output optimized for LLM consumption with automatic handling of parallel requests and rate limits.
 
 ## 🔧 Usage Examples
 
@@ -83,12 +51,12 @@ The node provides clean, structured output optimized for LLM consumption with au
 ```json
 {
   "operation": "search",
-  "query": "artificial intelligence trends 2025",
-  "webSearchOptions": {
-    "maxResults": 20,
-    "region": "us-en", 
-    "safeSearch": 1
-  }
+  "query": "artificial intelligence trends 2026",
+  "locale": "en-us",
+  "maxResults": 20,
+  "region": "us-en", 
+  "safeSearch": -1,
+  "timePeriod": ""
 }
 ```
 
@@ -96,10 +64,12 @@ The node provides clean, structured output optimized for LLM consumption with au
 ```json
 [
   {
-    "title": "AI Trends 2025: What to Expect",
-    "url": "https://example.com/ai-trends-2025",
+    "position": 1,
+    "title": "AI Trends 2026: What to Expect",
     "description": "Comprehensive overview of artificial intelligence trends...",
-    "hostname": "example.com"
+    "url": "https://example.com/ai-trends-2026",
+    "hostname": "example.com",
+    "sourceType": "web"
   }
 ]
 ```
@@ -108,14 +78,11 @@ The node provides clean, structured output optimized for LLM consumption with au
 ```json
 {
   "operation": "searchImages",
-  "imageQuery": "sunset mountains landscape",
-  "imageSearchOptions": {
-    "maxResults": 15,
-    "safeSearch": 1,
-    "size": "large",
-    "color": "color",
-    "type": "photo"
-  }
+  "query": "sunset mountains landscape",
+  "locale": "en-us",
+  "maxResults": 15,
+  "region": "us-en",
+  "safeSearch": -1
 }
 ```
 
@@ -124,11 +91,13 @@ The node provides clean, structured output optimized for LLM consumption with au
 [
   {
     "title": "Beautiful Mountain Sunset",
-    "url": "https://example.com/mountain-sunset.jpg",
-    "thumbnail": "https://example.com/thumb.jpg",
+    "url": "https://example.com/page",
+    "imageUrl": "https://example.com/mountain-sunset.jpg",
+    "thumbnailUrl": "https://example.com/thumb.jpg",
     "height": 1080,
     "width": 1920,
-    "source": "Photography Site"
+    "source": "example.com",
+    "sourceType": "image"
   }
 ]
 ```
@@ -137,13 +106,12 @@ The node provides clean, structured output optimized for LLM consumption with au
 ```json
 {
   "operation": "searchNews",
-  "newsQuery": "renewable energy breakthrough",
-  "newsSearchOptions": {
-    "maxResults": 10,
-    "region": "us-en",
-    "safeSearch": 1,
-    "timePeriod": "d"
-  }
+  "query": "renewable energy breakthrough",
+  "locale": "en-us",
+  "maxResults": 10,
+  "region": "us-en",
+  "safeSearch": -1,
+  "timePeriod": "d"
 }
 ```
 
@@ -152,10 +120,13 @@ The node provides clean, structured output optimized for LLM consumption with au
 [
   {
     "title": "Major Breakthrough in Solar Energy Efficiency",
-    "url": "https://news.example.com/solar-breakthrough",
     "description": "Scientists announce 40% efficiency improvement...",
-    "publishedDate": "2025-06-29",
-    "source": "Tech News Daily"
+    "url": "https://news.example.com/solar-breakthrough",
+    "imageUrl": "https://news.example.com/solar.jpg",
+    "date": "2026-01-13T10:30:00.000Z",
+    "relativeTime": "2 hours ago",
+    "syndicate": "Tech News Daily",
+    "sourceType": "news"
   }
 ]
 ```
@@ -164,13 +135,11 @@ The node provides clean, structured output optimized for LLM consumption with au
 ```json
 {
   "operation": "searchVideos",
-  "videoQuery": "machine learning tutorial",
-  "videoSearchOptions": {
-    "maxResults": 12,
-    "safeSearch": 1,
-    "duration": "medium",
-    "resolution": "high"
-  }
+  "query": "machine learning tutorial",
+  "locale": "en-us",
+  "maxResults": 12,
+  "region": "us-en",
+  "safeSearch": -1
 }
 ```
 
@@ -179,106 +148,64 @@ The node provides clean, structured output optimized for LLM consumption with au
 [
   {
     "title": "Complete Machine Learning Tutorial",
+    "description": "Learn machine learning from scratch...",
     "url": "https://video.example.com/ml-tutorial",
-    "thumbnail": "https://video.example.com/thumb.jpg",
+    "imageUrl": "https://video.example.com/thumb.jpg",
     "duration": "15:30",
-    "publishedDate": "2025-06-20",
-    "views": "125000",
-    "source": "Educational Channel"
+    "published": "2026-01-10",
+    "publisher": "Educational Channel",
+    "viewCount": "125000",
+    "sourceType": "video"
   }
 ]
 ```
 
 ## ⚙️ Configuration Options
 
-### Reliability Settings (New in v31.0.0)
-
-Advanced reliability features for production workloads:
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| **Enable Reliability** | true | Master switch for all reliability features |
-| **Empty Result Threshold** | 3 | Consecutive empty results before backoff |
-| **Initial Backoff** | 1000ms | Starting backoff delay |
-| **Max Backoff** | 30000ms | Maximum backoff delay |
-| **Min Jitter** | 100ms | Minimum random delay |
-| **Max Jitter** | 500ms | Maximum random delay |
-| **Failure Threshold** | 5 | Failures before circuit opens |
-| **Circuit Reset Timeout** | 60000ms | Time before retry after circuit opens |
-| **Max Retries** | 3 | Maximum retry attempts |
-| **Retry Delay** | 1000ms | Base delay between retries |
-
-### Search Types
-
-| Operation | Description | Max Results |
-|-----------|-------------|-------------|
-| **Web Search** | General web content search | 1-50 |
-| **Image Search** | Image and visual content discovery | 1-50 |
-| **News Search** | News articles and current events | 1-50 |
-| **Video Search** | Video content from various platforms | 1-50 |
-
-### Common Parameters
+### Parameters
 
 | Parameter | Type | Description | Default |
 |-----------|------|-------------|---------|
-| `query` | string | Search terms | Required |
-| `maxResults` | number | Number of results to return | 10 |
-| `region` | string | Language/region code (us-en, de-de, etc.) | us-en |
-| `safeSearch` | number | Safe search level (0=off, 1=moderate, 2=strict) | 1 |
+| **Operation** | options | Type of search (search, searchImages, searchNews, searchVideos) | search |
+| **Locale** | options | Search language/region locale | en-us |
+| **Search Query** | string | Search terms to look for | Required |
+| **Maximum Results** | number | Number of results to return (1-50) | 10 |
+| **Region** | options | Geographic region for search results | wt-wt |
+| **Safe Search** | options | Content filtering level (Strict=0, Moderate=-1, Off=-2) | -1 |
+| **Time Period** | options | Time range for results (All Time='', Past Day='d', Week='w', Month='m', Year='y') | '' |
 
-### Advanced Options
+### Search Types
 
-#### Web Search Options
-- **timePeriod**: Filter by time range (d, w, m, y)
-- **searchOperators**: Use advanced search operators
-- **useSearchOperators**: Enable operator parsing
-
-#### Image Search Options  
-- **size**: Image size (small, medium, large, wallpaper)
-- **color**: Color filter (color, monochrome, red, orange, etc.)
-- **type**: Image type (photo, clipart, gif, transparent)
-- **layout**: Image layout (square, tall, wide)
-
-#### News Search Options
-- **timePeriod**: Time range for news (d, w, m, y)
-- **sortBy**: Sort order (date, relevance)
-
-#### Video Search Options
-- **duration**: Video length (short, medium, long)
-- **resolution**: Video quality (high, standard)
-- **publishedTime**: When published (d, w, m, y)
-
-## 🔍 Advanced Search Operators
-
-Use powerful search operators to refine your results:
-
-| Operator | Example | Description |
-|----------|---------|-------------|
-| `site:` | `site:github.com` | Search within specific site |
-| `filetype:` | `filetype:pdf` | Find specific file types |
-| `intitle:` | `intitle:"machine learning"` | Search in page titles |
-| `inurl:` | `inurl:tutorial` | Search in URLs |
-| `"exact phrase"` | `"artificial intelligence"` | Exact phrase matching |
-| `-exclude` | `python -snake` | Exclude specific terms |
-| `OR` | `cat OR dog` | Either term |
-
-**Example with operators:**
-```json
-{
-  "query": "site:github.com filetype:md machine learning",
-  "useSearchOperators": true
-}
-```
+| Operation | Description | Supported Parameters |
+|-----------|-------------|---------------------|
+| **Web Search** | General web content search | All parameters |
+| **Image Search** | Image and visual content discovery | All except Time Period |
+| **News Search** | News articles and current events | All parameters |
+| **Video Search** | Video content from various platforms | All except Time Period |
 
 ## 🌍 Supported Languages & Regions
 
-The node supports 50+ language and region combinations:
+The node supports 18 locale options:
 
-- **English**: us-en, uk-en, au-en, ca-en, etc.
-- **Spanish**: es-es, mx-es, ar-es, etc.  
-- **French**: fr-fr, ca-fr, ch-fr
-- **German**: de-de, at-de, ch-de
-- **And many more**: ja-jp, zh-cn, ru-ru, pt-br, it-it, nl-nl, etc.
+- **English**: en-us, uk-en
+- **Spanish**: es-es
+- **French**: fr-fr
+- **German**: de-de
+- **Italian**: it-it
+- **Japanese**: jp-jp
+- **Russian**: ru-ru
+- **Chinese**: zh-cn
+- **Portuguese**: br-pt
+- **Dutch**: nl-nl
+- **Polish**: pl-pl
+- **Swedish**: se-sv
+- **Korean**: kr-ko
+- **Turkish**: tr-tr
+- **Arabic**: sa-ar
+- **Hebrew**: il-he
+- **Persian**: ir-fa
+
+Region options include 56 geographic regions from worldwide to country-specific.
 
 ## 💡 Use Cases
 
@@ -291,8 +218,8 @@ The node supports 50+ language and region combinations:
 ### Data Analysis  
 - Gather web content for analysis
 - Build datasets from search results
-- Monitor brand mentions and sentiment
-- Track competitor content strategies
+- Monitor brand mentions
+- Track competitor content
 
 ### Research & Development
 - Academic research and literature review
@@ -306,41 +233,7 @@ The node supports 50+ language and region combinations:
 - Image collection for projects
 - SEO research and optimization
 
-## 🛠️ Workflow Integration
-
-### Input Parameters
-All search operations accept standardized input parameters that can be:
-- **Hard-coded** in the node configuration
-- **Passed dynamically** from previous workflow steps
-- **Combined** with expressions and variables
-
-### Output Structure
-Results are returned as structured JSON arrays with consistent formatting:
-- **Standardized fields** across all search types
-- **Rich metadata** for comprehensive analysis
-- **Clean, parsed content** ready for further processing
-
-### Error Handling
-Robust error handling provides:
-- **Descriptive error messages** for troubleshooting
-- **Graceful failure handling** to prevent workflow breaks
-- **Retry mechanisms** for temporary issues
-- **Input validation** to catch configuration errors
-
 ## 📊 Performance & Limits
-
-### Advanced Reliability (v31.0.0)
-- **Adaptive Backoff**: Automatic delay adjustment based on response patterns
-- **Circuit Breaker**: Prevents cascading failures with automatic recovery
-- **Jittered Delays**: Randomized timing prevents thundering herd
-- **Retry Logic**: Exponential backoff with configurable attempts
-- **Metrics Tracking**: Real-time monitoring of performance and failures
-
-### Rate Limiting
-- **Built-in protection** against overuse
-- **Intelligent delay mechanisms** between requests
-- **Configurable retry logic** for failed requests
-- **Circuit breaking** for automatic failure handling
 
 ### Result Limits
 - **Web Search**: Up to 50 results per request
@@ -351,10 +244,8 @@ Robust error handling provides:
 ### Performance Tips
 - Use **specific queries** for better, faster results
 - Set **appropriate result limits** for your use case
-- Leverage **caching** for repeated searches
-- Use **search operators** to narrow results efficiently
-- Enable **reliability features** for production workloads
-- Monitor **circuit breaker state** in high-volume scenarios
+- Leverage **region settings** for localized results
+- Use **time period filters** to narrow results
 
 ## 🔒 Privacy & Security
 
@@ -362,7 +253,6 @@ Robust error handling provides:
 - **No user tracking** or data collection
 - **No API keys required** - completely free
 - **Direct DuckDuckGo integration** without third-party services
-- **Secure HTTP client** configuration
 
 ### Data Handling
 - **Minimal data retention** - results processed and returned immediately
@@ -383,13 +273,11 @@ Robust error handling provides:
 - Reduce the number of results requested
 - Use more specific search queries
 - Check your network connection
-- Consider using search operators to narrow results
 
 **Configuration Errors**
 - Verify all required parameters are provided
 - Check parameter data types and formats
 - Ensure region codes are valid
-- Validate search operator syntax
 
 ## 📚 API Reference
 
@@ -397,13 +285,14 @@ Robust error handling provides:
 
 #### Required Parameters
 - `operation`: The search operation to perform
-- `query`: The search terms (varies by operation type)
+- `query`: The search terms
 
 #### Optional Parameters
-- `maxResults`: Number of results to return (1-50)
-- `region`: Language/region code
-- `safeSearch`: Safe search filtering level
-- Additional operation-specific options
+- `locale`: Language/region code (default: en-us)
+- `maxResults`: Number of results to return 1-50 (default: 10)
+- `region`: Geographic region (default: wt-wt)
+- `safeSearch`: Safe search filtering level (default: -1)
+- `timePeriod`: Time range for results (default: '')
 
 ### Output Format
 
