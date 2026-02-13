@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [32.4.0] - 2026-02-13
+
+### Dependencies
+
+**Upgrades**
+- TypeScript 4.8 → 5.4
+- Node.js engines: >=16 → >=18
+- n8n-core, n8n-workflow: 1.14.1 → ^2.8.0
+- axios: ^1.9.0 → ^1.13.0 (resolutions aligned)
+- devDependencies: @semantic-release/*, glob, gulp, ts-jest, @types/request-promise-native, etc.
+- eslint-plugin-n8n-nodes-base: ^1.16.6
+
+**Documentation**
+- README: Search backends section (Web/Image vs News/Video)
+- README: Enhanced Empty Results troubleshooting with backend + reliability tips
+
+### Compatibility
+
+- n8n 2.x compatible
+- TypeScript 5.x
+- Node.js 18+
+
+---
+
 ## [31.0.0] - 2025-11-11
 
 ### 🚀 **Major Release - Agent-Ready & Production-Grade Reliability**

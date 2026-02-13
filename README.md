@@ -1,6 +1,6 @@
 # DuckDuckGo Search Node for n8n
 
-[![npm version](https://img.shields.io/npm/v/n8n-nodes-duckduckgo-search.svg?v=31.0.0)](https://www.npmjs.com/package/n8n-nodes-duckduckgo-search)
+[![npm version](https://img.shields.io/npm/v/n8n-nodes-duckduckgo-search.svg)](https://www.npmjs.com/package/n8n-nodes-duckduckgo-search)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A powerful and comprehensive n8n community node that seamlessly integrates DuckDuckGo search capabilities into your workflows. Search the web, find images, discover news, and explore videos - all with privacy-focused, reliable results.
@@ -369,11 +369,24 @@ Robust error handling provides:
 - **No persistent storage** of search queries or results
 - **Clean HTTP requests** without unnecessary headers or tracking
 
+## 🔌 Search Backends
+
+| Operation | Primary Backend | Notes |
+|-----------|-----------------|-------|
+| Web Search | directSearch (html.duckduckgo.com) | Most reliable |
+| Image Search | directSearch | Most reliable |
+| News Search | duck-duck-scrape | May be less stable |
+| Video Search | duck-duck-scrape | May be less stable |
+
+Default **Search Backend** is **Auto**, which tries multiple backends for best results. For reliability, prefer **Auto** or **HTML Backend**.
+
 ## 🆘 Troubleshooting
 
 ### Common Issues
 
 **Empty Results**
+- Use **Search Backend** set to **Auto** or **HTML** (not Duck-Duck-Scrape only)
+- Reduce request volume and enable reliability features
 - Check your search query for typos
 - Try broader search terms
 - Verify region/language settings

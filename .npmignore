@@ -23,8 +23,6 @@ test/
 .eslintrc.js
 .eslintrc.prepublish.js
 .prettierrc.js
-tslint.json
-
 # Dev dependencies
 node_modules/
 
