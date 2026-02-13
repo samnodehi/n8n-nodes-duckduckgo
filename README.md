@@ -7,14 +7,14 @@ A powerful and comprehensive n8n community node that seamlessly integrates DuckD
 
 ## ✨ Features
 
-### 🤖 **AI Agent Integration** (New in v31.0.0)
+### 🤖 **AI Agent Integration**
 - **Agent Tool Support**: Use as a tool in n8n AI Agent workflows
 - **LLM-Optimized**: Clean interface designed for AI agent consumption
 - **Structured Output**: Predictable format perfect for downstream AI processing
 - **Production-Ready**: Enterprise-grade reliability for agent workloads
 - **Enable**: Set `N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true` environment variable
 
-### 🛡️ **Advanced Reliability System** (New in v31.0.0)
+### 🛡️ **Advanced Reliability System**
 - **Adaptive Backoff**: Automatically backs off on consecutive empty results
 - **Jittered Delays**: Prevents thundering herd in parallel execution
 - **Circuit Breaker**: Automatic failure detection and recovery
@@ -191,7 +191,7 @@ The node provides clean, structured output optimized for LLM consumption with au
 
 ## ⚙️ Configuration Options
 
-### Reliability Settings (New in v31.0.0)
+### Reliability Settings
 
 Advanced reliability features for production workloads:
 
@@ -329,7 +329,7 @@ Robust error handling provides:
 
 ## 📊 Performance & Limits
 
-### Advanced Reliability (v31.0.0)
+### Advanced Reliability
 - **Adaptive Backoff**: Automatic delay adjustment based on response patterns
 - **Circuit Breaker**: Prevents cascading failures with automatic recovery
 - **Jittered Delays**: Randomized timing prevents thundering herd
