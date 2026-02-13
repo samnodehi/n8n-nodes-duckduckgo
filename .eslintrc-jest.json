@@ -1,0 +1,14 @@
+{
+  "extends": "./.eslintrc.js",
+  "rules": {
+    "@typescript-eslint/no-var-requires": "off"
+  },
+  "overrides": [
+    {
+      "files": ["jest.config.js"],
+      "env": {
+        "node": true
+      }
+    }
+  ]
+}

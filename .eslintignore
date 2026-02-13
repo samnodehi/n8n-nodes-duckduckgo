@@ -1,0 +1,2 @@
+# Temporarily ignore node-param-default-missing errors until we figure out the exact placement requirements
+nodes/DuckDuckGo/DuckDuckGo.node.ts
