@@ -190,7 +190,7 @@ describe('DuckDuckGo Node', () => {
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Assertions
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('"test query"', expect.objectContaining({
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith('test query', expect.objectContaining({
         locale: 'us-en',
         safeSearch: 'moderate',
       }));
@@ -672,7 +672,7 @@ describe('DuckDuckGo Node', () => {
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Verify search was called with correct parameters (should not include maxResults in search options)
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('"test query"', expect.not.objectContaining({
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith('test query', expect.not.objectContaining({
         maxResults: expect.any(Number),
       }));
     });
@@ -723,8 +723,8 @@ describe('DuckDuckGo Node', () => {
 
       // Assertions
       expect(directSearch.directWebSearch).toHaveBeenCalledTimes(2);
-      expect(directSearch.directWebSearch).toHaveBeenNthCalledWith(1, '"query 1"', expect.any(Object));
-      expect(directSearch.directWebSearch).toHaveBeenNthCalledWith(2, '"query 2"', expect.any(Object));
+      expect(directSearch.directWebSearch).toHaveBeenNthCalledWith(1, 'query 1', expect.any(Object));
+      expect(directSearch.directWebSearch).toHaveBeenNthCalledWith(2, 'query 2', expect.any(Object));
 
       // Verify correct structure of results - all results are in one array with proper pairedItems
       expect(result).toHaveLength(1); // One array with all results

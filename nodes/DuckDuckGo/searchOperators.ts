@@ -74,7 +74,7 @@ export interface ISearchOperators {
  */
 export const OPERATOR_INFO: Record<string, { description: string; example: string; placeholder: string }> = {
   site: {
-    description: 'Search within a specific website or domain',
+    description: 'Search within a specific website or domain. Note: site:duckduckgo.com returns no results (DDG does not index itself)',
     example: 'site:example.com',
     placeholder: 'example.com',
   },

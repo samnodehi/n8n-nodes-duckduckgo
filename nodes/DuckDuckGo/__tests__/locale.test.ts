@@ -115,7 +115,7 @@ describe('DuckDuckGo Node - Locale Support', () => {
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Verify the search was called with the global locale
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('"test query"', expect.objectContaining({
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith('test query', expect.objectContaining({
         locale: 'fr-fr',
         safeSearch: 'moderate',
       }));
@@ -170,7 +170,7 @@ describe('DuckDuckGo Node - Locale Support', () => {
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Verify the search was called with the region-specific locale (not global)
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('"test query"', expect.objectContaining({
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith('test query', expect.objectContaining({
         locale: 'de-de',
         safeSearch: 'moderate',
       }));
@@ -275,7 +275,7 @@ describe('DuckDuckGo Node - Locale Support', () => {
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Verify the default locale was passed to the search function
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('"test query"', expect.objectContaining({
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith('test query', expect.objectContaining({
         locale: 'en-us',
         safeSearch: 'moderate',
       }));

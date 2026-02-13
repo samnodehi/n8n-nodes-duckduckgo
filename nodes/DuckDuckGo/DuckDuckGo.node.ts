@@ -223,14 +223,9 @@ function enhanceSearchQuery(query: string, searchType: string = 'web'): string {
         enhancedQuery += ' 2025';
       }
     }
-    // For short queries (1-2 words), add context
-    else if (enhancedQuery.split(' ').length <= 2 && enhancedQuery.length > 2) {
-      // Add context for better results
-      if (!/\b(definition|meaning|what is)\b/i.test(enhancedQuery)) {
-        // Don't modify if it's already a definition query
-        enhancedQuery = `"${enhancedQuery}"`;
-      }
-    }
+    // Do NOT wrap short queries in quotes: per DuckDuckGo docs, quoted = exact phrase
+    // (narrow). Unquoted = "results about X" (broad). Image/News/Video pass query
+    // as-is and work; Web Search was failing because of this wrapping.
   }
 
   return enhancedQuery;
@@ -1628,23 +1623,25 @@ export class DuckDuckGo implements INodeType {
 
           // Enhanced query processing for better results
           let enhancedQuery = query;
+          const operators = options.searchOperators;
+          const hasOperatorValues = operators && Object.values(operators).some(v => v != null && String(v).trim() !== '');
 
-                     // Apply search operators if enabled
-           if (options.useSearchOperators && options.searchOperators) {
-             const validationErrors = validateSearchOperators(options.searchOperators);
-             if (validationErrors.length === 0) {
-               enhancedQuery = buildSearchQuery(query, options.searchOperators);
-             } else {
-               throw new NodeOperationError(
-                 this.getNode(),
-                 `Invalid search operators: ${validationErrors.join(', ')}`,
-                 { itemIndex }
-               );
-             }
-           } else {
-             // Apply smart query enhancement for better results
-             enhancedQuery = enhanceSearchQuery(query, 'web');
-           }
+          if ((options.useSearchOperators || hasOperatorValues) && operators) {
+            const validationErrors = validateSearchOperators(operators);
+            if (validationErrors.length === 0) {
+              enhancedQuery = buildSearchQuery(query, operators);
+            } else if (options.useSearchOperators) {
+              throw new NodeOperationError(
+                this.getNode(),
+                `Invalid search operators: ${validationErrors.join(', ')}`,
+                { itemIndex }
+              );
+            } else {
+              enhancedQuery = enhanceSearchQuery(query, 'web');
+            }
+          } else {
+            enhancedQuery = enhanceSearchQuery(query, 'web');
+          }
 
           // Log enhanced query if debug is enabled
           if (debugMode) {
