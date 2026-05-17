@@ -149,6 +149,11 @@ export function parseApiError(error: Error, operation: string): string {
     }
   }
 
+  // Handle the exact duck-duck-scrape server error string — not actionable on its own
+  if (error.message === 'A server error occurred!') {
+    return `DuckDuckGo returned a server error during ${operation}. This may be a temporary DuckDuckGo issue, rate limit, or upstream scraper failure. Try again later or reduce request frequency.`;
+  }
+
   // Return a more generic message if no specific pattern is matched
   return `Error during ${operation}: ${error.message}`;
 }

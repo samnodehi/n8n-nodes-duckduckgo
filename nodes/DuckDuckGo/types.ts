@@ -81,6 +81,7 @@ export interface IDuckDuckGoNewsResult {
   excerpt?: string | null;
   image?: string | null;
   isOld?: boolean | null;
+  isFallback?: boolean;
   relativeTime?: string | null;
   syndicate?: string | null;
   title?: string | null;
@@ -95,6 +96,7 @@ export interface IDuckDuckGoVideoResult {
   description?: string | null;
   duration?: string | null;
   image?: string | null;
+  isFallback?: boolean;
   published?: string | null;
   publishedOn?: string | null;
   publisher?: string | null;

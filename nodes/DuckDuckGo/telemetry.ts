@@ -1,18 +1,19 @@
 /**
  * Telemetry reporting module for DuckDuckGo node
  *
- * Handles anonymous usage reporting for improving the node functionality
+ * TELEMETRY DISABLED: This module previously made outbound HTTPS requests
+ * to an analytics endpoint, including user search queries and error details.
+ * All network activity has been removed to protect user privacy. The README
+ * states "No user tracking or data collection" — this module now enforces that.
+ *
+ * The exported function signatures are preserved so that existing call sites
+ * in DuckDuckGo.node.ts do not require changes. All functions are no-ops.
  */
 
 import { IExecuteFunctions, IDataObject } from 'n8n-workflow';
-import { request } from 'https';
-import { v4 as uuidv4 } from 'uuid';
-
-// Default telemetry endpoint - should be configurable in production
-const DEFAULT_TELEMETRY_ENDPOINT = 'https://telemetry.example.com/collect';
 
 /**
- * Interface for telemetry event data
+ * Interface for telemetry event data — retained for type compatibility.
  */
 export interface ITelemetryEventData extends IDataObject {
   operation?: string;
@@ -25,117 +26,29 @@ export interface ITelemetryEventData extends IDataObject {
 }
 
 /**
- * Reports a telemetry event to the configured endpoint
+ * No-op. Previously sent telemetry events to an external endpoint.
+ * Disabled to prevent transmission of user search queries and metadata.
  *
- * @param executeFunctions - The execute functions context
- * @param eventName - Name of the event being reported
- * @param data - Additional data to include with the event
- * @returns Promise that resolves when the event is reported
+ * @param _executeFunctions - unused
+ * @param _eventName - unused
+ * @param _data - unused
  */
 export async function reportEvent(
-  executeFunctions: IExecuteFunctions,
-  eventName: string,
-  data: ITelemetryEventData
+  _executeFunctions: IExecuteFunctions,
+  _eventName: string,
+  _data: ITelemetryEventData
 ): Promise<void> {
-  try {
-    // Get telemetry settings from node parameters
-    const telemetryEnabled = executeFunctions.getNodeParameter('enableTelemetry', 0, false) as boolean;
-
-    // Skip if telemetry is disabled
-    if (!telemetryEnabled) {
-      return;
-    }
-
-    // Get or generate a unique ID for this node run
-    const nodeStaticData = executeFunctions.getWorkflowStaticData('node');
-    if (!nodeStaticData.nodeRunId) {
-      // Generate a random ID for this execution
-      nodeStaticData.nodeRunId = uuidv4();
-    }
-
-    // Prepare the payload
-    const payload = {
-      eventName,
-      timestamp: Date.now(),
-      nodeRunId: nodeStaticData.nodeRunId as string,
-      ...data,
-    };
-
-    // Get the telemetry endpoint from the static data or use default
-    const telemetryEndpoint = (nodeStaticData.telemetryEndpoint as string) || DEFAULT_TELEMETRY_ENDPOINT;
-
-    // Send the telemetry data asynchronously (don't await)
-    sendTelemetryData(telemetryEndpoint, payload)
-      .catch(error => console.error('Telemetry error:', error));
-
-  } catch (error) {
-    // Silently fail for telemetry - should not impact node operation
-    console.error('Telemetry reporting error:', error);
-  }
+  // Intentional no-op. No network request is made. User data is not transmitted.
+  return;
 }
 
 /**
- * Sends telemetry data to the specified endpoint
+ * No-op. Previously set a custom telemetry endpoint in workflow static data.
+ * Disabled alongside reportEvent.
  *
- * @param endpoint - The URL to send telemetry data to
- * @param data - The data to send
- * @returns Promise that resolves when the data is sent
+ * @param _executeFunctions - unused
+ * @param _endpoint - unused
  */
-function sendTelemetryData(endpoint: string, data: IDataObject): Promise<void> {
-  return new Promise((resolve, reject) => {
-    try {
-      // Parse the URL to get hostname, path and port
-      const url = new URL(endpoint);
-
-      // Prepare the request payload
-      const payload = JSON.stringify(data);
-
-      // Prepare the request options
-      const options = {
-        hostname: url.hostname,
-        port: url.port || (url.protocol === 'https:' ? 443 : 80),
-        path: url.pathname,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(payload),
-        },
-      };
-
-      // Send the request
-      const req = request(options, (res) => {
-        // Get the response data
-        const statusCode = res.statusCode || 500;
-
-        // Consider 2xx status codes as success
-        if (statusCode >= 200 && statusCode < 300) {
-          resolve();
-        } else {
-          reject(new Error(`HTTP error: ${statusCode}`));
-        }
-      });
-
-      // Handle request errors
-      req.on('error', (error) => {
-        reject(error);
-      });
-
-      // Send the data
-      req.write(payload);
-      req.end();
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
-
-/**
- * Sets a custom telemetry endpoint
- *
- * @param executeFunctions - The execute functions context
- * @param endpoint - The URL to send telemetry data to
- */
-export function setTelemetryEndpoint(executeFunctions: IExecuteFunctions, endpoint: string): void {
-  const nodeStaticData = executeFunctions.getWorkflowStaticData('node');
-  nodeStaticData.telemetryEndpoint = endpoint;
+export function setTelemetryEndpoint(_executeFunctions: IExecuteFunctions, _endpoint: string): void {
+  // Intentional no-op.
 }

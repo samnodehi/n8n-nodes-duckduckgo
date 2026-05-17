@@ -103,9 +103,28 @@ export async function directWebSearch(query: string, options: {
       }
     }
 
+    // If no result blocks were found, distinguish legitimate no-results from parser failure.
+    // DuckDuckGo returns HTTP 202 for genuine no-results pages; HTTP 200 with a large HTML
+    // body but zero parseable blocks means the page structure has likely changed.
+    if (results.length === 0 && resultSections.length === 1) {
+      if (response.status === 200 && html.length > 1000) {
+        throw new Error(
+          'DuckDuckGo web search response could not be parsed. ' +
+          'The page structure may have changed. Please try again later.'
+        );
+      }
+      // HTTP 202 = genuine no-results page. Return empty.
+    }
+
     return { results };
   } catch (error) {
     console.error('Direct web search error:', error.message);
+
+    // Re-throw errors that already carry specific, user-readable messages
+    // (e.g. the parser-failure error thrown above — no .code, no .response)
+    if (!error.code && !error.response) {
+      throw error;
+    }
 
     // Provide more specific error messages based on error type
     if (error.code === 'ECONNABORTED') {
@@ -124,48 +143,52 @@ export async function directWebSearch(query: string, options: {
 
 /**
  * Direct image search using DuckDuckGo
- * This uses a different approach to get images without VQD issues
+ *
+ * @param vqdHint - Optional VQD token from a previous call for the same query.
+ *   When provided, the initial DuckDuckGo page GET is skipped and this token
+ *   is used directly for the i.js request. Only reuse VQDs from the same
+ *   query within a single execution run; do not persist across executions.
  */
 export async function directImageSearch(query: string, options: {
   locale?: string;
   safeSearch?: string;
   maxResults?: number;
-} = {}): Promise<{ results: DirectImageResult[] }> {
+} = {}, vqdHint?: string): Promise<{ results: DirectImageResult[]; vqd: string }> {
   try {
-    // First, make a request to get the initial page
     const searchParams = new URLSearchParams({
       q: query,
       iax: 'images',
       ia: 'images',
     });
-
     const searchUrl = `https://duckduckgo.com/?${searchParams.toString()}`;
 
-    const response = await axios.get(searchUrl, {
-      headers: {
-        'User-Agent': BROWSER_USER_AGENT,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-      },
-      timeout: 15000,
-    });
+    let vqd: string;
 
-    // Extract VQD token from the page
-    const vqdMatch = response.data.match(/vqd=([\d-]+)/);
-    const vqd = vqdMatch ? vqdMatch[1] : null;
+    if (vqdHint) {
+      // Caller already has a valid VQD for this query — skip the page GET.
+      vqd = vqdHint;
+    } else {
+      // Fetch the search page to extract the VQD token.
+      const response = await axios.get(searchUrl, {
+        headers: {
+          'User-Agent': BROWSER_USER_AGENT,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+        },
+        timeout: 15000,
+      });
 
-    if (!vqd) {
-      // Fallback to web search with image keywords
-      const webResults = await directWebSearch(`${query} images photos`, options);
-      return {
-        results: webResults.results.map(result => ({
-          title: result.title,
-          url: result.url,
-          thumbnail: '',
-          source: result.url,
-        })),
-      };
+      const vqdMatch = response.data.match(/vqd=([\d-]+)/);
+      const extracted = vqdMatch ? vqdMatch[1] : null;
+
+      if (!extracted) {
+        throw new Error(
+          'DuckDuckGo image search token (VQD) could not be extracted. ' +
+          'Image search may be temporarily unavailable. Please try again later.'
+        );
+      }
+      vqd = extracted;
     }
 
     // Make image API request
@@ -210,33 +233,23 @@ export async function directImageSearch(query: string, options: {
       }
     }
 
-    return { results };
+    return { results, vqd };
   } catch (error) {
     console.error('Direct image search error:', error.message);
 
-    // Try fallback to web search for image-related content
-    try {
-      console.log('Falling back to web search for image content...');
-      const webResults = await directWebSearch(`${query} images photos pictures`, options);
-      return {
-        results: webResults.results.map(result => ({
-          title: result.title,
-          url: result.url,
-          thumbnail: '',
-          source: result.url,
-        })),
-      };
-    } catch (fallbackError) {
-      // If fallback also fails, provide specific error message
-      if (error.code === 'ECONNABORTED') {
-        throw new Error('Image search request timed out. Please try again.');
-      } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-        throw new Error('Unable to connect to DuckDuckGo for image search. Please check your internet connection.');
-      } else if (error.response && error.response.status === 429) {
-        throw new Error('Too many image search requests. Please wait a moment before trying again.');
-      } else {
-        throw new Error(`Image search failed: ${error.message}`);
-      }
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('Image search request timed out. Please try again.');
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      throw new Error('Unable to connect to DuckDuckGo for image search. Please check your internet connection.');
+    } else if (error.response && error.response.status === 429) {
+      throw new Error('Too many image search requests. Please wait a moment before trying again.');
+    } else if (error.response && error.response.status === 403) {
+      throw new Error(
+        'DuckDuckGo image search returned 403 Forbidden. ' +
+        'The search token (VQD) may have expired or the request was blocked. Please try again.'
+      );
+    } else {
+      throw new Error(`Image search failed: ${error.message}`);
     }
   }
 }

@@ -1,8 +1,8 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { reportEvent, setTelemetryEndpoint } from '../telemetry';
+import { reportEvent, setTelemetryEndpoint, ITelemetryEventData } from '../telemetry';
 import * as https from 'https';
 
-// Mock the https module
+// Mock the https module so we can assert it is never called
 jest.mock('https', () => ({
   request: jest.fn(),
 }));
@@ -10,99 +10,80 @@ jest.mock('https', () => ({
 describe('Telemetry Module', () => {
   let mockExecuteFunction: IExecuteFunctions;
   let mockNodeStaticData: Record<string, any>;
-  let mockTelemetryEnabled: boolean;
-  let mockRequest: any;
 
   beforeEach(() => {
-    // Create a mock for the static data
     mockNodeStaticData = {};
-
-    // Set default telemetry to disabled for tests
-    mockTelemetryEnabled = false;
-
-    // Mock the execute functions context
     mockExecuteFunction = {
       getNodeParameter: jest.fn().mockImplementation((parameterName: string) => {
-        if (parameterName === 'enableTelemetry') {
-          return mockTelemetryEnabled;
-        }
+        if (parameterName === 'enableTelemetry') return true; // even when enabled
         return undefined;
       }),
       getWorkflowStaticData: jest.fn().mockImplementation(() => mockNodeStaticData),
     } as unknown as IExecuteFunctions;
 
-    // Mock https.request
-    mockRequest = {
-      on: jest.fn(),
-      write: jest.fn(),
-      end: jest.fn(),
-    };
-    (https.request as jest.Mock).mockReturnValue(mockRequest);
-
-    // Reset all mocks
     jest.clearAllMocks();
   });
 
-  it('should not send telemetry when disabled', async () => {
-    // Set telemetry to disabled
-    mockTelemetryEnabled = false;
+  describe('reportEvent is a no-op', () => {
+    it('should never call https.request when enableTelemetry is false', async () => {
+      (mockExecuteFunction.getNodeParameter as jest.Mock).mockImplementation(
+        (parameterName: string) => (parameterName === 'enableTelemetry' ? false : undefined)
+      );
 
-    // Call the reportEvent function
-    await reportEvent(mockExecuteFunction, 'test_event', { test: 'data' });
+      await reportEvent(mockExecuteFunction, 'test_event', { test: 'data' });
 
-    // Verify no request was made
-    expect(https.request).not.toHaveBeenCalled();
+      expect(https.request).not.toHaveBeenCalled();
+    });
+
+    it('should never call https.request even when enableTelemetry is true', async () => {
+      // This is the critical regression: even with enableTelemetry=true,
+      // no outbound network request should occur.
+      await reportEvent(mockExecuteFunction, 'test_event', { test: 'data' });
+
+      expect(https.request).not.toHaveBeenCalled();
+    });
+
+    it('should return without error for any event name', async () => {
+      const events = ['search_started', 'search_completed', 'search_failed', 'node_error'];
+      for (const eventName of events) {
+        await expect(
+          reportEvent(mockExecuteFunction, eventName, { query: 'some user query', resultCount: 5 })
+        ).resolves.toBeUndefined();
+      }
+      expect(https.request).not.toHaveBeenCalled();
+    });
+
+    it('should not transmit query strings or error details', async () => {
+      const sensitiveData: ITelemetryEventData = {
+        query: 'user private search query',
+        error: 'user error details',
+        operation: 'news search',
+        durationMs: 123,
+      };
+
+      await reportEvent(mockExecuteFunction, 'search_failed', sensitiveData);
+
+      // No network call means sensitive data was not transmitted
+      expect(https.request).not.toHaveBeenCalled();
+    });
+
+    it('should be safe to call multiple times without side effects', async () => {
+      await reportEvent(mockExecuteFunction, 'event1', {});
+      await reportEvent(mockExecuteFunction, 'event2', {});
+      await reportEvent(mockExecuteFunction, 'event3', {});
+
+      expect(https.request).not.toHaveBeenCalled();
+      // Static data should not be mutated (no nodeRunId written)
+      expect(mockNodeStaticData.nodeRunId).toBeUndefined();
+    });
   });
 
-  it('should send telemetry when enabled', async () => {
-    // Set telemetry to enabled
-    mockTelemetryEnabled = true;
+  describe('setTelemetryEndpoint is a no-op', () => {
+    it('should not store an endpoint in static data', () => {
+      setTelemetryEndpoint(mockExecuteFunction, 'https://custom.example.com/telemetry');
 
-    // Call the reportEvent function
-    await reportEvent(mockExecuteFunction, 'test_event', { test: 'data' });
-
-    // Verify a request was made
-    expect(https.request).toHaveBeenCalled();
-    expect(mockRequest.write).toHaveBeenCalled();
-    expect(mockRequest.end).toHaveBeenCalled();
-  });
-
-  it('should generate and reuse a node run ID', async () => {
-    // Set telemetry to enabled
-    mockTelemetryEnabled = true;
-
-    // Call the reportEvent function twice
-    await reportEvent(mockExecuteFunction, 'test_event1', { test: 'data1' });
-    await reportEvent(mockExecuteFunction, 'test_event2', { test: 'data2' });
-
-    // Verify that a nodeRunId was generated and stored
-    expect(mockNodeStaticData.nodeRunId).toBeDefined();
-
-    // Verify that the same ID was used for both calls
-    const writeCall1 = mockRequest.write.mock.calls[0][0];
-    const writeCall2 = mockRequest.write.mock.calls[1][0];
-
-    const data1 = JSON.parse(writeCall1);
-    const data2 = JSON.parse(writeCall2);
-
-    expect(data1.nodeRunId).toBe(mockNodeStaticData.nodeRunId);
-    expect(data1.nodeRunId).toBe(data2.nodeRunId);
-  });
-
-  it('should allow setting a custom telemetry endpoint', async () => {
-    // Set telemetry to enabled
-    mockTelemetryEnabled = true;
-
-    // Set a custom endpoint
-    const customEndpoint = 'https://custom.example.com/telemetry';
-    setTelemetryEndpoint(mockExecuteFunction, customEndpoint);
-
-    // Call the reportEvent function
-    await reportEvent(mockExecuteFunction, 'test_event', { test: 'data' });
-
-    // Verify the request was made to the custom endpoint
-    const requestCall = (https.request as jest.Mock).mock.calls[0][0];
-    expect(requestCall.hostname).toBe('custom.example.com');
-    expect(requestCall.path).toBe('/telemetry');
+      // The no-op implementation must not write to static data
+      expect(mockNodeStaticData.telemetryEndpoint).toBeUndefined();
+    });
   });
 });

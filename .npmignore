@@ -10,6 +10,7 @@ Thumbs.db
 
 # Build artifacts
 *.tsbuildinfo
+dist/tsconfig.tsbuildinfo
 tsconfig.json
 gulpfile.js
 
@@ -17,6 +18,14 @@ gulpfile.js
 nodes/
 src/
 test/
+
+# Compiled test files — must not be published
+# (clean-build removes these too, but .npmignore is the safety net)
+dist/**/__tests__/
+dist/nodes/DuckDuckGo/__tests__/
+
+# Unused credential output — credential type removed from package.json n8n registry
+dist/credentials/
 
 # Config files
 .editorconfig

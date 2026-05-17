@@ -20,9 +20,6 @@ import {
   VideoSearchOptions,
   SafeSearchType,
   SearchTimeType,
-  VideoDefinition,
-  VideoDuration,
-  VideoLicense,
 } from 'duck-duck-scrape';
 
 // Import our direct search implementations
@@ -61,10 +58,6 @@ import {
   ITelemetryEventData
 } from './telemetry';
 
-import {
-  getGlobalReliabilityManager,
-  IReliabilityConfig,
-} from './reliabilityManager';
 
 import { buildSearchQuery, validateSearchOperators, OPERATOR_INFO, ISearchOperators } from './searchOperators';
 import { paginateWithVqd, DEFAULT_PAGINATION_CONFIG } from './vqdPagination';
@@ -138,98 +131,21 @@ function getSearchTimeType(value?: string): SearchTimeType {
   }
 }
 
-/**
- * Convert video definition string to VideoDefinition enum
- */
-function getVideoDefinition(value?: string): VideoDefinition {
-  switch (value) {
-    case 'high':
-    case 'hd':
-      return VideoDefinition.HIGH;
-    case 'standard':
-    case 'sd':
-      return VideoDefinition.STANDARD;
-    default:
-      return VideoDefinition.ANY;
-  }
-}
-
-/**
- * Convert video duration string to VideoDuration enum
- */
-function getVideoDuration(value?: string): VideoDuration {
-  switch (value) {
-    case 'short':
-    case 'SHORT':
-      return VideoDuration.SHORT;
-    case 'medium':
-    case 'MEDIUM':
-      return VideoDuration.MEDIUM;
-    case 'long':
-    case 'LONG':
-      return VideoDuration.LONG;
-    default:
-      return VideoDuration.ANY;
-  }
-}
-
-/**
- * Convert video license string to VideoLicense enum
- */
-function getVideoLicense(value?: string): VideoLicense {
-  switch (value) {
-    case 'creativeCommon':
-    case 'cc':
-      return VideoLicense.CREATIVE_COMMONS;
-    case 'youtube':
-    case 'yt':
-      return VideoLicense.YOUTUBE;
-    default:
-      return VideoLicense.ANY;
-  }
-}
 
 /**
  * Enhanced query builder for improved search quality
  */
 function enhanceSearchQuery(query: string, searchType: string = 'web'): string {
-  // Clean and prepare query
-  let enhancedQuery = query.trim();
+  // Clean and prepare query — do not mutate the user query beyond trimming
+  const enhancedQuery = query.trim();
 
-  // Smart query enhancements based on patterns
-  if (searchType === 'web') {
-    // Detect question patterns and enhance them
-    if (/^(what|how|why|when|where|who|which|can|could|should|would|will|is|are|do|does|did)\s/i.test(enhancedQuery)) {
-      // Question detected - no change needed, questions work well as-is
-    }
-    // Detect product/service searches
-    else if (/\b(buy|purchase|price|cost|review|compare|best|top|vs)\b/i.test(enhancedQuery)) {
-      // Commercial intent detected - add specificity
-      if (!enhancedQuery.includes('2025') && !enhancedQuery.includes('2024')) {
-        enhancedQuery += ' 2025';
-      }
-    }
-    // Detect technical searches
-    else if (/\b(error|fix|solution|tutorial|guide|how to|install|setup|config)\b/i.test(enhancedQuery)) {
-      // Technical intent - add recent year for updated solutions
-      if (!enhancedQuery.includes('2025') && !enhancedQuery.includes('2024')) {
-        enhancedQuery += ' 2025';
-      }
-    }
-    // Detect news/current events
-    else if (/\b(news|latest|recent|update|today|now|current)\b/i.test(enhancedQuery)) {
-      // News intent - ensure recent results
-      if (!enhancedQuery.includes('2025')) {
-        enhancedQuery += ' 2025';
-      }
-    }
-    // Do NOT wrap short queries in quotes: per DuckDuckGo docs, quoted = exact phrase
-    // (narrow). Unquoted = "results about X" (broad). Image/News/Video pass query
-    // as-is and work; Web Search was failing because of this wrapping.
-  }
+  // Note: pattern-based year injection was removed. The query is returned as-is.
+  // Explicit search operators are handled upstream via buildSearchQuery().
+  void searchType; // parameter retained for API compatibility
 
   return enhancedQuery;
 }
+
 
 /**
  * DuckDuckGo node implementation with cleanly separated operations
@@ -250,17 +166,7 @@ export class DuckDuckGo implements INodeType {
     outputs: ['main' as NodeConnectionType],
     // @ts-ignore - Enable this node to be used as an AI Agent tool
     usableAsTool: true,
-    credentials: [
-      {
-        name: 'duckDuckGoApi',
-        required: false,
-        displayOptions: {
-          show: {
-            useApiKey: [true],
-          },
-        },
-      },
-    ],
+    credentials: [],
     properties: [
       // Operation Selection - The first parameter per requirements
       {
@@ -309,14 +215,6 @@ export class DuckDuckGo implements INodeType {
         options: LOCALE_OPTIONS,
       },
 
-      // API Key Authentication Option
-      {
-        displayName: 'Use API Key',
-        name: 'useApiKey',
-        type: 'boolean',
-        default: false,
-        description: 'Whether to use API key authentication for DuckDuckGo API access',
-      },
 
       // ----------------------------------------
       // Web Search Operation Parameters
@@ -403,80 +301,13 @@ export class DuckDuckGo implements INodeType {
               }
             ],
           },
-          {
-            displayName: 'Time Period',
-            name: 'timePeriod',
-            type: 'options',
-            default: TimePeriod.AllTime,
-            description: 'Time range for web search results',
-            options: [
-              {
-                name: 'All Time',
-                value: TimePeriod.AllTime,
-                description: 'No time restriction',
-              },
-              {
-                name: 'Past Day',
-                value: TimePeriod.PastDay,
-                description: 'Last 24 hours',
-              },
-              {
-                name: 'Past Week',
-                value: TimePeriod.PastWeek,
-                description: 'Last 7 days',
-              },
-              {
-                name: 'Past Month',
-                value: TimePeriod.PastMonth,
-                description: 'Last 30 days',
-              },
-              {
-                name: 'Past Year',
-                value: TimePeriod.PastYear,
-                description: 'Last 365 days',
-              },
-            ],
-          },
+
           {
             displayName: 'Return Raw Results',
             name: 'returnRawResults',
             type: 'boolean',
             default: false,
             description: 'Whether to return the raw API response instead of processed results',
-          },
-          {
-            displayName: 'Search Backend',
-            name: 'searchBackend',
-            type: 'options',
-            default: 'auto',
-            description: 'Choose which search backend to use for better reliability',
-            options: [
-              {
-                name: 'Auto (Recommended)',
-                value: 'auto',
-                description: 'Automatically tries multiple backends for best results',
-              },
-              {
-                name: 'Duck-Duck-Scrape',
-                value: 'duck-duck-scrape',
-                description: 'Primary search engine library',
-              },
-              {
-                name: 'SearchAPI',
-                value: 'search-api',
-                description: 'Alternative API-based search',
-              },
-              {
-                name: 'HTML Backend',
-                value: 'html',
-                description: 'Direct HTML parsing from html.duckduckgo.com',
-              },
-              {
-                name: 'Lite Backend',
-                value: 'lite',
-                description: 'Lightweight search from lite.duckduckgo.com',
-              },
-            ],
           },
           {
             displayName: 'Use Search Operators',
@@ -1019,392 +850,6 @@ export class DuckDuckGo implements INodeType {
         description: 'Whether to send anonymous usage data to help improve the node (no personal data is collected)',
       },
 
-      // Reliability settings
-      {
-        displayName: 'Reliability Settings',
-        name: 'reliabilitySettings',
-        type: 'collection',
-        placeholder: 'Add Reliability Setting',
-        default: {},
-        description: 'Advanced reliability and performance settings for handling parallel requests and rate limits',
-        options: [
-          {
-            displayName: 'Enable Reliability Features',
-            name: 'enableReliability',
-            type: 'boolean',
-            default: true,
-            description: 'Whether to enable adaptive backoff, jitter, and circuit breaking for robust operation',
-          },
-          {
-            displayName: 'Empty Result Threshold',
-            name: 'emptyResultThreshold',
-            type: 'number',
-            default: 3,
-            description: 'Number of consecutive empty results before triggering adaptive backoff',
-            typeOptions: {
-              minValue: 1,
-              maxValue: 10,
-            },
-          },
-          {
-            displayName: 'Initial Backoff (ms)',
-            name: 'initialBackoffMs',
-            type: 'number',
-            default: 1000,
-            description: 'Initial backoff delay in milliseconds when empty results are detected',
-            typeOptions: {
-              minValue: 100,
-              maxValue: 10000,
-            },
-          },
-          {
-            displayName: 'Max Backoff (ms)',
-            name: 'maxBackoffMs',
-            type: 'number',
-            default: 30000,
-            description: 'Maximum backoff delay in milliseconds',
-            typeOptions: {
-              minValue: 1000,
-              maxValue: 120000,
-            },
-          },
-          {
-            displayName: 'Min Jitter (ms)',
-            name: 'minJitterMs',
-            type: 'number',
-            default: 100,
-            description: 'Minimum random jitter delay to prevent thundering herd',
-            typeOptions: {
-              minValue: 0,
-              maxValue: 5000,
-            },
-          },
-          {
-            displayName: 'Max Jitter (ms)',
-            name: 'maxJitterMs',
-            type: 'number',
-            default: 500,
-            description: 'Maximum random jitter delay',
-            typeOptions: {
-              minValue: 100,
-              maxValue: 10000,
-            },
-          },
-          {
-            displayName: 'Failure Threshold',
-            name: 'failureThreshold',
-            type: 'number',
-            default: 5,
-            description: 'Number of consecutive failures before opening circuit breaker',
-            typeOptions: {
-              minValue: 2,
-              maxValue: 20,
-            },
-          },
-          {
-            displayName: 'Circuit Reset Timeout (ms)',
-            name: 'resetTimeoutMs',
-            type: 'number',
-            default: 60000,
-            description: 'Time to wait before attempting to close circuit breaker',
-            typeOptions: {
-              minValue: 10000,
-              maxValue: 300000,
-            },
-          },
-          {
-            displayName: 'Max Retries',
-            name: 'maxRetries',
-            type: 'number',
-            default: 3,
-            description: 'Maximum number of retry attempts per request',
-            typeOptions: {
-              minValue: 0,
-              maxValue: 10,
-            },
-          },
-          {
-            displayName: 'Retry Delay (ms)',
-            name: 'retryDelayMs',
-            type: 'number',
-            default: 1000,
-            description: 'Base delay between retry attempts',
-            typeOptions: {
-              minValue: 100,
-              maxValue: 10000,
-            },
-          },
-        ],
-      },
-
-      // Proxy Settings
-      {
-        displayName: 'Proxy Settings',
-        name: 'proxySettings',
-        type: 'collection',
-        placeholder: 'Add Proxy Setting',
-        default: {},
-        description: 'Configure proxy for all requests',
-        options: [
-          {
-            displayName: 'Use Proxy',
-            name: 'useProxy',
-            type: 'boolean',
-            default: false,
-            description: 'Whether to use a proxy for requests',
-          },
-          {
-            displayName: 'Proxy Type',
-            name: 'proxyType',
-            type: 'options',
-            default: 'http',
-            description: 'Type of proxy to use',
-            options: [
-              {
-                name: 'HTTP',
-                value: 'http',
-              },
-              {
-                name: 'HTTPS',
-                value: 'https',
-              },
-              {
-                name: 'SOCKS4',
-                value: 'socks4',
-              },
-              {
-                name: 'SOCKS5',
-                value: 'socks5',
-              },
-            ],
-            displayOptions: {
-              show: {
-                useProxy: [true],
-              },
-            },
-          },
-          {
-            displayName: 'Proxy Host',
-            name: 'proxyHost',
-            type: 'string',
-            default: '',
-            placeholder: 'proxy.example.com',
-            description: 'Hostname or IP address of the proxy server',
-            displayOptions: {
-              show: {
-                useProxy: [true],
-              },
-            },
-          },
-          {
-            displayName: 'Proxy Port',
-            name: 'proxyPort',
-            type: 'number',
-            default: 8080,
-            description: 'Port number of the proxy server',
-            typeOptions: {
-              minValue: 1,
-              maxValue: 65535,
-            },
-            displayOptions: {
-              show: {
-                useProxy: [true],
-              },
-            },
-          },
-          {
-            displayName: 'Proxy Authentication',
-            name: 'proxyAuth',
-            type: 'boolean',
-            default: false,
-            description: 'Whether the proxy requires authentication',
-            displayOptions: {
-              show: {
-                useProxy: [true],
-              },
-            },
-          },
-          {
-            displayName: 'Proxy Username',
-            name: 'proxyUsername',
-            type: 'string',
-            default: '',
-            description: 'Username for proxy authentication',
-            displayOptions: {
-              show: {
-                useProxy: [true],
-                proxyAuth: [true],
-              },
-            },
-          },
-          {
-            displayName: 'Proxy Password',
-            name: 'proxyPassword',
-            type: 'string',
-            typeOptions: {
-              password: true,
-            },
-            default: '',
-            description: 'Password for proxy authentication',
-            displayOptions: {
-              show: {
-                useProxy: [true],
-                proxyAuth: [true],
-              },
-            },
-          },
-        ],
-      },
-
-      // Search Filter Settings
-      {
-        displayName: 'Search Filters',
-        name: 'searchFilters',
-        type: 'collection',
-        placeholder: 'Add Filter',
-        default: {},
-        description: 'Advanced search filters for more precise results',
-        displayOptions: {
-          show: {
-            operation: [
-              DuckDuckGoOperation.Search,
-            ],
-          },
-        },
-        options: [
-          {
-            displayName: 'Region Filter',
-            name: 'useRegionFilter',
-            type: 'boolean',
-            default: false,
-            description: 'Whether to filter results by region',
-          },
-          {
-            displayName: 'Region',
-            name: 'region',
-            type: 'options',
-            default: 'wt-wt',
-            description: 'Region to filter results',
-            options: [
-              { name: 'No Region', value: 'wt-wt' },
-              { name: 'United States', value: 'us-en' },
-              { name: 'United Kingdom', value: 'uk-en' },
-              { name: 'Canada', value: 'ca-en' },
-              { name: 'Australia', value: 'au-en' },
-              { name: 'Germany', value: 'de-de' },
-              { name: 'France', value: 'fr-fr' },
-              { name: 'Spain', value: 'es-es' },
-              { name: 'Italy', value: 'it-it' },
-              { name: 'Netherlands', value: 'nl-nl' },
-              { name: 'Brazil', value: 'br-pt' },
-              { name: 'Mexico', value: 'mx-es' },
-              { name: 'Russia', value: 'ru-ru' },
-              { name: 'Japan', value: 'jp-jp' },
-              { name: 'China', value: 'cn-zh' },
-              { name: 'India', value: 'in-en' },
-              { name: 'South Korea', value: 'kr-kr' },
-              { name: 'Turkey', value: 'tr-tr' },
-              { name: 'Saudi Arabia', value: 'sa-ar' },
-              { name: 'United Arab Emirates', value: 'ae-ar' },
-            ],
-            displayOptions: {
-              show: {
-                useRegionFilter: [true],
-              },
-            },
-          },
-          {
-            displayName: 'Language Filter',
-            name: 'useLanguageFilter',
-            type: 'boolean',
-            default: false,
-            description: 'Whether to filter results by language',
-          },
-          {
-            displayName: 'Language',
-            name: 'language',
-            type: 'options',
-            default: '',
-            description: 'Language to filter results',
-            options: [
-              { name: 'All Languages', value: '' },
-              { name: 'English', value: 'en' },
-              { name: 'Spanish', value: 'es' },
-              { name: 'French', value: 'fr' },
-              { name: 'German', value: 'de' },
-              { name: 'Italian', value: 'it' },
-              { name: 'Portuguese', value: 'pt' },
-              { name: 'Dutch', value: 'nl' },
-              { name: 'Russian', value: 'ru' },
-              { name: 'Japanese', value: 'ja' },
-              { name: 'Korean', value: 'ko' },
-              { name: 'Chinese', value: 'zh' },
-              { name: 'Arabic', value: 'ar' },
-              { name: 'Hindi', value: 'hi' },
-              { name: 'Turkish', value: 'tr' },
-            ],
-            displayOptions: {
-              show: {
-                useLanguageFilter: [true],
-              },
-            },
-          },
-          {
-            displayName: 'Date Filter',
-            name: 'useDateFilter',
-            type: 'boolean',
-            default: false,
-            description: 'Whether to filter results by date',
-          },
-          {
-            displayName: 'Date Range',
-            name: 'dateRangeType',
-            type: 'options',
-            default: 'month',
-            description: 'Time period for results',
-            options: [
-              { name: 'Last Day', value: 'day' },
-              { name: 'Last Week', value: 'week' },
-              { name: 'Last Month', value: 'month' },
-              { name: 'Last Year', value: 'year' },
-              { name: 'Custom Range', value: 'custom' },
-            ],
-            displayOptions: {
-              show: {
-                useDateFilter: [true],
-              },
-            },
-          },
-          {
-            displayName: 'Date From',
-            name: 'dateFrom',
-            type: 'string',
-            default: '',
-            placeholder: 'YYYY-MM-DD',
-            description: 'Start date for custom range',
-            displayOptions: {
-              show: {
-                useDateFilter: [true],
-                dateRangeType: ['custom'],
-              },
-            },
-          },
-          {
-            displayName: 'Date To',
-            name: 'dateTo',
-            type: 'string',
-            default: '',
-            placeholder: 'YYYY-MM-DD',
-            description: 'End date for custom range',
-            displayOptions: {
-              show: {
-                useDateFilter: [true],
-                dateRangeType: ['custom'],
-              },
-            },
-          },
-        ],
-      },
     ],
   };
 
@@ -1525,69 +970,19 @@ export class DuckDuckGo implements INodeType {
       cacheTTL?: number;
     };
 
-    // Get reliability settings
-    const reliabilitySettings = this.getNodeParameter('reliabilitySettings', 0, {
-      enableReliability: true,
-    }) as {
-      enableReliability?: boolean;
-      emptyResultThreshold?: number;
-      initialBackoffMs?: number;
-      maxBackoffMs?: number;
-      minJitterMs?: number;
-      maxJitterMs?: number;
-      failureThreshold?: number;
-      resetTimeoutMs?: number;
-      maxRetries?: number;
-      retryDelayMs?: number;
-    } | null;
-
-    // Initialize reliability manager if enabled
-    let reliabilityManager = null;
-    if (reliabilitySettings && reliabilitySettings.enableReliability !== false) {
-      const reliabilityConfig: Partial<IReliabilityConfig> = {
-        emptyResultThreshold: reliabilitySettings.emptyResultThreshold,
-        initialBackoffMs: reliabilitySettings.initialBackoffMs,
-        maxBackoffMs: reliabilitySettings.maxBackoffMs,
-        minJitterMs: reliabilitySettings.minJitterMs,
-        maxJitterMs: reliabilitySettings.maxJitterMs,
-        failureThreshold: reliabilitySettings.failureThreshold,
-        resetTimeoutMs: reliabilitySettings.resetTimeoutMs,
-        maxRetries: reliabilitySettings.maxRetries,
-        retryDelayMs: reliabilitySettings.retryDelayMs,
-      };
-      reliabilityManager = getGlobalReliabilityManager(reliabilityConfig);
-
-      // Log reliability status if debug is enabled
-      if (debugMode) {
-        const logEntry = createLogEntry(
-          LogLevel.INFO,
-          `Reliability Manager initialized: ${reliabilityManager.getSummary()}`,
-          'execute',
-          { config: reliabilityConfig }
-        );
-        console.log(JSON.stringify(logEntry));
-      }
-    }
-
-    // Check if using API key
-    const useApiKey = this.getNodeParameter('useApiKey', 0, false) as boolean;
-    let apiKey: string | undefined;
-
-    // Get API key from credentials if enabled
-    if (useApiKey) {
-      try {
-        const credentials = await this.getCredentials('duckDuckGoApi');
-        apiKey = credentials.apiKey as string;
-      } catch (error) {
-        throw new NodeOperationError(this.getNode(), 'API key is required when "Use API Key" is enabled!');
-      }
-    }
 
     const enableCache = cacheSettings?.enableCache !== false;
     const cacheTTL = cacheSettings?.cacheTTL || 300; // Default to 5 minutes if not specified
 
     // Get the global locale setting
     const globalLocale = this.getNodeParameter('locale', 0, 'en-us') as string;
+
+    // Per-execution VQD cache for image search.
+    // Keyed by normalised query (trim + lowercase). Avoids a redundant page GET
+    // when multiple input items carry the same imageQuery in one execute() run.
+    // This Map is strictly local: it is not exported, not stored in cache.ts,
+    // and is garbage-collected when execute() returns.
+    const vqdCache = new Map<string, string>();
 
     // Loop through input items
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
@@ -1614,9 +1009,7 @@ export class DuckDuckGo implements INodeType {
             maxResults?: number;
             region?: string;
             safeSearch?: number;
-            timePeriod?: string;
             returnRawResults?: boolean;
-            searchBackend?: string;
             useSearchOperators?: boolean;
             searchOperators?: ISearchOperators;
           };
@@ -1658,15 +1051,8 @@ export class DuckDuckGo implements INodeType {
           const searchOptions: SearchOptions = {
             safeSearch: getSafeSearchType(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
             locale: options.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
-            time: options.timePeriod ?? DEFAULT_PARAMETERS.TIME_PERIOD,
           };
 
-          // Add API key to search options if provided
-          if (apiKey) {
-            (searchOptions as any).headers = {
-              Authorization: `Bearer ${apiKey}`,
-            };
-          }
 
           // Create a cache key based on operation and parameters
           const cacheKey = JSON.stringify({
@@ -1888,30 +1274,14 @@ export class DuckDuckGo implements INodeType {
             safeSearch?: number;
             region?: string;
             returnRawResults?: boolean;
-            size?: string;
-            color?: string;
-            type?: string;
-            layout?: string;
-            license?: string;
           };
 
           // Set up search options with correct API according to duck-duck-scrape documentation
           const searchOptions: ImageSearchOptions = {
             safeSearch: getSafeSearchType(imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
             locale: imageSearchOptions.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
-            size: imageSearchOptions.size as any,
-            color: imageSearchOptions.color as any,
-            type: imageSearchOptions.type as any,
-            layout: imageSearchOptions.layout as any,
-            license: imageSearchOptions.license as any,
           };
 
-          // Add API key to search options if provided
-          if (apiKey) {
-            (searchOptions as any).headers = {
-              Authorization: `Bearer ${apiKey}`,
-            };
-          }
 
           // Create a cache key based on operation and parameters
           const cacheKey = JSON.stringify({
@@ -1968,12 +1338,26 @@ export class DuckDuckGo implements INodeType {
                 console.log(JSON.stringify(logEntry));
               }
 
-              // SIMPLIFIED: Execute image search directly using our direct implementation
-              const directImageResults = await directImageSearch(imageQuery, {
-                locale: searchOptions.locale || 'us-en',
-                safeSearch: getSafeSearchString(imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-                maxResults: undefined, // Let it fetch all available results
-              });
+              // Execute image search, reusing VQD for the same query within
+              // this execution run to avoid a redundant page GET.
+              const vqdKey = imageQuery.trim().toLowerCase();
+              const cachedVqd = vqdCache.get(vqdKey);
+
+              const directImageResults = await directImageSearch(
+                imageQuery,
+                {
+                  locale: searchOptions.locale || 'us-en',
+                  safeSearch: getSafeSearchString(imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
+                  maxResults: undefined, // Let it fetch all available results
+                },
+                cachedVqd, // undefined on first call for this query; reused on subsequent calls
+              );
+
+              // Store the VQD returned by this call so later items with the
+              // same query can skip the page GET.
+              if (directImageResults.vqd) {
+                vqdCache.set(vqdKey, directImageResults.vqd);
+              }
 
               // Format results to match duck-duck-scrape structure
               result = {
@@ -2145,12 +1529,6 @@ export class DuckDuckGo implements INodeType {
             time: getSearchTimeType(newsSearchOptions.timePeriod ?? DEFAULT_PARAMETERS.TIME_PERIOD),
           };
 
-          // Add API key to search options if provided
-          if (apiKey) {
-            (searchOptions as any).headers = {
-              Authorization: `Bearer ${apiKey}`,
-            };
-          }
 
           // Note: maxResults is handled during processing, not in search options
           const maxResults = newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
@@ -2388,10 +1766,12 @@ export class DuckDuckGo implements INodeType {
                 const newsResults = fallbackResult.results.map(item => ({
                   date: Date.now(), // Use current timestamp as fallback
                   title: item.title,
+                  excerpt: item.body, // processNewsSearchResults reads description from excerpt
                   body: item.body,
                   url: item.href,
                   image: '',
-                  source: 'DuckDuckGo Fallback',
+                  syndicate: 'DuckDuckGo Fallback', // visible label via field that processor reads
+                  isFallback: true,
                 }));
 
                 results = processNewsSearchResults(newsResults, itemIndex).slice(0, newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS);
@@ -2407,51 +1787,54 @@ export class DuckDuckGo implements INodeType {
                     fallbackUsed: true,
                   });
                 }
-                // Don't return early, let it continue with normal flow
+                // Leave fallback results populated; the error item below is only emitted if fallback produced no results.
               }
             } catch (fallbackError) {
               console.error('Fallback news search also failed:', fallbackError);
             }
 
-            // Create a user-friendly error message
-            const errorMessage = parseApiError(error instanceof Error ? error : new Error(String(error)), 'news search');
+            // Only emit the error item when the fallback also produced nothing
+            if (results.length === 0) {
+              // Create a user-friendly error message
+              const errorMessage = parseApiError(error instanceof Error ? error : new Error(String(error)), 'news search');
 
-            // Log detailed error if debug is enabled
-            if (debugMode) {
-              const logEntry = createLogEntry(
-                LogLevel.ERROR,
-                `News search error: ${errorMessage}`,
-                operation,
-                { query: newsQuery, options: searchOptions },
-                error instanceof Error ? error : new Error(String(error))
-              );
-              console.error(JSON.stringify(logEntry));
-            }
+              // Log detailed error if debug is enabled
+              if (debugMode) {
+                const logEntry = createLogEntry(
+                  LogLevel.ERROR,
+                  `News search error: ${errorMessage}`,
+                  operation,
+                  { query: newsQuery, options: searchOptions },
+                  error instanceof Error ? error : new Error(String(error))
+                );
+                console.error(JSON.stringify(logEntry));
+              }
 
-            results = [{
-              json: {
-                success: false,
-                error: errorMessage,
-                query: newsQuery,
-                ...(debugMode ? {
-                  errorDetails: error instanceof Error ? error.stack : String(error),
-                  requestOptions: searchOptions,
-                } : {}),
-              },
-              pairedItem: {
-                item: itemIndex,
-              },
-            }];
+              results = [{
+                json: {
+                  success: false,
+                  error: errorMessage,
+                  query: newsQuery,
+                  ...(debugMode ? {
+                    errorDetails: error instanceof Error ? error.stack : String(error),
+                    requestOptions: searchOptions,
+                  } : {}),
+                },
+                pairedItem: {
+                  item: itemIndex,
+                },
+              }];
 
-            // Report search_failed telemetry
-            if (enableTelemetry) {
-              await reportEvent(this, 'search_failed', {
-                operation,
-                query: newsQuery,
-                durationMs: Date.now() - startTime,
-                error: errorMessage,
-                errorType: error?.constructor?.name || 'Error',
-              });
+              // Report search_failed telemetry
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_failed', {
+                  operation,
+                  query: newsQuery,
+                  durationMs: Date.now() - startTime,
+                  error: errorMessage,
+                  errorType: error?.constructor?.name || 'Error',
+                });
+              }
             }
           }
         }
@@ -2463,31 +1846,17 @@ export class DuckDuckGo implements INodeType {
             safeSearch?: number;
             region?: string;
             returnRawResults?: boolean;
-            timePeriod?: string;
-            length?: string;
-            quality?: string;
-            resolution?: string;
           };
 
           // Set up search options with correct API according to duck-duck-scrape documentation
           const searchOptions: VideoSearchOptions = {
             safeSearch: getSafeSearchType(videoSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
             locale: videoSearchOptions.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
-            time: getSearchTimeType(videoSearchOptions.timePeriod ?? DEFAULT_PARAMETERS.TIME_PERIOD),
-            definition: getVideoDefinition(videoSearchOptions.quality),
-            duration: getVideoDuration(videoSearchOptions.length),
-            license: getVideoLicense(videoSearchOptions.resolution), // Map resolution to license for now
           };
 
           // Note: maxResults is handled during processing, not in search options
           const maxResults = videoSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
 
-          // Add API key to search options if provided
-          if (apiKey) {
-            (searchOptions as any).headers = {
-              Authorization: `Bearer ${apiKey}`,
-            };
-          }
 
           // Create a cache key based on operation and parameters
           const cacheKey = JSON.stringify({
@@ -2720,6 +2089,7 @@ export class DuckDuckGo implements INodeType {
                 // Convert fallback results to video search format
                 const videoResults = fallbackResult.results.map(item => ({
                   content: item.href,
+                  url: item.href, // ensure url field is present for processVideoSearchResults
                   description: item.body,
                   duration: '',
                   embed_html: '',
@@ -2733,10 +2103,11 @@ export class DuckDuckGo implements INodeType {
                   },
                   provider: 'DuckDuckGo Fallback',
                   published: '',
-                  publisher: 'Web',
+                  publisher: 'DuckDuckGo Fallback', // visible label via field that processor reads
                   statistics: { viewCount: 0 },
                   title: item.title,
                   uploader: 'Web',
+                  isFallback: true,
                 }));
 
                 results = processVideoSearchResults(videoResults, itemIndex).slice(0, videoSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS);
@@ -2752,51 +2123,54 @@ export class DuckDuckGo implements INodeType {
                     fallbackUsed: true,
                   });
                 }
-                // Don't return early, let it continue with normal flow
+                // Leave fallback results populated; the error item below is only emitted if fallback produced no results.
               }
             } catch (fallbackError) {
               console.error('Fallback video search also failed:', fallbackError);
             }
 
-            // Create a user-friendly error message
-            const errorMessage = parseApiError(error instanceof Error ? error : new Error(String(error)), 'video search');
+            // Only emit the error item when the fallback also produced nothing
+            if (results.length === 0) {
+              // Create a user-friendly error message
+              const errorMessage = parseApiError(error instanceof Error ? error : new Error(String(error)), 'video search');
 
-            // Log detailed error if debug is enabled
-            if (debugMode) {
-              const logEntry = createLogEntry(
-                LogLevel.ERROR,
-                `Video search error: ${errorMessage}`,
-                operation,
-                { query: videoQuery, options: searchOptions },
-                error instanceof Error ? error : new Error(String(error))
-              );
-              console.error(JSON.stringify(logEntry));
-            }
+              // Log detailed error if debug is enabled
+              if (debugMode) {
+                const logEntry = createLogEntry(
+                  LogLevel.ERROR,
+                  `Video search error: ${errorMessage}`,
+                  operation,
+                  { query: videoQuery, options: searchOptions },
+                  error instanceof Error ? error : new Error(String(error))
+                );
+                console.error(JSON.stringify(logEntry));
+              }
 
-            results = [{
-              json: {
-                success: false,
-                error: errorMessage,
-                query: videoQuery,
-                ...(debugMode ? {
-                  errorDetails: error instanceof Error ? error.stack : String(error),
-                  requestOptions: searchOptions,
-                } : {}),
-              },
-              pairedItem: {
-                item: itemIndex,
-              },
-            }];
+              results = [{
+                json: {
+                  success: false,
+                  error: errorMessage,
+                  query: videoQuery,
+                  ...(debugMode ? {
+                    errorDetails: error instanceof Error ? error.stack : String(error),
+                    requestOptions: searchOptions,
+                  } : {}),
+                },
+                pairedItem: {
+                  item: itemIndex,
+                },
+              }];
 
-            // Report search_failed telemetry
-            if (enableTelemetry) {
-              await reportEvent(this, 'search_failed', {
-                operation,
-                query: videoQuery,
-                durationMs: Date.now() - startTime,
-                error: errorMessage,
-                errorType: error?.constructor?.name || 'Error',
-              });
+              // Report search_failed telemetry
+              if (enableTelemetry) {
+                await reportEvent(this, 'search_failed', {
+                  operation,
+                  query: videoQuery,
+                  durationMs: Date.now() - startTime,
+                  error: errorMessage,
+                  errorType: error?.constructor?.name || 'Error',
+                });
+              }
             }
           }
         }

@@ -42,10 +42,8 @@ export function processWebSearchResults(
         position: index + 1,
         title: decodeHtmlEntities(item.title || '') || '',
         description: decodeHtmlEntities(item.description || '') || '',
-        snippet: decodeHtmlEntities(item.description || '') || '',
         url: item.url || '',
         hostname: item.hostname || '',
-        favicon: item.icon || '',
         sourceType: 'web',
         // Enhanced metadata
         raw_description: item.description || '',
@@ -209,6 +207,7 @@ export function processNewsSearchResults(
       relativeTime: item.relativeTime,
       syndicate: item.syndicate,
       isOld: item.isOld,
+      isFallback: item.isFallback ?? false,
       sourceType: 'news',
     } as IDataObject,
     pairedItem: {
@@ -239,6 +238,7 @@ export function processVideoSearchResults(
       publishedOn: item.publishedOn,
       publisher: item.publisher,
       viewCount: item.viewCount,
+      isFallback: item.isFallback ?? false,
       sourceType: 'video',
     } as IDataObject,
     pairedItem: {

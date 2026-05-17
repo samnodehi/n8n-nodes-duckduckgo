@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-duckduckgo-search",
-  "version": "32.4.2",
-  "description": "Production-grade, AI Agent-ready n8n community node for DuckDuckGo search. Features enterprise reliability with adaptive backoff, circuit breaking, and intelligent rate limiting. Search the web, images, news, and videos with privacy-focused, highly reliable results.",
+  "version": "32.5.0",
+  "description": "AI Agent-ready n8n community node for DuckDuckGo search. Search the web, images, news, and videos with no API key required and no outbound telemetry. Provides robust error handling, fallback result paths for news and video, and clean output for downstream AI Agent use.",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
@@ -36,7 +36,7 @@
     "build": "tsc && gulp build:icons",
     "build:prod": "rimraf dist && npm run build && npm run postbuild && npm run clean-build",
     "postbuild": "copyfiles -u 1 \"nodes/**/*.{svg,png}\" dist/",
-    "clean-build": "node -e \"const fs=require('fs'); const path=require('path'); const glob=require('glob'); const files=glob.sync('dist/**/*.{tsbuildinfo,map}'); files.forEach(f => fs.existsSync(f) && fs.unlinkSync(f)); const testDir=path.join(__dirname, 'dist', 'tests'); if(fs.existsSync(testDir)) fs.rmSync(testDir, {recursive: true});\"",
+    "clean-build": "node -e \"const fs=require('fs'); const path=require('path'); const glob=require('glob'); const files=glob.sync('dist/**/*.{tsbuildinfo,map}'); files.forEach(f => fs.existsSync(f) && fs.unlinkSync(f)); const toRemove=['dist/tests','dist/credentials'].concat(glob.sync('dist/**/__tests__',{onlyDirectories:true})); toRemove.forEach(d=>{if(fs.existsSync(d))fs.rmSync(d,{recursive:true});});\"",
     "verify-build": "node -e \"const fs=require('fs'); const path=require('path'); const assert=require('assert'); assert.ok(fs.existsSync(path.join(__dirname, 'dist/nodes/DuckDuckGo/DuckDuckGo.node.js')), 'Main node file missing'); assert.ok(fs.existsSync(path.join(__dirname, 'dist/nodes/DuckDuckGo/duckduckgo.svg')), 'Icon missing'); console.log('✅ Build verification successful')\"",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
@@ -51,9 +51,7 @@
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/DuckDuckGoApi.credentials.js"
-    ],
+    "credentials": [],
     "nodes": [
       "dist/nodes/DuckDuckGo/DuckDuckGo.node.js"
     ]
@@ -67,6 +65,7 @@
     "@types/jest": "^29.5.14",
     "@types/request-promise-native": "^1.0.21",
     "@types/uuid": "^9.0.8",
+    "uuid": "^9.0.1",
     "@typescript-eslint/parser": "~5.45",
     "babel-jest": "^29.7.0",
     "copyfiles": "^2.4.1",
@@ -85,9 +84,7 @@
   "dependencies": {
     "duck-duck-scrape": "^2.2.7",
     "https-proxy-agent": "^7.0.6",
-    "retry": "^0.13.1",
     "socks-proxy-agent": "^8.0.5",
-    "uuid": "^9.0.1",
     "axios": "^1.13.0"
   },
   "engines": {

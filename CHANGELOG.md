@@ -5,6 +5,74 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+> **Compatibility note:** Earlier changelog entries described reliability modules and UI options (adaptive backoff, circuit breaker, retry logic, reliability settings) that were later found not to affect runtime search execution. In 32.5.0, those inert options are removed and the documentation now reflects actual runtime behavior.
+
+---
+
+## [32.5.0] - 2026-05-17
+
+### Breaking / Migration
+
+- `snippet` field removed from Web Search output — use `description` (identical content)
+- `favicon` field removed from Web Search output — was always an empty string
+- `DuckDuckGoApi` credential type removed from package registration (`n8n.credentials: []`)
+- Removed UI options (silently ignored if present in saved workflow JSON — no migration required):
+  - `useApiKey` — credential was never read
+  - `searchBackend` — dispatch logic was never implemented
+  - `proxySettings` — proxy agent was never applied to HTTP requests
+  - `reliabilitySettings` — search calls were never wrapped with retry or circuit-breaker logic
+  - Separate `searchFilters` collection — never read or applied
+  - Web Search `timePeriod` — `df` parameter was not included in the request body
+  - Image filter options (`size`, `color`, `type`, `layout`) — `i.js` filter behavior is undocumented and unreliable
+  - Video filter options (`duration`, `resolution`, `publishedTime`) — removed with inert filter wiring
+
+### Removed
+
+- `credentials/DuckDuckGoApi.credentials.ts` deleted
+- Hardcoded year query mutation removed — DuckDuckGo receives the exact query string entered
+
+### Fixed
+
+- News/video fallback overwrite bug: fallback success was being clobbered by a subsequent error item in the output array
+- Duck-duck-scrape generic `"A server error occurred!"` string now caught and re-surfaced with a specific message
+- Image VQD-missing: no longer returns fake/empty image URLs; now throws a named error
+- Image HTTP 403: classified with a specific, actionable error message
+- Web parser-failure: HTTP 200 large-body parse failures now throw a named error instead of returning an empty result silently
+
+### Added
+
+- `isFallback: boolean` field on all News and Video result items
+- `syndicate: "DuckDuckGo Fallback"` on news fallback results
+- `publisher: "DuckDuckGo Fallback"` on video fallback results
+- `position` field on Web Search results (1-based rank)
+- Per-execution VQD reuse for repeated same-query image searches (reduces redundant page GETs within one execution)
+
+### Changed
+
+- Package description updated to remove false enterprise reliability claims
+- README fully rewritten: correct output field names, accurate error descriptions, no false reliability/filter/backend/credential claims
+- All 214 tests passing
+
+### Package
+
+- `retry` removed from production dependencies (zero production imports)
+- `uuid` moved to devDependencies (zero production imports; test-only)
+- Compiled tests excluded from npm package (`dist/nodes/DuckDuckGo/__tests__/`)
+- `dist/credentials/` excluded from npm package
+- `dist/tsconfig.tsbuildinfo` excluded from npm package
+- Packed size: ~45 kB (reduced from ~119 kB)
+
+### Deferred
+
+- Image filters: `i.js` `f` parameter is undocumented; smoke testing showed silent failures — deferred to a future release
+- Web Search date filter (`df`): needs live verification before re-exposing in UI
+- Full proxy support: requires dedicated implementation and security/privacy review
+- Reliability/circuit-breaker: requires design decision before re-implementation
+
+---
+
+
+
 ## [32.4.1] - 2026-02-13
 
 ### Documentation

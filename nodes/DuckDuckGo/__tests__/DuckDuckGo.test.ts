@@ -3,6 +3,8 @@ import { DuckDuckGo } from '../DuckDuckGo.node';
 import * as duckDuckScrape from 'duck-duck-scrape';
 import * as cache from '../cache';
 import * as directSearch from '../directSearch';
+import * as fallbackSearch from '../fallbackSearch';
+
 
 // Mock the duck-duck-scrape library
 jest.mock('duck-duck-scrape', () => ({
@@ -66,6 +68,16 @@ jest.mock('../directSearch', () => ({
 jest.mock('uuid', () => ({
   v4: jest.fn().mockReturnValue('mock-uuid-1234'),
 }));
+
+// Mock the fallbackSearch module
+jest.mock('../fallbackSearch', () => ({
+  fallbackNewsSearch: jest.fn(),
+  fallbackVideoSearch: jest.fn(),
+  fallbackWebSearch: jest.fn(),
+  fallbackImageSearch: jest.fn(),
+  searchWithFallback: jest.fn(),
+}));
+
 
 describe('DuckDuckGo Node', () => {
   let duckDuckGoNode: DuckDuckGo;
@@ -196,12 +208,26 @@ describe('DuckDuckGo Node', () => {
       }));
       expect(result).toHaveLength(1); // One array of results
       expect(result[0]).toHaveLength(2); // Two individual results
-      expect(result[0][0].json).toHaveProperty('url', 'https://example.com/1');
-      expect(result[0][0].json).toHaveProperty('title', 'Test Result 1');
-      expect(result[0][0].json).toHaveProperty('description', 'Description for test result 1');
-      expect(result[0][0].json).toHaveProperty('sourceType', 'web');
-      expect(result[0][1].json).toHaveProperty('url', 'https://example.com/2');
-      expect(result[0][1].json).toHaveProperty('title', 'Test Result 2');
+
+      const first = result[0][0].json;
+      const second = result[0][1].json;
+
+      // Fields that must be present in processed web output
+      expect(first).toHaveProperty('url', 'https://example.com/1');
+      expect(first).toHaveProperty('title', 'Test Result 1');
+      expect(first).toHaveProperty('description', 'Description for test result 1');
+      expect(first).toHaveProperty('hostname', 'example.com');
+      expect(first).toHaveProperty('sourceType', 'web');
+      expect(first).toHaveProperty('position', 1);
+      expect(second).toHaveProperty('url', 'https://example.com/2');
+      expect(second).toHaveProperty('title', 'Test Result 2');
+
+      // Fields that must NOT be present — snippet was a duplicate of description,
+      // favicon was always empty (directWebSearch never returns icon)
+      expect(first).not.toHaveProperty('snippet');
+      expect(first).not.toHaveProperty('favicon');
+      expect(second).not.toHaveProperty('snippet');
+      expect(second).not.toHaveProperty('favicon');
     });
 
     it('should use cache when available', async () => {
@@ -278,7 +304,7 @@ describe('DuckDuckGo Node', () => {
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Assertions
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('error query 2025', expect.any(Object));
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith('error query', expect.any(Object));
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveLength(1);
       expect(result[0][0].json).toHaveProperty('success', false);
@@ -328,7 +354,318 @@ describe('DuckDuckGo Node', () => {
         .rejects
         .toThrow(/query is required/i);
     });
+
+    describe('query mutation regression — no silent year injection', () => {
+      const noMutationCases = [
+        { label: 'commercial intent', query: 'best ai tools' },
+        { label: 'commercial intent with review', query: 'top laptops review' },
+        { label: 'technical intent', query: 'fix python error' },
+        { label: 'technical tutorial', query: 'install docker tutorial' },
+        { label: 'news-like query', query: 'latest ai news' },
+        { label: 'current events', query: 'current stock market update' },
+        { label: 'plain query with no pattern', query: 'duckduckgo privacy' },
+      ];
+
+      noMutationCases.forEach(({ label, query }) => {
+        it(`should send '${query}' as-is (${label})`, async () => {
+          setupNodeParameters('search', query);
+          (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
+          await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+          expect(directSearch.directWebSearch).toHaveBeenCalledWith(query, expect.any(Object));
+          // The query passed to directWebSearch must NOT have ' 2025' or ' 2024' appended
+          const calledWith = (directSearch.directWebSearch as jest.Mock).mock.calls[0][0] as string;
+        expect(calledWith).not.toMatch(/\s202[45]$/);
+        });
+      });
+    });
+
+    describe('searchBackend parameter regression — stale value is ignored', () => {
+      it('should call directWebSearch regardless of stale searchBackend value', async () => {
+        // Simulate a saved workflow that has searchBackend: 'html' stored
+        mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+          if (parameter === 'operation') return 'search';
+          if (parameter === 'query') return 'test query with stale backend';
+          if (parameter === 'webSearchOptions') return {
+            searchBackend: 'html', // stale value from old saved workflow
+            safeSearch: 1,
+            locale: 'us-en',
+            timePeriod: '',
+            useCache: false,
+            cacheTtl: 300,
+            debugMode: false,
+          };
+          return defaultValue ?? null;
+        });
+
+        (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
+        await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // directWebSearch must still be called — stale searchBackend must not throw or reroute
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+          'test query with stale backend',
+          expect.any(Object)
+        );
+      });
+
+      it('should call directWebSearch regardless of stale searchBackend: "search-api"', async () => {
+        mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+          if (parameter === 'operation') return 'search';
+          if (parameter === 'query') return 'search api query';
+          if (parameter === 'webSearchOptions') return {
+            searchBackend: 'search-api',
+          };
+          return defaultValue ?? null;
+        });
+
+        (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
+        await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+          'search api query',
+          expect.any(Object)
+        );
+      });
+    });
+
+    describe('proxySettings parameter regression — stale value is ignored', () => {
+      it('should call directWebSearch unchanged when proxySettings has useProxy: true', async () => {
+        mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+          if (parameter === 'operation') return 'search';
+          if (parameter === 'query') return 'proxy test query';
+          if (parameter === 'webSearchOptions') return {
+            proxySettings: { // stale value from an old saved workflow
+              useProxy: true,
+              proxyType: 'http',
+              proxyHost: 'proxy.example.com',
+              proxyPort: 8080,
+            },
+          };
+          return defaultValue ?? null;
+        });
+
+        (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
+        await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // directWebSearch is still called with the plain query — proxy data has no effect
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+          'proxy test query',
+          expect.any(Object)
+        );
+      });
+
+      it('should call directWebSearch unchanged when proxySettings has SOCKS5 auth config', async () => {
+        mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+          if (parameter === 'operation') return 'search';
+          if (parameter === 'query') return 'socks proxy query';
+          if (parameter === 'webSearchOptions') return {
+            proxySettings: {
+              useProxy: true,
+              proxyType: 'socks5',
+              proxyHost: '10.0.0.1',
+              proxyPort: 1080,
+              proxyAuth: true,
+              proxyUsername: 'user',
+              proxyPassword: 'secret',
+            },
+          };
+          return defaultValue ?? null;
+        });
+
+        (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
+        await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+          'socks proxy query',
+          expect.any(Object)
+        );
+      });
+    });
+
+    describe('searchFilters parameter regression — stale value is ignored', () => {
+      it('should call directWebSearch unchanged when searchFilters has region + language + date data', async () => {
+        mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+          if (parameter === 'operation') return 'search';
+          if (parameter === 'query') return 'filter test query';
+          if (parameter === 'webSearchOptions') return {
+            searchFilters: { // stale value from old saved workflow
+              useRegionFilter: true,
+              region: 'us-en',
+              useLanguageFilter: true,
+              language: 'en',
+              useDateFilter: true,
+              dateRangeType: 'week',
+            },
+          };
+          return defaultValue ?? null;
+        });
+
+        (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
+        await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // directWebSearch must still be called with the plain query — searchFilters data is ignored
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+          'filter test query',
+          expect.any(Object)
+        );
+      });
+
+      it('should call directWebSearch unchanged when searchFilters has custom date range', async () => {
+        mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+          if (parameter === 'operation') return 'search';
+          if (parameter === 'query') return 'custom date query';
+          if (parameter === 'webSearchOptions') return {
+            searchFilters: {
+              useDateFilter: true,
+              dateRangeType: 'custom',
+              dateFrom: '2025-01-01',
+              dateTo: '2025-03-31',
+            },
+          };
+          return defaultValue ?? null;
+        });
+
+        (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
+        await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+          'custom date query',
+          expect.any(Object)
+        );
+      });
+    });
+
+    describe('reliabilitySettings parameter regression — stale value is ignored', () => {
+      it('should call directWebSearch unchanged when reliabilitySettings has enableReliability: true', async () => {
+        mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+          if (parameter === 'operation') return 'search';
+          if (parameter === 'query') return 'reliability test query';
+          if (parameter === 'reliabilitySettings') return {
+            // stale value from old saved workflow
+            enableReliability: true,
+            emptyResultThreshold: 3,
+            initialBackoffMs: 1000,
+            maxBackoffMs: 30000,
+            failureThreshold: 5,
+            maxRetries: 3,
+          };
+          if (parameter === 'webSearchOptions') return {};
+          return defaultValue ?? null;
+        });
+
+        (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
+        await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // directWebSearch must still be called — stale reliabilitySettings has no effect
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+          'reliability test query',
+          expect.any(Object)
+        );
+      });
+
+      it('should call directWebSearch unchanged when reliabilitySettings is fully configured', async () => {
+        mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+          if (parameter === 'operation') return 'search';
+          if (parameter === 'query') return 'full reliability config query';
+          if (parameter === 'reliabilitySettings') return {
+            enableReliability: true,
+            emptyResultThreshold: 5,
+            initialBackoffMs: 500,
+            maxBackoffMs: 60000,
+            minJitterMs: 200,
+            maxJitterMs: 1000,
+            failureThreshold: 10,
+            resetTimeoutMs: 120000,
+            maxRetries: 5,
+            retryDelayMs: 2000,
+          };
+          if (parameter === 'webSearchOptions') return {};
+          return defaultValue ?? null;
+        });
+
+        (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
+        await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+          'full reliability config query',
+          expect.any(Object)
+        );
+      });
+    });
+
+    describe('webSearchOptions.timePeriod regression — stale value is ignored', () => {
+      it('should call directWebSearch with the plain query when stale timePeriod: "d" (past day) is stored', async () => {
+        // Simulate a saved workflow that has timePeriod: 'd' stored (stale from old node version
+        // when Time Period appeared in the Web Search UI)
+        mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+          if (parameter === 'operation') return 'search';
+          if (parameter === 'query') return 'time period test query';
+          if (parameter === 'webSearchOptions') return {
+            timePeriod: 'd', // stale: Past Day — no longer a UI option
+            safeSearch: -1,
+            region: 'us-en',
+          };
+          return defaultValue ?? null;
+        });
+
+        (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
+        await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // directWebSearch must still be called with the plain query
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+          'time period test query',
+          expect.any(Object)
+        );
+
+        // directWebSearch must NOT receive any time/period parameter — it never supported date filtering
+        const calledOptions = (directSearch.directWebSearch as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
+        expect(calledOptions).not.toHaveProperty('time');
+        expect(calledOptions).not.toHaveProperty('timePeriod');
+        expect(calledOptions).not.toHaveProperty('df');
+      });
+
+      it('should produce the same directWebSearch call regardless of stale timePeriod value', async () => {
+        // Any stale timePeriod value must produce an identical directWebSearch call
+        const staleValues = ['d', 'w', 'm', 'y', ''];
+
+        for (const staleValue of staleValues) {
+          jest.clearAllMocks();
+          (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
+          mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+            if (parameter === 'operation') return 'search';
+            if (parameter === 'query') return 'stable query';
+            if (parameter === 'webSearchOptions') return {
+              timePeriod: staleValue,
+            };
+            return defaultValue ?? null;
+          });
+
+          await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+          expect(directSearch.directWebSearch).toHaveBeenCalledTimes(1);
+          expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+            'stable query',
+            expect.any(Object)
+          );
+        }
+      });
+    });
   });
+
+
+
+
 
   describe('Image Search Operation', () => {
     const mockImageSearchResults = {
@@ -375,10 +712,14 @@ describe('DuckDuckGo Node', () => {
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Assertions
-      expect(directSearch.directImageSearch).toHaveBeenCalledWith('cat pictures', expect.objectContaining({
-        locale: 'us-en',
-        safeSearch: 'moderate',
-      }));
+      expect(directSearch.directImageSearch).toHaveBeenCalledWith(
+        'cat pictures',
+        expect.objectContaining({
+          locale: 'us-en',
+          safeSearch: 'moderate',
+        }),
+        undefined, // no vqdHint on first call for this query
+      );
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveLength(2);
       expect(result[0][0].json).toHaveProperty('imageUrl', 'https://example.com/image1.jpg');
@@ -414,6 +755,178 @@ describe('DuckDuckGo Node', () => {
       expect(result[0][0].json).toHaveProperty('error');
       // With the new fallback implementation, the error message includes both attempts
       expect(result[0][0].json.error).toContain('image search');
+    });
+
+    describe('VQD-missing image search regression — no fake imageUrl', () => {
+      it('should return error output when VQD extraction fails, not fake web page URLs', async () => {
+        // Simulate directImageSearch throwing the VQD-missing error
+        // (as it now does when DuckDuckGo does not return a VQD token)
+        setupNodeParameters('searchImages', 'nature landscape');
+
+        (directSearch.directImageSearch as jest.Mock).mockRejectedValue(
+          new Error(
+            'DuckDuckGo image search token (VQD) could not be extracted. ' +
+            'Image search may be temporarily unavailable. Please try again later.'
+          )
+        );
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // Must return error output — not fake image results
+        expect(result).toHaveLength(1);
+        expect(result[0]).toHaveLength(1);
+        const output = result[0][0].json;
+
+        // Error flag must be set
+        expect(output).toHaveProperty('success', false);
+        expect(output).toHaveProperty('error');
+        expect(String(output.error)).toContain('image search');
+
+        // imageUrl must NOT be present in error output
+        expect(output).not.toHaveProperty('imageUrl');
+        // results array must NOT be present (not a success response)
+        expect(output).not.toHaveProperty('results');
+      });
+
+      it('should not return any item where imageUrl is a web page URL when VQD fails', async () => {
+        // Confirm no item in the output has imageUrl that looks like a web page
+        // (the pre-fix behavior would return web URLs under imageUrl)
+        setupNodeParameters('searchImages', 'test query');
+
+        (directSearch.directImageSearch as jest.Mock).mockRejectedValue(
+          new Error('DuckDuckGo image search token (VQD) could not be extracted.')
+        );
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // Check every output item — none should have imageUrl with a web page URL
+        const allItems = result.flat();
+        for (const item of allItems) {
+          if (item.json.imageUrl) {
+            // If somehow imageUrl is present, it must not be a plain web page URL
+            // (real image URLs would end in .jpg/.png/.webp etc.)
+            const imgUrl = String(item.json.imageUrl);
+            expect(imgUrl).not.toMatch(/^https?:\/\/[^/]+\/?$/); // bare web origin
+          }
+        }
+        // Primarily: output must be a single error item
+        expect(allItems).toHaveLength(1);
+        expect(allItems[0].json).toHaveProperty('success', false);
+      });
+    });
+
+    describe('VQD reuse across multiple input items', () => {
+      it('first item calls directImageSearch without vqdHint; subsequent same-query items receive the vqd returned by the first call', async () => {
+        // Two input items, both with imageQuery = 'cats'
+        mockExecuteFunction.getInputData = jest.fn().mockReturnValue([
+          { json: {} },
+          { json: {} },
+        ]);
+
+        setupNodeParameters('searchImages', 'cats');
+
+        const REUSE_VQD = '3-reuse-token-42';
+
+        // First call returns vqd; second call (with hint) also returns results
+        const mockResults = {
+          results: [
+            {
+              title: 'Cat',
+              url: 'https://example.com/cat.jpg',
+              thumbnail: 'https://t.example.com/cat.jpg',
+              source: 'https://example.com',
+              width: 100,
+              height: 100,
+            },
+          ],
+          vqd: REUSE_VQD,
+        };
+        (directSearch.directImageSearch as jest.Mock)
+          .mockResolvedValueOnce(mockResults)   // first item — extracts VQD
+          .mockResolvedValueOnce(mockResults);  // second item — reuses VQD
+
+        await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        expect(directSearch.directImageSearch).toHaveBeenCalledTimes(2);
+
+        // First call: no vqdHint (third argument absent or undefined)
+        const firstCallArgs = (directSearch.directImageSearch as jest.Mock).mock.calls[0];
+        expect(firstCallArgs[2]).toBeUndefined();
+
+        // Second call: vqdHint = the VQD returned by the first call
+        const secondCallArgs = (directSearch.directImageSearch as jest.Mock).mock.calls[1];
+        expect(secondCallArgs[2]).toBe(REUSE_VQD);
+      });
+
+      it('different image queries must not share VQD hints', async () => {
+        // Two input items with different queries
+        mockExecuteFunction.getInputData = jest.fn().mockReturnValue([
+          { json: {} },
+          { json: {} },
+        ]);
+
+        const VQD_CATS = '3-cats-vqd';
+        const VQD_DOGS = '3-dogs-vqd';
+
+        (directSearch.directImageSearch as jest.Mock)
+          .mockResolvedValueOnce({ results: [], vqd: VQD_CATS })   // 'cats' item
+          .mockResolvedValueOnce({ results: [], vqd: VQD_DOGS });  // 'dogs' item
+
+        // First item: cats
+        mockExecuteFunction.getNodeParameter = jest.fn().mockImplementation(
+          (param: string, itemIndex: number, fallback?: unknown) => {
+            if (param === 'operation') return 'searchImages';
+            if (param === 'imageQuery') return itemIndex === 0 ? 'cats' : 'dogs';
+            if (param === 'imageSearchOptions') return { safeSearch: -1, maxResults: 5 };
+            if (param === 'locale') return 'en-us';
+            if (param === 'debugMode') return false;
+            if (param === 'enableTelemetry') return false;
+            if (param === 'cacheSettings') return { enableCache: false };
+            if (param === 'errorHandling') return 'continueOnFail';
+            return fallback;
+          }
+        );
+
+        await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        expect(directSearch.directImageSearch).toHaveBeenCalledTimes(2);
+
+        // 'cats' call — no hint
+        const catsCallArgs = (directSearch.directImageSearch as jest.Mock).mock.calls[0];
+        expect(catsCallArgs[0]).toBe('cats');
+        expect(catsCallArgs[2]).toBeUndefined();
+
+        // 'dogs' call — no hint (different query, VQD must not be shared)
+        const dogsCallArgs = (directSearch.directImageSearch as jest.Mock).mock.calls[1];
+        expect(dogsCallArgs[0]).toBe('dogs');
+        expect(dogsCallArgs[2]).toBeUndefined();
+      });
+
+      it('processed image output does not expose the VQD token', async () => {
+        setupNodeParameters('searchImages', 'cats');
+
+        (directSearch.directImageSearch as jest.Mock).mockResolvedValue({
+          results: [
+            {
+              title: 'Cat',
+              url: 'https://example.com/cat.jpg',
+              thumbnail: 'https://t.example.com/cat.jpg',
+              source: 'https://example.com',
+              width: 100,
+              height: 100,
+            },
+          ],
+          vqd: '3-secret-vqd-token',
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        const output = result.flat().map(i => i.json);
+        for (const item of output) {
+          expect(item).not.toHaveProperty('vqd');
+          expect(JSON.stringify(item)).not.toContain('3-secret-vqd-token');
+        }
+      });
     });
   });
 
@@ -483,7 +996,108 @@ describe('DuckDuckGo Node', () => {
         300 // TTL value passed to setCache
       );
     });
+
+    it('should return fallback news results when primary search fails', async () => {
+      // Set up node parameters
+      setupNodeParameters('searchNews', 'news fallback query');
+
+      // Primary search fails with duck-duck-scrape's known error
+      (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(
+        new Error('A server error occurred!')
+      );
+
+      // Fallback returns results
+      (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+        success: true,
+        results: [
+          { title: 'Fallback Article', body: 'Fallback excerpt', href: 'https://fallback.example.com/article' },
+        ],
+      });
+
+      // Execute the node
+      const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+      // Assertions: must return the fallback result, NOT { success: false, error: ... }
+      expect(result).toHaveLength(1);
+      expect(result[0]).toHaveLength(1);
+      expect(result[0][0].json).toHaveProperty('title', 'Fallback Article');
+      expect(result[0][0].json).toHaveProperty('description', 'Fallback excerpt');
+      expect(result[0][0].json).toHaveProperty('url', 'https://fallback.example.com/article');
+      expect(result[0][0].json).toHaveProperty('sourceType', 'news');
+      expect(result[0][0].json).not.toHaveProperty('error');
+      expect(result[0][0].pairedItem).toEqual({ item: 0 });
+      // Fallback labeling must survive to final output
+      expect(result[0][0].json).toHaveProperty('isFallback', true);
+      expect(result[0][0].json).toHaveProperty('syndicate', 'DuckDuckGo Fallback');
+    });
+
+    it('should return error item when primary fails and fallback also fails', async () => {
+      // Set up node parameters
+      setupNodeParameters('searchNews', 'news total failure');
+
+      // Both fail
+      (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(
+        new Error('A server error occurred!')
+      );
+      (fallbackSearch.fallbackNewsSearch as jest.Mock).mockRejectedValue(
+        new Error('Fallback also failed')
+      );
+
+      // Execute the node
+      const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+      // Assertions: must return the error item
+      expect(result).toHaveLength(1);
+      expect(result[0]).toHaveLength(1);
+      expect(result[0][0].json).toHaveProperty('success', false);
+      expect(result[0][0].json).toHaveProperty('error');
+    });
+
+    describe('news fallback labeling — isFallback and syndicate end-to-end', () => {
+      it('fallback news result must carry isFallback: true and syndicate: "DuckDuckGo Fallback"', async () => {
+        setupNodeParameters('searchNews', 'label test query');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('primary failed'));
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'Labeled Article', body: 'Labeled body', href: 'https://fallback.example.com/labeled' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+        const item = result[0][0].json;
+
+        expect(item).toHaveProperty('isFallback', true);
+        expect(item).toHaveProperty('syndicate', 'DuckDuckGo Fallback');
+        expect(item).toHaveProperty('sourceType', 'news');
+      });
+
+      it('normal (primary) news result must carry isFallback: false', async () => {
+        setupNodeParameters('searchNews', 'normal news query', { timePeriod: 'd' });
+        (duckDuckScrape.searchNews as jest.Mock).mockResolvedValue({
+          results: [
+            {
+              title: 'Real Article',
+              excerpt: 'Real excerpt',
+              url: 'https://news.example.com/real',
+              date: 1625097600000,
+              relativeTime: '1 hour ago',
+              image: '',
+              syndicate: 'Real News',
+            },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+        const item = result[0][0].json;
+
+        expect(item).toHaveProperty('isFallback', false);
+        expect(item).toHaveProperty('syndicate', 'Real News');
+        expect(item).toHaveProperty('sourceType', 'news');
+      });
+    });
   });
+
 
   describe('Video Search Operation', () => {
     const mockVideoSearchResults = {
@@ -550,6 +1164,10 @@ describe('DuckDuckGo Node', () => {
         message: 'Internal Server Error',
       });
       (duckDuckScrape.searchVideos as jest.Mock).mockRejectedValue(errorWithCode);
+      // Fallback also fails so error item is returned
+      (fallbackSearch.fallbackVideoSearch as jest.Mock).mockRejectedValue(
+        new Error('Fallback failed')
+      );
 
       // Execute the node
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
@@ -563,25 +1181,199 @@ describe('DuckDuckGo Node', () => {
       expect(result[0][0].json).toHaveProperty('errorDetails'); // Debug mode enabled
       expect(result[0][0].json.error).toContain('Internal Server Error');
     });
-  });
 
-  describe('API Key Authentication', () => {
-    it('should include API key when authentication is enabled', async () => {
-      // Set up node parameters with API key enabled
-      setupNodeParameters('search', 'api auth query', { useApiKey: true });
+    it('should return fallback video results when primary search fails', async () => {
+      // Set up node parameters
+      setupNodeParameters('searchVideos', 'video fallback query');
 
-      // Mock the API response
-      (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+      // Primary search fails
+      (duckDuckScrape.searchVideos as jest.Mock).mockRejectedValue(
+        new Error('A server error occurred!')
+      );
+
+      // Fallback returns results
+      (fallbackSearch.fallbackVideoSearch as jest.Mock).mockResolvedValue({
+        success: true,
+        results: [
+          { title: 'Fallback Video', body: 'Fallback video description', href: 'https://fallback.example.com/video' },
+        ],
+      });
 
       // Execute the node
+      const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+      // Assertions: must return the fallback result, NOT { success: false, error: ... }
+      expect(result).toHaveLength(1);
+      expect(result[0]).toHaveLength(1);
+      expect(result[0][0].json).toHaveProperty('title', 'Fallback Video');
+      expect(result[0][0].json).toHaveProperty('description', 'Fallback video description');
+      expect(result[0][0].json).toHaveProperty('url', 'https://fallback.example.com/video');
+      expect(result[0][0].json).toHaveProperty('sourceType', 'video');
+      expect(result[0][0].json).not.toHaveProperty('error');
+      expect(result[0][0].pairedItem).toEqual({ item: 0 });
+      // Fallback labeling must survive to final output
+      expect(result[0][0].json).toHaveProperty('isFallback', true);
+      expect(result[0][0].json).toHaveProperty('publisher', 'DuckDuckGo Fallback');
+    });
+
+    it('should return error item when primary fails and fallback also fails (video)', async () => {
+      // Set up node parameters
+      setupNodeParameters('searchVideos', 'video total failure');
+
+      // Both fail
+      (duckDuckScrape.searchVideos as jest.Mock).mockRejectedValue(
+        new Error('A server error occurred!')
+      );
+      (fallbackSearch.fallbackVideoSearch as jest.Mock).mockRejectedValue(
+        new Error('Fallback also failed')
+      );
+
+      // Execute the node
+      const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+      // Assertions: must return the error item
+      expect(result).toHaveLength(1);
+      expect(result[0]).toHaveLength(1);
+      expect(result[0][0].json).toHaveProperty('success', false);
+      expect(result[0][0].json).toHaveProperty('error');
+    });
+
+    describe('video fallback labeling — isFallback and publisher end-to-end', () => {
+      it('fallback video result must carry isFallback: true and publisher: "DuckDuckGo Fallback"', async () => {
+        setupNodeParameters('searchVideos', 'video label test');
+        (duckDuckScrape.searchVideos as jest.Mock).mockRejectedValue(new Error('primary failed'));
+        (fallbackSearch.fallbackVideoSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'Labeled Video', body: 'Labeled video body', href: 'https://fallback.example.com/labeled-video' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+        const item = result[0][0].json;
+
+        expect(item).toHaveProperty('isFallback', true);
+        expect(item).toHaveProperty('publisher', 'DuckDuckGo Fallback');
+        expect(item).toHaveProperty('sourceType', 'video');
+      });
+
+      it('normal (primary) video result must carry isFallback: false', async () => {
+        setupNodeParameters('searchVideos', 'normal video query');
+        (duckDuckScrape.searchVideos as jest.Mock).mockResolvedValue({
+          results: [
+            {
+              title: 'Real Video',
+              description: 'Real video description',
+              url: 'https://videos.example.com/real',
+              image: '',
+              duration: '5:00',
+              published: '2024-01-01',
+              publishedOn: 'YouTube',
+              publisher: 'Real Publisher',
+              viewCount: '1000',
+            },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+        const item = result[0][0].json;
+
+        expect(item).toHaveProperty('isFallback', false);
+        expect(item).toHaveProperty('publisher', 'Real Publisher');
+        expect(item).toHaveProperty('sourceType', 'video');
+      });
+    });
+
+    describe('videoSearchOptions.timePeriod regression — stale value is ignored', () => {
+      it('should call searchVideos without a time property when stale timePeriod is stored', async () => {
+        // Simulate a saved workflow that has timePeriod: 'w' stored (stale — never exposed in UI)
+        mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+          if (parameter === 'operation') return 'searchVideos';
+          if (parameter === 'videoQuery') return 'video time period test';
+          if (parameter === 'videoSearchOptions') return {
+            timePeriod: 'w', // stale: Past Week — never exposed in Video Search Options UI
+          };
+          return defaultValue ?? null;
+        });
+
+        (duckDuckScrape.searchVideos as jest.Mock).mockResolvedValue({ results: [] });
+
+        await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // searchVideos must have been called
+        expect(duckDuckScrape.searchVideos).toHaveBeenCalledWith(
+          'video time period test',
+          expect.any(Object)
+        );
+
+        // The options passed to searchVideos must not contain a time property
+        // (timePeriod was removed from runtime — video always uses all-time)
+        const calledOptions = (duckDuckScrape.searchVideos as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
+        expect(calledOptions).not.toHaveProperty('time');
+        expect(calledOptions).not.toHaveProperty('timePeriod');
+      });
+
+      it('should produce identical searchVideos calls regardless of stale timePeriod value', async () => {
+        const staleValues = ['d', 'w', 'm', 'y', ''];
+
+        for (const staleValue of staleValues) {
+          jest.clearAllMocks();
+          (duckDuckScrape.searchVideos as jest.Mock).mockResolvedValue({ results: [] });
+
+          mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+            if (parameter === 'operation') return 'searchVideos';
+            if (parameter === 'videoQuery') return 'stable video query';
+            if (parameter === 'videoSearchOptions') return { timePeriod: staleValue };
+            return defaultValue ?? null;
+          });
+
+          await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+          expect(duckDuckScrape.searchVideos).toHaveBeenCalledTimes(1);
+          expect(duckDuckScrape.searchVideos).toHaveBeenCalledWith(
+            'stable video query',
+            expect.any(Object)
+          );
+        }
+      });
+    });
+  });
+
+
+  describe('Stale useApiKey regression — credential must never be read', () => {
+    it('should not call getCredentials even when stale useApiKey: true is stored in a saved workflow', async () => {
+      // Simulate a saved workflow that has useApiKey: true stored (stale from old node version)
+      setupNodeParameters('search', 'api auth query', { useApiKey: true });
+
+      (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-      // Note: Our direct implementation doesn't use headers for API key
-      // Just verify the search was called
+      // getCredentials must never be called — useApiKey is no longer a runtime parameter
+      expect(mockExecuteFunction.getCredentials).not.toHaveBeenCalled();
+
+      // directWebSearch must still be called normally — stale useApiKey has no effect on search
       expect(directSearch.directWebSearch).toHaveBeenCalledWith(
         'api auth query',
         expect.any(Object)
       );
+    });
+
+    it('should not throw when stale useApiKey: true is present and no credential is configured', async () => {
+      // Stale useApiKey: true with getCredentials configured to reject (no credential set up)
+      setupNodeParameters('search', 'no credential query', { useApiKey: true });
+
+      (mockExecuteFunction.getCredentials as jest.Mock).mockRejectedValue(
+        new Error('No credential configured')
+      );
+      (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+
+      // Must not throw — stale useApiKey must not trigger credential lookup
+      await expect(
+        duckDuckGoNode.execute.call(mockExecuteFunction)
+      ).resolves.toBeDefined();
+
+      expect(mockExecuteFunction.getCredentials).not.toHaveBeenCalled();
     });
   });
 

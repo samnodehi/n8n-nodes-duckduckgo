@@ -215,16 +215,21 @@ describe('DuckDuckGo Node - Locale Support', () => {
             thumbnail: 'https://example.com/thumb.jpg',
             source: 'https://example.com',
           }
-        ]
+        ],
+        vqd: '3-locale-test-vqd',
       });
 
       // Execute the node
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Verify the search was called with the global locale for image search
-      expect(directSearch.directImageSearch).toHaveBeenCalledWith('test image query', expect.objectContaining({
-        locale: 'es-es',
-      }));
+      expect(directSearch.directImageSearch).toHaveBeenCalledWith(
+        'test image query',
+        expect.objectContaining({
+          locale: 'es-es',
+        }),
+        undefined, // no vqdHint on the first (and only) call
+      );
     });
 
     it('should use default locale when neither global nor region is specified', async () => {
