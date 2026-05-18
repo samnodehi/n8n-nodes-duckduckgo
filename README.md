@@ -1,7 +1,10 @@
 # DuckDuckGo Search Node for n8n
 
 [![npm version](https://img.shields.io/npm/v/n8n-nodes-duckduckgo-search.svg)](https://www.npmjs.com/package/n8n-nodes-duckduckgo-search)
+[![npm downloads](https://img.shields.io/npm/dw/n8n-nodes-duckduckgo-search.svg)](https://www.npmjs.com/package/n8n-nodes-duckduckgo-search)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub release](https://img.shields.io/github/v/release/samnodehi/n8n-nodes-duckduckgo)](https://github.com/samnodehi/n8n-nodes-duckduckgo/releases/latest)
+[![Build](https://github.com/samnodehi/n8n-nodes-duckduckgo/actions/workflows/ci.yml/badge.svg)](https://github.com/samnodehi/n8n-nodes-duckduckgo/actions)
 
 An n8n community node for DuckDuckGo search. Search the web, find images, discover news, and explore videos — no API key required, no outbound telemetry.
 
@@ -17,6 +20,16 @@ An n8n community node for DuckDuckGo search. Search the web, find images, discov
 - **Search operators**: Advanced query syntax for Web Search (`site:`, `filetype:`, `intitle:`, etc.)
 - **Region/locale support**: Configure DuckDuckGo locale codes per operation
 - **Safe search**: Configurable per operation
+
+---
+
+## 🤔 Why this node?
+
+- **No API key or paid search API required** — uses DuckDuckGo's public search endpoints directly
+- **Works as an n8n AI Agent tool** — attach it to any Agent node; no extra setup needed
+- **Four search types in one node** — Web, Image, News, and Video from a single, consistent interface
+- **Clean JSON output designed for automation** — predictable field names, no noise, easy to wire into downstream nodes
+- **Fallback labels for News and Video** — when results come from the fallback path, `isFallback: true` tells you so
 
 ---
 

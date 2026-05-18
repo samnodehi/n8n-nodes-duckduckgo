@@ -10,13 +10,15 @@ Thanks for contributing!
 ## Coding Guidelines
 - TypeScript preferred.
 - Keep dependencies minimal.
-- Add clear logs when adaptive backoff / cool-off triggers.
-- Avoid parallel requests in loops for Web Search.
 
 ## Testing
 - Include a brief test plan in the PR description.
-- If the change affects Web Search behavior, simulate 10+ looped runs.
+- If the change affects search parsing or fallback behavior, include targeted regression tests and, when safe, document a small manual smoke test.
 
 ## Ethics / ToS
 - Respect DuckDuckGo ToS.
 - Anti-bot bypass features must be opt-in and documented.
+
+## Maintainer Note
+
+This project may use AI-assisted development tools for research, drafting, and code generation, but all changes are reviewed, tested, and released by the maintainer. Every change in a release has passed the full test suite and a clean production build before being committed.
