@@ -728,6 +728,36 @@ describe('DuckDuckGo Node', () => {
       expect(result[0][0].json).toHaveProperty('sourceType', 'image');
     });
 
+    // -------------------------------------------------------------------------
+    // 32.5.2 — image source field
+    // -------------------------------------------------------------------------
+    it('image result has source populated from the page URL (not empty string)', async () => {
+      setupNodeParameters('searchImages', 'n8n logo');
+
+      (directSearch.directImageSearch as jest.Mock).mockResolvedValue({
+        results: [
+          {
+            title: 'n8n Logo',
+            url: 'https://cdn.example.com/n8n-logo.png',   // image CDN URL → imageUrl
+            thumbnail: 'https://cdn.example.com/n8n-thumb.png',
+            source: 'https://n8n.io/brand',                 // page URL → source
+            width: 256,
+            height: 256,
+          },
+        ],
+        vqd: '3-test-vqd',
+      });
+
+      const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+      const item = result[0][0].json;
+      // source must be the page URL, not an empty string
+      expect(item).toHaveProperty('source', 'https://n8n.io/brand');
+      expect(item.source).not.toBe('');
+      // imageUrl must be the CDN URL
+      expect(item).toHaveProperty('imageUrl', 'https://cdn.example.com/n8n-logo.png');
+    });
+
     it('should handle error in image search', async () => {
       // Set up node parameters
       setupNodeParameters('searchImages', 'error query');
@@ -1098,7 +1128,7 @@ describe('DuckDuckGo Node', () => {
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
-            { title: 'Labeled Article', body: 'Labeled body', href: 'https://fallback.example.com/labeled' },
+            { title: 'Label test news item', body: 'A query about label and test results', href: 'https://fallback.example.com/labeled' },
           ],
         });
 
@@ -1142,7 +1172,7 @@ describe('DuckDuckGo Node', () => {
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
-            { title: 'Fallback Article', body: 'Some content', href: 'https://fallback.example.com/article' },
+            { title: 'AI Fallback Article', body: 'Some content about AI', href: 'https://fallback.example.com/article' },
           ],
         });
 
@@ -1166,14 +1196,14 @@ describe('DuckDuckGo Node', () => {
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
-            { title: 'Article With Body', body: 'This is the article body text', href: 'https://fallback.example.com/body' },
+            { title: 'AI Article With Body', body: 'This is the article body text about AI', href: 'https://fallback.example.com/body' },
           ],
         });
 
         const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
         const item = result[0][0].json;
 
-        expect(item.description).toBe('This is the article body text');
+        expect(item.description).toBe('This is the article body text about AI');
         expect(item.description).not.toBeNull();
       });
 
@@ -1183,7 +1213,7 @@ describe('DuckDuckGo Node', () => {
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
-            { title: 'Article No Body', body: '', href: 'https://fallback.example.com/nobody' },
+            { title: 'AI Article No Body', body: '', href: 'https://fallback.example.com/nobody' },
           ],
         });
 
@@ -1200,7 +1230,7 @@ describe('DuckDuckGo Node', () => {
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
-            { title: 'Fallback Check', body: 'Body text', href: 'https://fallback.example.com/' },
+            { title: 'AI Fallback Check', body: 'AI body text', href: 'https://fallback.example.com/' },
           ],
         });
 
@@ -1220,7 +1250,7 @@ describe('DuckDuckGo Node', () => {
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
-            { title: 'No Raw Timestamp', body: 'Content', href: 'https://fallback.example.com/ts' },
+            { title: 'AI No Raw Timestamp', body: 'AI content', href: 'https://fallback.example.com/ts' },
           ],
         });
 
@@ -1236,6 +1266,178 @@ describe('DuckDuckGo Node', () => {
           const isRawMilliseconds = dateValue >= beforeMs && dateValue <= afterMs;
           expect(isRawMilliseconds).toBe(false);
         }
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // 32.5.2 — news relevance filter (exact token matching)
+    // -------------------------------------------------------------------------
+    describe('32.5.2 — news fallback relevance filter', () => {
+      // --- n8n token tests (length 3, >= 3 threshold) ----------------------
+
+      it('keeps fallback result whose title contains the query token n8n', async () => {
+        setupNodeParameters('searchNews', 'n8n');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'n8n workflow automation tips', body: 'How to use n8n', href: 'https://n8n.io/news' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        expect(result[0]).toHaveLength(1);
+        expect(result[0][0].json).toHaveProperty('title', 'n8n workflow automation tips');
+        expect(result[0][0].json).toHaveProperty('isFallback', true);
+      });
+
+      it('keeps fallback result whose body contains the query token but title does not', async () => {
+        setupNodeParameters('searchNews', 'n8n');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'Workflow Automation Update', body: 'This covers n8n integration changes', href: 'https://example.com/body-match' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        expect(result[0]).toHaveLength(1);
+        expect(result[0][0].json).toHaveProperty('url', 'https://example.com/body-match');
+        expect(result[0][0].json).toHaveProperty('isFallback', true);
+      });
+
+      it('drops fallback result whose title and body do not contain the query token', async () => {
+        setupNodeParameters('searchNews', 'n8n');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        // Simulate what the old broken fallback returned — generic BBC/CNN headlines
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'World leaders meet in Geneva', body: 'Top diplomats convene to discuss global issues', href: 'https://bbc.com/world/article' },
+            { title: 'Markets rally on economic data', body: 'US stocks rise amid positive sentiment', href: 'https://cnn.com/markets/rally' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // All results are irrelevant — must fall through to the error-item path
+        expect(result[0]).toHaveLength(1);
+        expect(result[0][0].json).toHaveProperty('success', false);
+        expect(result[0][0].json).toHaveProperty('error');
+      });
+
+      it('drops generic BBC result and keeps relevant n8n result when mixed', async () => {
+        setupNodeParameters('searchNews', 'n8n');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'World leaders meet in Geneva', body: 'UN summit update', href: 'https://bbc.com/world' },
+            { title: 'n8n 1.x release notes', body: 'New features in n8n', href: 'https://n8n.io/release' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // Only the n8n result survives
+        expect(result[0]).toHaveLength(1);
+        expect(result[0][0].json).toHaveProperty('url', 'https://n8n.io/release');
+        expect(result[0][0].json).toHaveProperty('isFallback', true);
+      });
+
+      it('preserves the token n8n (length 3, >= 3 threshold) as a valid filter token', async () => {
+        setupNodeParameters('searchNews', 'n8n');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('primary failed'));
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'n8n integration guide', body: 'Setup steps', href: 'https://docs.n8n.io/guide' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // 'n8n' is 3 characters — must NOT be excluded by the >= 3 token length rule
+        expect(result[0]).toHaveLength(1);
+        expect(result[0][0].json).toHaveProperty('isFallback', true);
+        // Must not be an error item
+        expect(result[0][0].json).not.toHaveProperty('success', false);
+      });
+
+      // --- AI token tests (explicit 2-char allowlist) -----------------------
+
+      it('query AI keeps result whose title contains standalone token "ai"', async () => {
+        // 'ai' is in the explicit short-token allowlist; a result with 'AI' as a
+        // standalone word must survive the filter.
+        setupNodeParameters('searchNews', 'AI');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'AI startup raises funding', body: 'An AI company secured Series B', href: 'https://techcrunch.com/ai-funding' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        expect(result[0]).toHaveLength(1);
+        expect(result[0][0].json).toHaveProperty('url', 'https://techcrunch.com/ai-funding');
+        expect(result[0][0].json).toHaveProperty('isFallback', true);
+      });
+
+      it('query AI drops result where "ai" appears only as a substring of unrelated words', async () => {
+        // Words like 'Taiwan', 'said', 'again', 'Britain' contain 'ai' as a
+        // substring but 'ai' is NOT a standalone token in them.
+        // Exact token matching must reject these results.
+        setupNodeParameters('searchNews', 'AI');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            {
+              title: 'Taiwan said leaders would meet again',
+              body: 'Britain and other nations convened to discuss the matter',
+              href: 'https://bbc.com/world/taiwan',
+            },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // 'ai' does not appear as a standalone token — result must be dropped
+        expect(result[0]).toHaveLength(1);
+        expect(result[0][0].json).toHaveProperty('success', false);
+        expect(result[0][0].json).toHaveProperty('error');
+      });
+
+      it('query AI: keeps relevant AI result, drops Taiwan/said/again result when mixed', async () => {
+        setupNodeParameters('searchNews', 'AI');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            {
+              title: 'Taiwan said the summit would happen again',
+              body: 'Britain discussed diplomatic relations',
+              href: 'https://bbc.com/taiwan',
+            },
+            {
+              title: 'AI regulation bill passes Senate',
+              body: 'New AI rules take effect next year',
+              href: 'https://reuters.com/ai-bill',
+            },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+        // Only the AI article survives
+        expect(result[0]).toHaveLength(1);
+        expect(result[0][0].json).toHaveProperty('url', 'https://reuters.com/ai-bill');
+        expect(result[0][0].json).toHaveProperty('isFallback', true);
       });
     });
   });

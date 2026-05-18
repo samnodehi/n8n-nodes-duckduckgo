@@ -319,8 +319,10 @@ export async function fallbackNewsSearch(
   options: SearchOptions = {}
 ): Promise<FallbackSearchResponse> {
   try {
-    // Use regular web search with news site focus
-    const newsQuery = `${query} site:news.com OR site:bbc.com OR site:cnn.com OR site:reuters.com`;
+    // Append 'news' to bias DuckDuckGo's HTML-Lite ranking toward news content.
+    // The user query is always the dominant term. Hard-coded site: filters were removed
+    // because the OR operator caused BBC/CNN results to appear regardless of the query.
+    const newsQuery = `${query} news`;
     return await fallbackWebSearch(newsQuery, options);
 
   } catch (error) {

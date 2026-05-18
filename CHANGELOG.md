@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [32.5.2] - 2026-05-18
+
+### Fixed
+
+- Improved News fallback query construction by replacing the broken hard-coded `site:` OR chain with a user-query-dominant `${query} news` fallback
+- Added exact token-level relevance filtering for News fallback results to prevent unrelated generic BBC/CNN-style results
+- Prevented short-token substring false positives, e.g. `AI` no longer matches unrelated words like `Taiwan`, `said`, or `again`
+- Preserved meaningful short query token `AI` as an explicit exact-token match
+- Populated Image Search `source` from the image source page URL instead of returning an empty string
+- Added diagnostic warning when primary News Search fails before fallback is attempted
+
+### Tests
+
+- Added News fallback query-construction tests
+- Added News fallback relevance-filter tests for `n8n` and `AI`
+- Added Image Search `source` field regression test
+- Full suite: 257 tests passing
+
+---
+
 ## [32.5.1] - 2026-05-17
 
 ### Fixed

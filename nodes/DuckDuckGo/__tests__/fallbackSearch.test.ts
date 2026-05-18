@@ -27,7 +27,7 @@ jest.mock('../apiClient', () => ({
 }));
 
 import axios from 'axios';
-import { fallbackWebSearch } from '../fallbackSearch';
+import { fallbackWebSearch, fallbackNewsSearch } from '../fallbackSearch';
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
@@ -262,5 +262,74 @@ describe('fallbackWebSearch — ad filtering and URL normalisation (normaliseDdg
     expect(result.results[0].href).toBe(target);
     // Double-decode corruption form must never appear.
     expect(result.results[0].href).not.toContain('%+A');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 32.5.2 — fallbackNewsSearch query construction
+// ---------------------------------------------------------------------------
+
+describe('fallbackNewsSearch — query construction (32.5.2)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('calls fallbackWebSearch with "${query} news" form for a simple query', async () => {
+    mockedAxios.get = jest.fn().mockResolvedValue({
+      status: 200,
+      data: `<!DOCTYPE html><html><body>
+        <div class="result results_links web-result">
+          <a class="result__a" href="https://community.n8n.io/news">n8n automation news</a>
+          <span class="result__snippet">Latest n8n news and updates</span>
+        </div>
+      </body></html>`,
+    });
+
+    await fallbackNewsSearch('n8n');
+
+    // axios.get must have been called once (the underlying HTML GET)
+    expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+    const calledUrl = (mockedAxios.get as jest.Mock).mock.calls[0][0] as string;
+    const qParam = new URL(calledUrl).searchParams.get('q') || '';
+    // The URL must contain the user query
+    expect(qParam).toContain('n8n');
+    // Must carry the ' news' suffix
+    expect(qParam).toContain('n8n news');
+  });
+
+  it('does NOT include site:bbc.com in the fallback news query', async () => {
+    mockedAxios.get = jest.fn().mockResolvedValue({ status: 200, data: '<html><body></body></html>' });
+    await fallbackNewsSearch('n8n');
+    const calledUrl = (mockedAxios.get as jest.Mock).mock.calls[0][0] as string;
+    expect(decodeURIComponent(calledUrl)).not.toContain('site:bbc.com');
+  });
+
+  it('does NOT include site:cnn.com in the fallback news query', async () => {
+    mockedAxios.get = jest.fn().mockResolvedValue({ status: 200, data: '<html><body></body></html>' });
+    await fallbackNewsSearch('n8n');
+    const calledUrl = (mockedAxios.get as jest.Mock).mock.calls[0][0] as string;
+    expect(decodeURIComponent(calledUrl)).not.toContain('site:cnn.com');
+  });
+
+  it('does NOT include site:reuters.com in the fallback news query', async () => {
+    mockedAxios.get = jest.fn().mockResolvedValue({ status: 200, data: '<html><body></body></html>' });
+    await fallbackNewsSearch('n8n');
+    const calledUrl = (mockedAxios.get as jest.Mock).mock.calls[0][0] as string;
+    expect(decodeURIComponent(calledUrl)).not.toContain('site:reuters.com');
+  });
+
+  it('does NOT include site:news.com in the fallback news query', async () => {
+    mockedAxios.get = jest.fn().mockResolvedValue({ status: 200, data: '<html><body></body></html>' });
+    await fallbackNewsSearch('n8n');
+    const calledUrl = (mockedAxios.get as jest.Mock).mock.calls[0][0] as string;
+    expect(decodeURIComponent(calledUrl)).not.toContain('site:news.com');
+  });
+
+  it('query construction works correctly for a multi-word query', async () => {
+    mockedAxios.get = jest.fn().mockResolvedValue({ status: 200, data: '<html><body></body></html>' });
+    await fallbackNewsSearch('workflow automation');
+    const calledUrl = (mockedAxios.get as jest.Mock).mock.calls[0][0] as string;
+    const qParam = new URL(calledUrl).searchParams.get('q') || '';
+    expect(qParam).toContain('workflow automation news');
   });
 });

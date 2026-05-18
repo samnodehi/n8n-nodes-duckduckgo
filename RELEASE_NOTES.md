@@ -1,3 +1,53 @@
+# v32.5.2 — News Fallback Quality and Image Source Fix
+
+**Release Date:** 2026-05-18
+
+---
+
+## Highlights
+
+- **News fallback now keeps the user query dominant** instead of using broad hard-coded news-site OR filters
+- **News fallback results are now filtered by exact query-token relevance**
+- **Short-token false positives are reduced**; `AI` only matches standalone `AI`, not unrelated words like `Taiwan`
+- **Image Search now populates the `source` field** with the source page URL
+- **Primary News Search failures now emit a diagnostic warning** before fallback
+
+---
+
+## Fixed
+
+- Replaced broken fallback query construction that could return generic BBC/CNN/Reuters results unrelated to the user query
+- Added token-level relevance filtering for fallback News results
+- Preserved `n8n` as a valid query token for relevance filtering
+- Added explicit support for standalone `AI` as a meaningful short token
+- Populated Image Search `source` from the direct image result source URL
+
+---
+
+## Compatibility
+
+- No migration required
+- News fallback may return fewer results when generic fallback results do not match the user query
+- Image Search output now has a more useful `source` value instead of an empty string
+
+---
+
+## Validation
+
+- Targeted tests pass
+- Full suite: 257 tests pass
+- `npm run build:prod` passes
+
+---
+
+## Installation
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.5.2
+```
+
+---
+
 # v32.5.1 — Search Result Quality Hotfix
 
 **Release Date:** 2026-05-17

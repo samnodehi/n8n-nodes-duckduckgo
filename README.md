@@ -133,7 +133,7 @@ Searches DuckDuckGo images and returns image metadata.
     "url": "https://example.com/photography/mountain-sunset",
     "width": 1920,
     "height": 1080,
-    "source": "Photography Site",
+    "source": "https://example.com/photography/mountain-sunset",
     "sourceType": "image"
   }
 ]
@@ -301,7 +301,7 @@ Cache is in-memory only and is not shared across n8n worker processes or restart
 | `url` | string | Source page where image was found |
 | `width` | number | Image width in pixels |
 | `height` | number | Image height in pixels |
-| `source` | string | Source site name |
+| `source` | string | Source page URL where the image was found |
 | `sourceType` | string | Always `"image"` |
 
 ### News Search

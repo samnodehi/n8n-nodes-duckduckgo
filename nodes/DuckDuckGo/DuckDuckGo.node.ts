@@ -1291,13 +1291,16 @@ export class DuckDuckGo implements INodeType {
                 vqdCache.set(vqdKey, directImageResults.vqd);
               }
 
-              // Format results to match duck-duck-scrape structure
+              // Format results to match duck-duck-scrape structure.
+              // source is populated from the page URL (r.source) so that
+              // processImageSearchResults can pass it through as a non-empty field.
               result = {
                 results: directImageResults.results.map(r => ({
                   title: r.title,
                   image: r.url,
                   thumbnail: r.thumbnail,
                   url: r.source,
+                  source: r.source, // page URL where the image appears
                   height: r.height,
                   width: r.width,
                 })),
@@ -1621,6 +1624,12 @@ export class DuckDuckGo implements INodeType {
 
             }
           } catch (error) {
+            // Log the primary failure reason before attempting fallback.
+            // Always emitted (not gated by debugMode) so the cause is visible
+            // in the n8n server log even when fallback succeeds and no error
+            // item is returned to the workflow.
+            console.warn(`[DuckDuckGo] Primary news search failed (query: "${newsQuery}"): ${(error instanceof Error ? error.message : String(error))}`);
+
             // Try fallback search if duck-duck-scrape fails
             try {
               const fallbackResult = await fallbackNewsSearch(newsQuery, {
@@ -1630,21 +1639,53 @@ export class DuckDuckGo implements INodeType {
               });
 
               if (fallbackResult.success && fallbackResult.results.length > 0) {
-                // Convert fallback results to news search format
-                const newsResults = fallbackResult.results.map(item => ({
-                  date: null, // fallback has no real publication date; Date.now() would be wrong (ms vs seconds)
-                  title: item.title,
-                  excerpt: item.body || null, // processNewsSearchResults reads description from excerpt
-                  body: item.body,
-                  url: item.href,
-                  image: '',
-                  syndicate: 'DuckDuckGo Fallback', // visible label via field that processor reads
-                  isFallback: true,
-                }));
+                // Relevance filter: keep only fallback results that contain at least one
+                // query token as an exact word token in their title or body.
+                //
+                // Tokenization uses [a-z0-9]+ so that 'ai' in the query never
+                // matches words like 'taiwan', 'said', 'again', 'britain' where 'ai'
+                // is only a substring, not a standalone token.
+                //
+                // Token selection rules for the query:
+                //   - extract [a-z0-9]+ words from the lowercased query
+                //   - remove 'news' (always appended by fallbackNewsSearch, not user intent)
+                //   - keep tokens with length >= 3
+                //   - explicitly also keep 'ai' (2-char but a known meaningful term)
+                //   - all other 2-char tokens are excluded to avoid noise
+                const EXPLICIT_SHORT_TOKENS = new Set(['ai']);
 
-                results = processNewsSearchResults(newsResults, itemIndex).slice(0, newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS);
+                const tokenize = (value: string): string[] =>
+                  (value.toLowerCase().match(/[a-z0-9]+/g) || []);
 
-                // Leave fallback results populated; the error item below is only emitted if fallback produced no results.
+                const queryTokens = tokenize(newsQuery)
+                  .filter(t => t !== 'news' && (t.length >= 3 || EXPLICIT_SHORT_TOKENS.has(t)));
+
+                const relevantResults = queryTokens.length === 0
+                  ? fallbackResult.results
+                  : fallbackResult.results.filter(item => {
+                      const candidateTokens = new Set(
+                        tokenize(`${item.title || ''} ${item.body || ''}`)
+                      );
+                      return queryTokens.some(tok => candidateTokens.has(tok));
+                    });
+
+                if (relevantResults.length > 0) {
+                  // Convert fallback results to news search format
+                  const newsResults = relevantResults.map(item => ({
+                    date: null, // fallback has no real publication date; Date.now() would be wrong (ms vs seconds)
+                    title: item.title,
+                    excerpt: item.body || null, // processNewsSearchResults reads description from excerpt
+                    body: item.body,
+                    url: item.href,
+                    image: '',
+                    syndicate: 'DuckDuckGo Fallback', // visible label via field that processor reads
+                    isFallback: true,
+                  }));
+
+                  results = processNewsSearchResults(newsResults, itemIndex).slice(0, newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS);
+                }
+                // If relevantResults is empty, fall through to the error-item path below
+                // so the caller gets a meaningful signal instead of silence.
               }
             } catch (fallbackError) {
               console.error('Fallback news search also failed:', fallbackError);
