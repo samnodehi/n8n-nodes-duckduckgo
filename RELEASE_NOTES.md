@@ -1,3 +1,64 @@
+# v32.5.1 — Search Result Quality Hotfix
+
+**Release Date:** 2026-05-17
+
+---
+
+## Highlights
+
+- **Sponsored/ad search results are now filtered** from direct Web Search and fallback parsing
+- **DuckDuckGo redirect URLs are normalized** to final destination URLs
+- **News fallback output no longer emits broken future dates** — `date` is now `null` when no real publication date exists
+- **News fallback descriptions are preserved** when fallback body text exists
+- **Inert Telemetry UI removed** — the `Enable Telemetry` option was a no-op; it is no longer shown
+
+---
+
+## Fixed
+
+- `duckduckgo.com/y.js` ad redirects removed from Web Search and fallback output
+- `bing.com/aclick` ad trackers removed
+- `ad_provider`, `ad_type`, `ad_domain` query param URLs removed
+- `/l/?uddg=` redirect wrappers decoded safely to final destination URLs
+- Decoded redirect targets re-checked for ads so ads cannot hide inside `uddg`
+- No double-decode of `uddg` values, preserving percent-encoded URL content
+- No more `https:////duckduckgo.com/...` malformed fallback URLs
+- News fallback `date` now `null` when no real publication date exists (was a synthetic millisecond timestamp producing year ~58344)
+- News fallback `description` now maps from fallback body text (was `null` even when body was available)
+
+---
+
+## Removed
+
+- `Enable Telemetry` UI option removed — telemetry is a no-op and no analytics are sent
+
+---
+
+## Compatibility
+
+- No migration required for normal workflows
+- Stale saved `enableTelemetry` values are silently ignored
+- Output quality improves by excluding sponsored/tracker URLs
+- News fallback `date` may now be `null` instead of an invalid synthetic future date
+
+---
+
+## Validation
+
+- Targeted tests pass
+- Full suite: 242 tests pass
+- `npm run build:prod` passes
+
+---
+
+## Installation
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.5.1
+```
+
+---
+
 # v32.5.0 — Accuracy, Trust, and Agent Output Cleanup
 
 **Release Date:** 2026-05-17

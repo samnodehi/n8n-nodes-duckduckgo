@@ -53,11 +53,6 @@ import {
   setCache,
 } from './cache';
 
-import {
-  reportEvent,
-  ITelemetryEventData
-} from './telemetry';
-
 
 import { buildSearchQuery, validateSearchOperators, OPERATOR_INFO, ISearchOperators } from './searchOperators';
 import { paginateWithVqd, DEFAULT_PAGINATION_CONFIG } from './vqdPagination';
@@ -841,14 +836,6 @@ export class DuckDuckGo implements INodeType {
         ],
       },
 
-      // Telemetry settings
-      {
-        displayName: 'Enable Telemetry',
-        name: 'enableTelemetry',
-        type: 'boolean',
-        default: false,
-        description: 'Whether to send anonymous usage data to help improve the node (no personal data is collected)',
-      },
 
     ],
   };
@@ -959,7 +946,7 @@ export class DuckDuckGo implements INodeType {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
     const debugMode = this.getNodeParameter('debugMode', 0, false) as boolean;
-		const enableTelemetry = this.getNodeParameter('enableTelemetry', 0, false) as boolean;
+
 
     // Get cache settings
     const cacheSettings = this.getNodeParameter('cacheSettings', 0, {
@@ -1061,18 +1048,6 @@ export class DuckDuckGo implements INodeType {
             options: searchOptions,
           });
 
-          // Track operation start time for telemetry
-          const startTime = Date.now();
-
-          // Report search_started telemetry event
-          const telemetryData: ITelemetryEventData = {
-            operation,
-            query: enhancedQuery,
-            searchOptions,
-          };
-          if (enableTelemetry) {
-            await reportEvent(this, 'search_started', telemetryData);
-          }
 
           // Try to get cached result if cache is enabled
           let result;
@@ -1176,16 +1151,6 @@ export class DuckDuckGo implements INodeType {
                 },
               }];
 
-              // Report search_completed with zero results
-              if (enableTelemetry) {
-                await reportEvent(this, 'search_completed', {
-                  operation,
-                  query: enhancedQuery,
-                  durationMs: Date.now() - startTime,
-                  resultCount: 0,
-                  fromCache: !!result,
-                });
-              }
             } else {
               // Return raw results if requested
               if (options.returnRawResults || debugMode) {
@@ -1211,17 +1176,6 @@ export class DuckDuckGo implements INodeType {
                 }
               }
 
-              // Report search_completed with result count
-              const resultCount = Array.isArray(result.results) ? result.results.length : 0;
-              if (enableTelemetry) {
-                await reportEvent(this, 'search_completed', {
-                  operation,
-                  query: enhancedQuery,
-                  durationMs: Date.now() - startTime,
-                  resultCount,
-                  fromCache: result !== undefined && !(result as any).fromCache,
-                });
-              }
             }
           } catch (error) {
             // Create a user-friendly error message
@@ -1254,16 +1208,6 @@ export class DuckDuckGo implements INodeType {
               },
             }];
 
-            // Report search_failed telemetry
-            if (enableTelemetry) {
-              await reportEvent(this, 'search_failed', {
-                operation,
-                query: enhancedQuery,
-                durationMs: Date.now() - startTime,
-                error: errorMessage,
-                errorType: error?.constructor?.name || 'Error',
-              });
-            }
           }
         }
         else if (operation === DuckDuckGoOperation.SearchImages) {
@@ -1290,18 +1234,6 @@ export class DuckDuckGo implements INodeType {
             options: searchOptions,
           });
 
-          // Track operation start time for telemetry
-          const startTime = Date.now();
-
-          // Report search_started telemetry event
-          const telemetryData: ITelemetryEventData = {
-            operation,
-            query: imageQuery,
-            searchOptions,
-          };
-          if (enableTelemetry) {
-            await reportEvent(this, 'search_started', telemetryData);
-          }
 
           // Try to get cached result if cache is enabled
           let result;
@@ -1421,16 +1353,6 @@ export class DuckDuckGo implements INodeType {
                 },
               }];
 
-              // Report search_completed with zero results
-              if (enableTelemetry) {
-                await reportEvent(this, 'search_completed', {
-                  operation,
-                  query: imageQuery,
-                  durationMs: Date.now() - startTime,
-                  resultCount: 0,
-                  fromCache: !!result,
-                });
-              }
             } else {
               // Return raw results if requested
               if (imageSearchOptions.returnRawResults || debugMode) {
@@ -1456,17 +1378,6 @@ export class DuckDuckGo implements INodeType {
                 }
               }
 
-              // Report search_completed with result count
-              const resultCount = Array.isArray(result.results) ? result.results.length : 0;
-              if (enableTelemetry) {
-                await reportEvent(this, 'search_completed', {
-                  operation,
-                  query: imageQuery,
-                  durationMs: Date.now() - startTime,
-                  resultCount,
-                  fromCache: result !== undefined && !result.fromCache,
-                });
-              }
             }
           } catch (error) {
             // Create a user-friendly error message
@@ -1499,16 +1410,6 @@ export class DuckDuckGo implements INodeType {
               },
             }];
 
-            // Report search_failed telemetry
-            if (enableTelemetry) {
-              await reportEvent(this, 'search_failed', {
-                operation,
-                query: imageQuery,
-                durationMs: Date.now() - startTime,
-                error: errorMessage,
-                errorType: error?.constructor?.name || 'Error',
-              });
-            }
           }
         }
         else if (operation === DuckDuckGoOperation.SearchNews) {
@@ -1540,18 +1441,6 @@ export class DuckDuckGo implements INodeType {
             options: searchOptions,
           });
 
-          // Track operation start time for telemetry
-          const startTime = Date.now();
-
-          // Report search_started telemetry event
-          const telemetryData: ITelemetryEventData = {
-            operation,
-            query: newsQuery,
-            searchOptions,
-          };
-          if (enableTelemetry) {
-            await reportEvent(this, 'search_started', telemetryData);
-          }
 
           // Try to get cached result if cache is enabled
           let result;
@@ -1705,16 +1594,6 @@ export class DuckDuckGo implements INodeType {
                 },
               }];
 
-              // Report search_completed with zero results
-              if (enableTelemetry) {
-                await reportEvent(this, 'search_completed', {
-                  operation,
-                  query: newsQuery,
-                  durationMs: Date.now() - startTime,
-                  resultCount: 0,
-                  fromCache: !!result,
-                });
-              }
             } else {
               // Return raw results if requested
               if (newsSearchOptions.returnRawResults || debugMode) {
@@ -1740,17 +1619,6 @@ export class DuckDuckGo implements INodeType {
                 }
               }
 
-              // Report search_completed with result count
-              const resultCount = Array.isArray(result.results) ? result.results.length : 0;
-              if (enableTelemetry) {
-                await reportEvent(this, 'search_completed', {
-                  operation,
-                  query: newsQuery,
-                  durationMs: Date.now() - startTime,
-                  resultCount,
-                  fromCache: result !== undefined && !result.fromCache,
-                });
-              }
             }
           } catch (error) {
             // Try fallback search if duck-duck-scrape fails
@@ -1764,9 +1632,9 @@ export class DuckDuckGo implements INodeType {
               if (fallbackResult.success && fallbackResult.results.length > 0) {
                 // Convert fallback results to news search format
                 const newsResults = fallbackResult.results.map(item => ({
-                  date: Date.now(), // Use current timestamp as fallback
+                  date: null, // fallback has no real publication date; Date.now() would be wrong (ms vs seconds)
                   title: item.title,
-                  excerpt: item.body, // processNewsSearchResults reads description from excerpt
+                  excerpt: item.body || null, // processNewsSearchResults reads description from excerpt
                   body: item.body,
                   url: item.href,
                   image: '',
@@ -1776,17 +1644,6 @@ export class DuckDuckGo implements INodeType {
 
                 results = processNewsSearchResults(newsResults, itemIndex).slice(0, newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS);
 
-                // Report successful fallback
-                if (enableTelemetry) {
-                  await reportEvent(this, 'search_completed', {
-                    operation,
-                    query: newsQuery,
-                    durationMs: Date.now() - startTime,
-                    resultCount: newsResults.length,
-                    fromCache: false,
-                    fallbackUsed: true,
-                  });
-                }
                 // Leave fallback results populated; the error item below is only emitted if fallback produced no results.
               }
             } catch (fallbackError) {
@@ -1825,16 +1682,6 @@ export class DuckDuckGo implements INodeType {
                 },
               }];
 
-              // Report search_failed telemetry
-              if (enableTelemetry) {
-                await reportEvent(this, 'search_failed', {
-                  operation,
-                  query: newsQuery,
-                  durationMs: Date.now() - startTime,
-                  error: errorMessage,
-                  errorType: error?.constructor?.name || 'Error',
-                });
-              }
             }
           }
         }
@@ -1865,18 +1712,6 @@ export class DuckDuckGo implements INodeType {
             options: searchOptions,
           });
 
-          // Track operation start time for telemetry
-          const startTime = Date.now();
-
-          // Report search_started telemetry event
-          const telemetryData: ITelemetryEventData = {
-            operation,
-            query: videoQuery,
-            searchOptions,
-          };
-          if (enableTelemetry) {
-            await reportEvent(this, 'search_started', telemetryData);
-          }
 
           // Try to get cached result if cache is enabled
           let result;
@@ -2030,16 +1865,6 @@ export class DuckDuckGo implements INodeType {
                 },
               }];
 
-              // Report search_completed with zero results
-              if (enableTelemetry) {
-                await reportEvent(this, 'search_completed', {
-                  operation,
-                  query: videoQuery,
-                  durationMs: Date.now() - startTime,
-                  resultCount: 0,
-                  fromCache: !!result,
-                });
-              }
             } else {
               // Return raw results if requested
               if (videoSearchOptions.returnRawResults || debugMode) {
@@ -2065,17 +1890,6 @@ export class DuckDuckGo implements INodeType {
                 }
               }
 
-              // Report search_completed with result count
-              const resultCount = Array.isArray(result.results) ? result.results.length : 0;
-              if (enableTelemetry) {
-                await reportEvent(this, 'search_completed', {
-                  operation,
-                  query: videoQuery,
-                  durationMs: Date.now() - startTime,
-                  resultCount,
-                  fromCache: result !== undefined && !result.fromCache,
-                });
-              }
             }
           } catch (error) {
             // Try fallback search if duck-duck-scrape fails
@@ -2112,17 +1926,6 @@ export class DuckDuckGo implements INodeType {
 
                 results = processVideoSearchResults(videoResults, itemIndex).slice(0, videoSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS);
 
-                // Report successful fallback
-                if (enableTelemetry) {
-                  await reportEvent(this, 'search_completed', {
-                    operation,
-                    query: videoQuery,
-                    durationMs: Date.now() - startTime,
-                    resultCount: videoResults.length,
-                    fromCache: false,
-                    fallbackUsed: true,
-                  });
-                }
                 // Leave fallback results populated; the error item below is only emitted if fallback produced no results.
               }
             } catch (fallbackError) {
@@ -2161,16 +1964,6 @@ export class DuckDuckGo implements INodeType {
                 },
               }];
 
-              // Report search_failed telemetry
-              if (enableTelemetry) {
-                await reportEvent(this, 'search_failed', {
-                  operation,
-                  query: videoQuery,
-                  durationMs: Date.now() - startTime,
-                  error: errorMessage,
-                  errorType: error?.constructor?.name || 'Error',
-                });
-              }
             }
           }
         }
@@ -2234,13 +2027,6 @@ export class DuckDuckGo implements INodeType {
           console.error(JSON.stringify(logEntry));
         }
 
-        // Report node_error telemetry for unexpected errors
-        if (enableTelemetry) {
-          await reportEvent(this, 'node_error', {
-            error: error instanceof Error ? error.message : String(error),
-            errorType: error?.constructor?.name || 'Error',
-          });
-        }
 
         throw new NodeOperationError(this.getNode(), error, { itemIndex });
       }

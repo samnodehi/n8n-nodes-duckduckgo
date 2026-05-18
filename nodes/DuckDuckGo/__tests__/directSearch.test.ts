@@ -620,3 +620,226 @@ describe('directImageSearch', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Ad-filter and URL-normalisation tests (32.5.1 hotfix)
+// These exercise normaliseDdgUrl logic through the directWebSearch public API.
+// ---------------------------------------------------------------------------
+
+/**
+ * HTML block helper — wraps a single result entry in the exact class skeleton
+ * that directWebSearch splits on.
+ */
+function makeResultBlock(href: string, title: string, snippet: string): string {
+  return `<div class="result results_links results_links_deep web-result">
+  <h2 class="result__title">
+    <a class="result__a" href="${href}">${title}</a>
+  </h2>
+  <a class="result__snippet" href="${href}">${snippet}</a>
+</div>`;
+}
+
+function wrapBlocks(...blocks: string[]): string {
+  return `<!DOCTYPE html><html><head><title>DuckDuckGo</title></head><body><div id="links">${blocks.join('\n')}</div></body></html>`;
+}
+
+describe('directWebSearch — ad filtering and URL normalisation (normaliseDdgUrl)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('drops result whose href is a duckduckgo.com/y.js ad redirect', async () => {
+    const html = wrapBlocks(
+      makeResultBlock(
+        'https://duckduckgo.com/y.js?ad_domain=example.com&ad_provider=bingv7aa&rut=abc',
+        'Sponsored Ad',
+        'Buy now at a great price',
+      ),
+      makeResultBlock('https://organic.example.com/page', 'Organic Result', 'Real snippet'),
+    );
+
+    mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
+
+    const output = await directWebSearch('AI');
+
+    // The y.js result must be dropped; only the organic result survives.
+    expect(output.results).toHaveLength(1);
+    expect(output.results[0].url).toBe('https://organic.example.com/page');
+    expect(output.results[0].title).toBe('Organic Result');
+  });
+
+  it('drops result whose href is a bing.com/aclick ad tracker URL', async () => {
+    const html = wrapBlocks(
+      makeResultBlock(
+        'https://www.bing.com/aclick?ld=e8abc&url=https%3A%2F%2Fadvertiser.example.com%2F',
+        'Bing Ad',
+        'Click here for a deal',
+      ),
+      makeResultBlock('https://real.example.com/', 'Real Page', 'Real content'),
+    );
+
+    mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
+
+    const output = await directWebSearch('AI');
+
+    expect(output.results).toHaveLength(1);
+    expect(output.results[0].url).toBe('https://real.example.com/');
+  });
+
+  it('drops result with ad_provider query param', async () => {
+    const html = wrapBlocks(
+      makeResultBlock(
+        'https://duckduckgo.com/y.js?ad_provider=bingv7aa&ad_type=txad&ad_domain=buy.example.com&rut=xyz',
+        'Text Ad',
+        'Promoted content',
+      ),
+    );
+
+    mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
+
+    const output = await directWebSearch('AI');
+
+    expect(output.results).toHaveLength(0);
+  });
+
+  it('decodes duckduckgo.com/l/?uddg= redirect to final organic URL', async () => {
+    const finalUrl = 'https://example.com/actual-article';
+    const encodedFinal = encodeURIComponent(finalUrl);
+    const html = wrapBlocks(
+      makeResultBlock(
+        `https://duckduckgo.com/l/?uddg=${encodedFinal}&rut=some-token`,
+        'Organic Article',
+        'Article snippet',
+      ),
+    );
+
+    mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
+
+    const output = await directWebSearch('AI');
+
+    expect(output.results).toHaveLength(1);
+    // URL must be the decoded destination, not the DDG redirect wrapper.
+    expect(output.results[0].url).toBe(finalUrl);
+  });
+
+  it('drops duckduckgo.com/l/ redirect that has no uddg param', async () => {
+    const html = wrapBlocks(
+      makeResultBlock(
+        'https://duckduckgo.com/l/?rut=some-token',
+        'Bad Redirect',
+        'No uddg param present',
+      ),
+    );
+
+    mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
+
+    const output = await directWebSearch('AI');
+
+    expect(output.results).toHaveLength(0);
+  });
+
+  it('passes normal organic https:// URL through unchanged', async () => {
+    const html = wrapBlocks(
+      makeResultBlock('https://wikipedia.org/wiki/AI', 'Artificial Intelligence', 'Wikipedia article'),
+    );
+
+    mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
+
+    const output = await directWebSearch('AI');
+
+    expect(output.results).toHaveLength(1);
+    expect(output.results[0].url).toBe('https://wikipedia.org/wiki/AI');
+  });
+
+  it('returns only organic results when ad and organic results are mixed', async () => {
+    const html = wrapBlocks(
+      makeResultBlock(
+        'https://duckduckgo.com/y.js?ad_provider=bingv7aa',
+        'Ad 1',
+        'Sponsored ad snippet',
+      ),
+      makeResultBlock('https://first-organic.example.com/', 'Organic 1', 'First organic'),
+      makeResultBlock(
+        'https://www.bing.com/aclick?ld=xyz',
+        'Ad 2',
+        'Another sponsored ad',
+      ),
+      makeResultBlock('https://second-organic.example.com/', 'Organic 2', 'Second organic'),
+    );
+
+    mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
+
+    const output = await directWebSearch('AI');
+
+    expect(output.results).toHaveLength(2);
+    expect(output.results[0].url).toBe('https://first-organic.example.com/');
+    expect(output.results[1].url).toBe('https://second-organic.example.com/');
+  });
+
+  // -------------------------------------------------------------------------
+  // 32.5.1 robustness — uddg target re-filtering and no double-decode
+  // -------------------------------------------------------------------------
+
+  it('drops redirect whose uddg target is bing.com/aclick (ad hiding inside DDG redirect)', async () => {
+    // The redirect wrapper itself looks like an organic DDG /l/ URL, but its
+    // decoded target is a Bing ad click tracker — must be dropped.
+    const adTarget = 'https://www.bing.com/aclick?ld=xyz&url=https%3A%2F%2Fadvertiser.example.com%2F';
+    const html = wrapBlocks(
+      makeResultBlock(
+        `https://duckduckgo.com/l/?uddg=${encodeURIComponent(adTarget)}&rut=token`,
+        'Ad via redirect',
+        'Should not appear',
+      ),
+      makeResultBlock('https://organic.example.com/', 'Organic', 'Real result'),
+    );
+
+    mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
+
+    const output = await directWebSearch('AI');
+
+    expect(output.results).toHaveLength(1);
+    expect(output.results[0].url).toBe('https://organic.example.com/');
+  });
+
+  it('drops redirect whose uddg target carries ad_provider param (ad hiding inside DDG redirect)', async () => {
+    const adTarget = 'https://buy.example.com/?ad_provider=bingv7aa&ad_type=txad';
+    const html = wrapBlocks(
+      makeResultBlock(
+        `https://duckduckgo.com/l/?uddg=${encodeURIComponent(adTarget)}`,
+        'Ad param via redirect',
+        'Should not appear',
+      ),
+    );
+
+    mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
+
+    const output = await directWebSearch('AI');
+
+    expect(output.results).toHaveLength(0);
+  });
+
+  it('preserves percent-encoded characters in uddg target without double-decode corruption', async () => {
+    // Target URL contains a percent-encoded percent sign: ?q=100%25+AI
+    // The href attribute encodes the full target URL once, so %25 becomes %2525 in the href.
+    // After URLSearchParams.get() decodes one layer: uddg = 'https://example.com/search?q=100%25+AI'
+    // A second decodeURIComponent() call would corrupt %25 → %, breaking the URL.
+    const target = 'https://example.com/search?q=100%25+AI';
+    const html = wrapBlocks(
+      makeResultBlock(
+        `https://duckduckgo.com/l/?uddg=${encodeURIComponent(target)}&rut=tok`,
+        'Article With Encoded Params',
+        'snippet',
+      ),
+    );
+
+    mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
+
+    const output = await directWebSearch('AI');
+
+    expect(output.results).toHaveLength(1);
+    // Must be the once-decoded value from URLSearchParams.get() — not double-decoded.
+    expect(output.results[0].url).toBe(target);
+    // The double-decode corruption form must never appear.
+    expect(output.results[0].url).not.toContain('%+A');
+  });
+});

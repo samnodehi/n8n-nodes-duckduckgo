@@ -90,10 +90,7 @@ describe('DuckDuckGo Node - Locale Support', () => {
             case 'cacheSettings':
               return {
                 enableCache: false,
-              };
-            case 'enableTelemetry':
-              return false;
-            case 'useApiKey':
+              };            case 'useApiKey':
               return false;
             default:
               return fallback;
@@ -145,10 +142,7 @@ describe('DuckDuckGo Node - Locale Support', () => {
             case 'cacheSettings':
               return {
                 enableCache: false,
-              };
-            case 'enableTelemetry':
-              return false;
-            case 'useApiKey':
+              };            case 'useApiKey':
               return false;
             default:
               return fallback;
@@ -255,10 +249,7 @@ describe('DuckDuckGo Node - Locale Support', () => {
             case 'cacheSettings':
               return {
                 enableCache: false,
-              };
-            case 'enableTelemetry':
-              return false;
-            case 'useApiKey':
+              };            case 'useApiKey':
               return false;
             default:
               return fallback;

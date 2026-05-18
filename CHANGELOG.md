@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [32.5.1] - 2026-05-17
+
+### Fixed
+
+- Filter sponsored/ad URLs from direct Web Search results (`duckduckgo.com/y.js`, `bing.com/aclick`, ad query params)
+- Normalize DuckDuckGo `/l/?uddg=` redirect URLs to final destination URLs
+- Prevent malformed `https:////duckduckgo.com/...` fallback URLs
+- Re-filter decoded redirect targets so ads hidden inside `uddg` are dropped
+- Fix News fallback dates: use `date: null` instead of synthetic millisecond timestamps
+- Fix News fallback descriptions: preserve fallback body text when available
+
+### Removed
+
+- Removed inert `Enable Telemetry` UI option
+- Removed telemetry runtime reads/call sites from the node execution path
+
+### Tests
+
+- Added direct web-search ad/redirect normalization coverage
+- Added fallback parser ad/redirect normalization coverage
+- Added News fallback date/description regression coverage
+- Added stale `enableTelemetry` regression coverage
+- Full suite: 242 tests passing
+
+---
+
 ## [32.5.0] - 2026-05-17
 
 ### Breaking / Migration

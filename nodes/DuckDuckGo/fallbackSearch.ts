@@ -141,14 +141,18 @@ function parseSearchResultsFromHTML(html: string): FallbackSearchResult[] {
     const snippetMatch = snippetRegex.exec(resultHTML);
 
     if (titleMatch) {
-      const href = titleMatch[1];
+      const rawHref = titleMatch[1];
       const title = titleMatch[2].replace(/<[^>]*>/g, '').trim();
       const body = snippetMatch ? snippetMatch[1].replace(/<[^>]*>/g, '').trim() : '';
 
-      if (title && href) {
+      // normaliseDdgUrl drops ad URLs and decodes DDG redirect wrappers.
+      // It also fixes protocol-relative hrefs (// prefix) so they never
+      // produce the malformed https://// form.
+      const normHref = normaliseDdgUrl(rawHref);
+      if (title && normHref) {
         results.push({
           title: cleanText(title),
-          href: href.startsWith('http') ? href : `https://${href}`,
+          href: normHref,
           body: cleanText(body),
         });
       }
@@ -172,6 +176,63 @@ function cleanText(text: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+/**
+ * Returns true if the parsed URL belongs to a known ad or tracker destination
+ * that must be dropped from search results.
+ * Hostname comparisons use toLowerCase() for safety.
+ */
+function isBlockedAdUrl(u: URL): boolean {
+  const host = u.hostname.toLowerCase();
+  if (host === 'duckduckgo.com' && u.pathname === '/y.js') return true;
+  if ((host === 'bing.com' || host.endsWith('.bing.com')) && u.pathname === '/aclick') return true;
+  if (u.searchParams.has('ad_provider') || u.searchParams.has('ad_type') || u.searchParams.has('ad_domain')) return true;
+  return false;
+}
+
+/**
+ * Normalise a URL extracted from DuckDuckGo search HTML.
+ *
+ * Returns null   → caller must discard this result (ad or unresolvable redirect).
+ * Returns string → the clean, final destination URL.
+ *
+ * Handles:
+ *   - Protocol-relative hrefs (//host/path) → https:host/path  (no double-slash)
+ *   - duckduckgo.com/y.js              → null  (JS ad redirect)
+ *   - bing.com/aclick                   → null  (Bing ad click tracker)
+ *   - ?ad_provider / ?ad_type / ?ad_domain params → null  (DDG ad params)
+ *   - duckduckgo.com/l/?uddg=<encoded>  → decoded final destination URL
+ *     • URLSearchParams.get() already decodes the value once — no second
+ *       decodeURIComponent() call is made, which would corrupt percent-encoded
+ *       characters in the target URL (e.g. ?q=100%25+AI → ?q=100%+AI).
+ *     • The extracted target is validated with new URL(), must be http/https,
+ *       and is re-checked for ad/tracker patterns before being returned.
+ */
+function normaliseDdgUrl(raw: string): string | null {
+  if (!raw) return null;
+  // Resolve protocol-relative hrefs so URL constructor can parse them.
+  // Use 'https:' + raw (which already starts with '//') — not 'https://' + raw.
+  const href = raw.startsWith('//') ? `https:${raw}` : raw;
+  if (!href.startsWith('http://') && !href.startsWith('https://')) return null;
+  let u: URL;
+  try { u = new URL(href); } catch { return null; }
+  if (isBlockedAdUrl(u)) return null;
+  // Unwrap DDG organic redirect wrapper → extract and validate the real destination.
+  if (u.hostname.toLowerCase() === 'duckduckgo.com' && u.pathname === '/l/') {
+    // URLSearchParams.get() decodes percent-encoding exactly once.
+    // Do NOT call decodeURIComponent() again on the result.
+    const uddg = u.searchParams.get('uddg');
+    if (!uddg) return null;
+    let target: URL;
+    try { target = new URL(uddg); } catch { return null; }
+    if (target.protocol !== 'http:' && target.protocol !== 'https:') return null;
+    // Re-run ad/tracker check on the decoded destination.
+    if (isBlockedAdUrl(target)) return null;
+    return uddg;
+  }
+  return href;
+}
+
 
 /**
  * Fallback search using DuckDuckGo HTML Lite API

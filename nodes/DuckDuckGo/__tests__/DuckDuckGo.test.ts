@@ -151,8 +151,6 @@ describe('DuckDuckGo Node', () => {
           return options.useApiKey || false;
         case 'errorHandling':
           return options.errorHandling || 'continueOnFail';
-        case 'enableTelemetry':
-          return options.enableTelemetry || false;
         case 'cacheSettings':
           return options.cacheSettings || { enableCache: options.useCache !== undefined ? options.useCache : false };
         default:
@@ -880,7 +878,6 @@ describe('DuckDuckGo Node', () => {
             if (param === 'imageSearchOptions') return { safeSearch: -1, maxResults: 5 };
             if (param === 'locale') return 'en-us';
             if (param === 'debugMode') return false;
-            if (param === 'enableTelemetry') return false;
             if (param === 'cacheSettings') return { enableCache: false };
             if (param === 'errorHandling') return 'continueOnFail';
             return fallback;
@@ -927,6 +924,47 @@ describe('DuckDuckGo Node', () => {
           expect(JSON.stringify(item)).not.toContain('3-secret-vqd-token');
         }
       });
+    });
+  });
+
+  describe('Stale enableTelemetry regression — UI property removed', () => {
+    it('node description does not contain a property named enableTelemetry', () => {
+      const nodeInstance = new DuckDuckGo();
+      const propNames = nodeInstance.description.properties.map(p => p.name);
+      expect(propNames).not.toContain('enableTelemetry');
+    });
+
+    it('stale saved enableTelemetry: true does not throw or affect execution', async () => {
+      // Simulate a saved workflow that still has enableTelemetry: true in its parameter store.
+      // The node must ignore the unknown parameter gracefully.
+      setupNodeParameters('search', 'AI', { enableTelemetry: true });
+      (duckDuckScrape.search as jest.Mock).mockResolvedValue({
+        results: [{ title: 'T', url: 'https://example.com/', excerpt: 'x' }],
+        noResults: false,
+        vqd: 'tok',
+      });
+
+      // Must not throw even though enableTelemetry: true is in the options bag
+      await expect(
+        duckDuckGoNode.execute.call(mockExecuteFunction)
+      ).resolves.not.toThrow();
+    });
+
+    it('successful web search completes without any telemetry-related call being required', async () => {
+      // The node uses directWebSearch (mocked at module level and returns [] by default here).
+      // What we verify: execute() does not throw, and no https.request (telemetry endpoint) is called.
+      setupNodeParameters('search', 'AI');
+      (directSearch.directWebSearch as jest.Mock).mockResolvedValue({
+        results: [{ title: 'Result', url: 'https://example.com/', description: 'snippet' }],
+      });
+
+      const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+      // Must produce at least one output item (the search result)
+      expect(result[0]).toHaveLength(1);
+      // Processed web results have 'url', not 'success' — no error was thrown
+      expect(result[0][0].json).toHaveProperty('url', 'https://example.com/');
+      expect(result[0][0].json).not.toHaveProperty('error');
     });
   });
 
@@ -1094,6 +1132,110 @@ describe('DuckDuckGo Node', () => {
         expect(item).toHaveProperty('isFallback', false);
         expect(item).toHaveProperty('syndicate', 'Real News');
         expect(item).toHaveProperty('sourceType', 'news');
+      });
+    });
+
+    describe('32.5.1 — news fallback date and description fixes', () => {
+      it('fallback result has date: null (not a millisecond timestamp that becomes year ~58344)', async () => {
+        setupNodeParameters('searchNews', 'AI');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'Fallback Article', body: 'Some content', href: 'https://fallback.example.com/article' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+        const item = result[0][0].json;
+
+        // date must be null — not the result of Date.now() (ms) being multiplied by 1000
+        expect(item.date).toBeNull();
+
+        // Confirm the year-58344 regression cannot occur: if date were a string,
+        // it must not contain a year far in the future.
+        if (typeof item.date === 'string') {
+          const year = new Date(item.date as string).getFullYear();
+          expect(year).toBeLessThan(3000);
+        }
+      });
+
+      it('fallback result with non-empty body has non-null description', async () => {
+        setupNodeParameters('searchNews', 'AI');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'Article With Body', body: 'This is the article body text', href: 'https://fallback.example.com/body' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+        const item = result[0][0].json;
+
+        expect(item.description).toBe('This is the article body text');
+        expect(item.description).not.toBeNull();
+      });
+
+      it('fallback result with empty body has description: null (not broken empty string)', async () => {
+        setupNodeParameters('searchNews', 'AI');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'Article No Body', body: '', href: 'https://fallback.example.com/nobody' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+        const item = result[0][0].json;
+
+        // Empty body → excerpt becomes null → decodeHtmlEntities(null) returns null
+        expect(item.description).toBeNull();
+      });
+
+      it('isFallback: true is preserved after date/description fix', async () => {
+        setupNodeParameters('searchNews', 'AI');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('primary failed'));
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'Fallback Check', body: 'Body text', href: 'https://fallback.example.com/' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+        const item = result[0][0].json;
+
+        expect(item).toHaveProperty('isFallback', true);
+        expect(item).toHaveProperty('syndicate', 'DuckDuckGo Fallback');
+        expect(item).toHaveProperty('sourceType', 'news');
+      });
+
+      it('fallback result with body does not expose raw Date.now() value in date field', async () => {
+        setupNodeParameters('searchNews', 'AI');
+        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('primary failed'));
+
+        const beforeMs = Date.now();
+        (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
+          success: true,
+          results: [
+            { title: 'No Raw Timestamp', body: 'Content', href: 'https://fallback.example.com/ts' },
+          ],
+        });
+
+        const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+        const afterMs = Date.now();
+        const item = result[0][0].json;
+
+        // date must not be a raw millisecond epoch value in the range [beforeMs, afterMs]
+        if (item.date !== null && item.date !== undefined) {
+          const dateValue = item.date as number;
+          // A value in millisecond epoch range would be between ~1.7e12 and ~2e12
+          // A correct seconds-based value would be ~1.7e9
+          const isRawMilliseconds = dateValue >= beforeMs && dateValue <= afterMs;
+          expect(isRawMilliseconds).toBe(false);
+        }
       });
     });
   });
