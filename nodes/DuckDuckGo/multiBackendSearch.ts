@@ -162,7 +162,7 @@ export class MultiBackendDuckDuckGoSearch {
     try {
       const client = tavily({ apiKey });
       const response = await client.search(query, {
-        maxResults: 10,
+        maxResults: (options as any).maxResults || 10,
         searchDepth: 'basic',
       });
 
@@ -220,7 +220,7 @@ export class MultiBackendDuckDuckGoSearch {
   /**
    * Auto backend: tries all backends in optimal order
    */
-  private async autoSearch(query: string, options: SearchOptions): Promise<MultiBackendSearchResponse> {
+  private async autoSearch(query: string, options: SearchOptions & { tavilyApiKey?: string }): Promise<MultiBackendSearchResponse> {
     let lastError: Error | null = null;
 
     for (const backend of this.backends) {
@@ -279,7 +279,7 @@ export class MultiBackendDuckDuckGoSearch {
    */
   async search(
     query: string,
-    options: SearchOptions & { backend?: Backend } = {}
+    options: SearchOptions & { backend?: Backend; tavilyApiKey?: string } = {}
   ): Promise<MultiBackendSearchResponse> {
     const { backend = Backend.AUTO, ...searchOptions } = options;
 
