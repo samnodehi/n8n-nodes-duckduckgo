@@ -2,13 +2,15 @@ import axios from 'axios';
 import { BROWSER_USER_AGENT } from './constants';
 import { SearchOptions, search as duckSearch } from 'duck-duck-scrape';
 import { searchWithAPI } from './apiClient';
+import { tavily } from '@tavily/core';
 
 export enum Backend {
   AUTO = 'auto',
   DUCK_DUCK_SCRAPE = 'duck-duck-scrape',
   SEARCH_API = 'search-api',
   HTML = 'html',
-  LITE = 'lite'
+  LITE = 'lite',
+  TAVILY = 'tavily'
 }
 
 export interface MultiBackendSearchResult {
@@ -149,6 +151,51 @@ export class MultiBackendDuckDuckGoSearch {
   }
 
   /**
+   * Search with Tavily backend
+   */
+  private async searchWithTavily(query: string, options: SearchOptions & { tavilyApiKey?: string } = {}): Promise<MultiBackendSearchResponse> {
+    const apiKey = options.tavilyApiKey || process.env.TAVILY_API_KEY;
+    if (!apiKey) {
+      throw new Error('Tavily backend skipped: no API key configured');
+    }
+
+    try {
+      const client = tavily({ apiKey });
+      const response = await client.search(query, {
+        maxResults: 10,
+        searchDepth: 'basic',
+      });
+
+      if (response.results && response.results.length > 0) {
+        const convertedResults = response.results.map((item: any) => ({
+          title: item.title || '',
+          href: item.url || '',
+          body: item.content || '',
+          hostname: this.extractHostname(item.url || ''),
+          snippet: item.content || '',
+        }));
+
+        return {
+          success: true,
+          results: convertedResults.filter((r: MultiBackendSearchResult) => !this.cache.has(r.href) && (this.cache.add(r.href), true)),
+          backend: Backend.TAVILY,
+          timestamp: Date.now(),
+        };
+      }
+
+      return {
+        success: true,
+        noResults: true,
+        results: [],
+        backend: Backend.TAVILY,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      throw new Error(`Tavily backend failed: ${error.message}`);
+    }
+  }
+
+  /**
    * Normalize URL by ensuring it starts with http/https
    */
   private normalizeUrl(url: string): string {
@@ -207,6 +254,16 @@ export class MultiBackendDuckDuckGoSearch {
       }
     }
 
+    // Last-resort: try Tavily if all DuckDuckGo backends failed
+    try {
+      const tavilyResult = await this.searchWithTavily(query, options);
+      if (tavilyResult.success && tavilyResult.results.length > 0) {
+        return tavilyResult;
+      }
+    } catch (error) {
+      console.warn(`Tavily fallback failed: ${error.message}`);
+    }
+
     return {
       success: false,
       noResults: true,
@@ -237,6 +294,8 @@ export class MultiBackendDuckDuckGoSearch {
         return await this.searchWithDuckDuckScrape(query, searchOptions);
       case Backend.SEARCH_API:
         return await this.searchWithSearchAPI(query, searchOptions);
+      case Backend.TAVILY:
+        return await this.searchWithTavily(query, searchOptions);
       default:
         throw new Error(`Unknown backend: ${backend}`);
     }

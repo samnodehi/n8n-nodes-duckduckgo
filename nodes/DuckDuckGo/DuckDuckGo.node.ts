@@ -33,6 +33,8 @@ import {
   TimePeriod,
 } from './types';
 
+import { MultiBackendDuckDuckGoSearch, Backend } from './multiBackendSearch';
+
 import {
   processWebSearchResults,
   processImageSearchResults,
@@ -161,7 +163,17 @@ export class DuckDuckGo implements INodeType {
     outputs: ['main' as NodeConnectionType],
     // @ts-ignore - Enable this node to be used as an AI Agent tool
     usableAsTool: true,
-    credentials: [],
+    credentials: [
+      {
+        name: 'tavilyApi',
+        required: false,
+        displayOptions: {
+          show: {
+            backend: ['tavily'],
+          },
+        },
+      },
+    ],
     properties: [
       // Operation Selection - The first parameter per requirements
       {
@@ -210,6 +222,23 @@ export class DuckDuckGo implements INodeType {
         options: LOCALE_OPTIONS,
       },
 
+
+      // Backend Selection
+      {
+        displayName: 'Backend',
+        name: 'backend',
+        type: 'options',
+        default: 'auto',
+        description: 'Search backend to use. Auto tries all DuckDuckGo backends with Tavily as last resort.',
+        options: [
+          { name: 'Auto (Default)', value: 'auto' },
+          { name: 'duck-duck-scrape', value: 'duck-duck-scrape' },
+          { name: 'HTML', value: 'html' },
+          { name: 'Lite', value: 'lite' },
+          { name: 'SearchAPI', value: 'search-api' },
+          { name: 'Tavily', value: 'tavily' },
+        ],
+      },
 
       // ----------------------------------------
       // Web Search Operation Parameters
@@ -1084,7 +1113,57 @@ export class DuckDuckGo implements INodeType {
                 console.log(JSON.stringify(logEntry));
               }
 
-              // SIMPLIFIED: Execute search directly using our direct implementation
+              // Read selected backend
+              const selectedBackend = this.getNodeParameter('backend', itemIndex, 'auto') as string;
+
+              // If Tavily backend is selected, use MultiBackendDuckDuckGoSearch
+              if (selectedBackend === 'tavily' || selectedBackend === 'auto') {
+                let tavilyApiKey: string | undefined;
+                try {
+                  const creds = await this.getCredentials('tavilyApi');
+                  tavilyApiKey = creds?.apiKey as string | undefined;
+                } catch {
+                  // No Tavily credentials configured — skip gracefully
+                }
+
+                if (selectedBackend === 'tavily') {
+                  if (!tavilyApiKey) {
+                    throw new NodeOperationError(
+                      this.getNode(),
+                      'Tavily API key is required when using the Tavily backend. Configure TavilyApi credentials.',
+                      { itemIndex }
+                    );
+                  }
+                  const mbSearch = new MultiBackendDuckDuckGoSearch([Backend.TAVILY]);
+                  const mbResult = await mbSearch.search(enhancedQuery, {
+                    backend: Backend.TAVILY,
+                    tavilyApiKey,
+                  } as any);
+
+                  result = {
+                    results: mbResult.results.map(r => ({
+                      title: r.title,
+                      url: r.href,
+                      description: r.body,
+                      hostname: r.hostname || '',
+                    })),
+                    noResults: mbResult.results.length === 0,
+                  };
+
+                  const maxResults = options.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
+                  if (result.results && result.results.length > maxResults) {
+                    result.results = result.results.slice(0, maxResults);
+                  }
+
+                  if (enableCache && cacheTTL > 0) {
+                    setCache(cacheKey, result, cacheTTL);
+                  }
+                  // Skip the default search path below
+                }
+              }
+
+              // Default: Execute search using direct implementation
+              if (!result) {
               const directResults = await directWebSearch(enhancedQuery, {
                 locale: searchOptions.locale || 'us-en',
                 safeSearch: getSafeSearchString(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
@@ -1101,6 +1180,7 @@ export class DuckDuckGo implements INodeType {
                 })),
                 noResults: directResults.results.length === 0,
               };
+              }
 
               // Note: Direct search doesn't support pagination without VQD token
               // Limit results to what we got from the first request

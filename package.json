@@ -51,7 +51,9 @@
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
-    "credentials": [],
+    "credentials": [
+      "dist/credentials/TavilyApi.credentials.js"
+    ],
     "nodes": [
       "dist/nodes/DuckDuckGo/DuckDuckGo.node.js"
     ]
@@ -65,7 +67,6 @@
     "@types/jest": "^29.5.14",
     "@types/request-promise-native": "^1.0.21",
     "@types/uuid": "^9.0.8",
-    "uuid": "^9.0.1",
     "@typescript-eslint/parser": "~5.45",
     "babel-jest": "^29.7.0",
     "copyfiles": "^2.4.1",
@@ -79,13 +80,15 @@
     "rimraf": "^6.0.1",
     "semantic-release": "^24.2.9",
     "ts-jest": "^29.4.6",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "uuid": "^9.0.1"
   },
   "dependencies": {
+    "@tavily/core": "^0.7.3",
+    "axios": "^1.13.0",
     "duck-duck-scrape": "^2.2.7",
     "https-proxy-agent": "^7.0.6",
-    "socks-proxy-agent": "^8.0.5",
-    "axios": "^1.13.0"
+    "socks-proxy-agent": "^8.0.5"
   },
   "engines": {
     "node": ">=18.0.0"
