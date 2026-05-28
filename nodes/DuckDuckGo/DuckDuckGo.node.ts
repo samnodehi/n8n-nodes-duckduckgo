@@ -1141,10 +1141,11 @@ export class DuckDuckGo implements INodeType {
                     { itemIndex }
                   );
                 }
-                const mbSearch = new MultiBackendDuckDuckGoSearch([Backend.TAVILY]);
+                const mbSearch = new MultiBackendDuckDuckGoSearch();
                 const mbResult = await mbSearch.search(enhancedQuery, {
                   backend: Backend.TAVILY,
                   tavilyApiKey,
+                  maxResults: options.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS,
                 });
 
                 result = {
@@ -1158,10 +1159,11 @@ export class DuckDuckGo implements INodeType {
                 };
               } else if (selectedBackend === 'auto') {
                 // Auto backend: use MultiBackendDuckDuckGoSearch which tries all DDG backends + Tavily fallback
-                const mbSearch = new MultiBackendDuckDuckGoSearch([Backend.AUTO]);
+                const mbSearch = new MultiBackendDuckDuckGoSearch();
                 const mbResult = await mbSearch.search(enhancedQuery, {
                   backend: Backend.AUTO,
                   tavilyApiKey,
+                  maxResults: options.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS,
                 });
 
                 result = {
