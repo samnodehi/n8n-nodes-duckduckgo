@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [32.6.0] - 2026-06-23
+
+### Removed
+
+- Removed 8 dead modules never reachable from the node entry point
+  (`apiClient`, `multiBackendSearch`, `reliabilityManager`, `searchFilters`,
+  `rateLimiter`, `proxy`, `errorHandler`, `telemetry`) and their dead tests.
+  The removed `apiClient`/`multiBackendSearch` code contained an unused
+  third-party SearchAPI.io client path; it never executed and is now gone.
+- Dropped unused dependencies: `https-proxy-agent`, `socks-proxy-agent`
+  (production), `uuid`, `@types/uuid`, `@types/express`,
+  `@types/request-promise-native` (dev), and the `semantic-release`
+  toolchain (with `.releaserc`), which CI no longer used.
+- Removed the redundant top-level **Locale** node option; locale is now
+  set per operation via the **Region** option (saved `locale` values are
+  silently ignored).
+
+### Changed
+
+- **Default locale/region is now `wt-wt` (worldwide).** The global Locale
+  dropdown now uses the same correct DuckDuckGo region codes as the
+  per-operation Region option; the previous default `en-us` was an invalid
+  code that DuckDuckGo silently ignored.
+- `main` now points at `dist/nodes/index.js`, so `require()` of the package
+  resolves correctly.
+
+### Fixed
+
+- Restored canonical MIT license text so the project license is detected
+  as MIT.
+
+### Tests / CI
+
+- Added unit tests for the `cache` and `processors` modules.
+- Bumped GitHub Actions (`checkout` v4, `action-gh-release` v2); added
+  Dependabot config, a security policy, and issue templates.
+
+---
+
 ## [32.5.2] - 2026-05-18
 
 ### Fixed

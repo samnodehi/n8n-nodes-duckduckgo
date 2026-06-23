@@ -73,7 +73,7 @@ Searches DuckDuckGo and returns organic web results.
 | `query` | string | required | Search terms |
 | `maxResults` | number | 10 | Number of results (1–50) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
-| `region` | string | us-en | Locale code (e.g. `de-de`, `fr-fr`) |
+| `region` | string | wt-wt | Locale code (e.g. `de-de`, `fr-fr`) |
 | `useSearchOperators` | boolean | false | Enable advanced operator parsing |
 | `searchOperators` | string | — | Operator string appended to query |
 
@@ -167,7 +167,7 @@ Searches DuckDuckGo news results.
 | `newsQuery` | string | required | News search terms |
 | `maxResults` | number | 10 | Number of results (1–50) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
-| `region` | string | us-en | Locale code |
+| `region` | string | wt-wt | Locale code |
 | `timePeriod` | string | — | Time filter: `d` (day), `w` (week), `m` (month), `y` (year) |
 
 **Example:**
@@ -219,7 +219,7 @@ Searches DuckDuckGo video results.
 | `videoQuery` | string | required | Video search terms |
 | `maxResults` | number | 10 | Number of results (1–50) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
-| `region` | string | us-en | Locale code |
+| `region` | string | wt-wt | Locale code |
 
 **Example:**
 
@@ -266,7 +266,7 @@ Searches DuckDuckGo video results.
 |-----------|------|---------|--------|
 | `maxResults` | number | 10 | 1–50 |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, `Off` |
-| `region` | string | `us-en` | DuckDuckGo locale code (e.g. `de-de`, `fr-fr`) |
+| `region` | string | `wt-wt` | DuckDuckGo locale code (e.g. `de-de`, `fr-fr`) |
 
 ### Operation-specific parameters
 
@@ -469,7 +469,7 @@ Pass a DuckDuckGo locale code as the `region` parameter. The node does not apply
 | Italy | `it-it` |
 | Japan | `jp-jp` |
 | Brazil (Portuguese) | `br-pt` |
-| China | `zh-cn` |
+| China | `cn-zh` |
 | Russia | `ru-ru` |
 | Netherlands | `nl-nl` |
 
@@ -495,6 +495,7 @@ The following UI options were removed because they had no effect on execution or
 | Web Search `timePeriod` | The date-filter parameter was not included in the web search request body |
 | Image filter options (`size`, `color`, `type`, `layout`) | The `i.js` filter parameter is undocumented; smoke testing showed unreliable/silent behavior |
 | Video filter options (`duration`, `resolution`, `publishedTime`) | Removed with the reliability and filter cleanup |
+| Top-level `locale` option | Redundant with each operation's `Region` option; the per-operation Region (or the `wt-wt` default) is used instead |
 
 ### Output field changes
 
@@ -562,9 +563,9 @@ The primary search path failed and the fallback HTML path was used. Results are 
 ## 🔒 Privacy & Security
 
 - **No API key required**: This node makes direct requests to DuckDuckGo's public search endpoints. No account or API key is needed.
-- **No analytics or telemetry**: The telemetry module is a confirmed no-op. No query data, result data, or execution metadata is sent to any analytics or telemetry service. Search requests go to DuckDuckGo only.
+- **No analytics or telemetry**: This node contains no telemetry or analytics code. No query data, result data, or execution metadata is sent to any analytics or telemetry service. Search requests go to DuckDuckGo only.
 - **No credentials registered**: The n8n credential registry for this package is empty. n8n will not prompt for any DuckDuckGo credentials.
-- **Direct requests only**: Requests go directly to DuckDuckGo (`duckduckgo.com`, `i.js`). No third-party proxies or intermediaries.
+- **Direct requests only**: Requests go directly to DuckDuckGo (`duckduckgo.com`, `html.duckduckgo.com`, `i.js`). No third-party search API, proxy, or intermediary is involved — there is no code path that sends your query anywhere except DuckDuckGo.
 - **No disk storage**: The node does not write queries or results to disk. Optional in-memory caching may temporarily keep results for the configured cache TTL (default 5 minutes) within the running n8n process.
 
 ---
@@ -578,7 +579,7 @@ The primary search path failed and the fallback HTML path was used. Results are 
 | News Search | `duck-duck-scrape` `searchNews` | HTML-based fallback |
 | Video Search | `duck-duck-scrape` `searchVideos` | HTML-based fallback |
 
-There is no user-configurable backend selector. Each operation type uses the most reliable path available.
+There is no user-configurable backend selector. Each operation type uses the most reliable path available. Every path — primary and fallback — talks only to DuckDuckGo; no third-party search API is used.
 
 ---
 

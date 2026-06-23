@@ -58,28 +58,6 @@ import { buildSearchQuery, validateSearchOperators, OPERATOR_INFO, ISearchOperat
 import { paginateWithVqd, DEFAULT_PAGINATION_CONFIG } from './vqdPagination';
 import { fallbackNewsSearch, fallbackVideoSearch } from './fallbackSearch';
 
-// Add locale options constant
-const LOCALE_OPTIONS = [
-  { name: 'English (US)', value: 'en-us' },
-  { name: 'English (UK)', value: 'uk-en' },
-  { name: 'Spanish (Spain)', value: 'es-es' },
-  { name: 'French (France)', value: 'fr-fr' },
-  { name: 'German (Germany)', value: 'de-de' },
-  { name: 'Italian (Italy)', value: 'it-it' },
-  { name: 'Japanese (Japan)', value: 'jp-jp' },
-  { name: 'Russian (Russia)', value: 'ru-ru' },
-  { name: 'Chinese (China)', value: 'zh-cn' },
-  { name: 'Portuguese (Brazil)', value: 'br-pt' },
-  { name: 'Dutch (Netherlands)', value: 'nl-nl' },
-  { name: 'Polish (Poland)', value: 'pl-pl' },
-  { name: 'Swedish (Sweden)', value: 'se-sv' },
-  { name: 'Korean (Korea)', value: 'kr-ko' },
-  { name: 'Turkish (Turkey)', value: 'tr-tr' },
-  { name: 'Arabic (Saudi Arabia)', value: 'sa-ar' },
-  { name: 'Hebrew (Israel)', value: 'il-he' },
-	{ name: 'Persian (Iran)', value: 'ir-fa' },
-];
-
 // Sleep for a fixed amount of time
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -198,16 +176,6 @@ export class DuckDuckGo implements INodeType {
             action: 'Search for videos',
           }
         ],
-      },
-
-      // Locale Parameter - For multi-language search
-      {
-        displayName: 'Locale',
-        name: 'locale',
-        type: 'options',
-        default: 'en-us',
-        description: 'Specify the search language/region locale',
-        options: LOCALE_OPTIONS,
       },
 
 
@@ -962,7 +930,6 @@ export class DuckDuckGo implements INodeType {
     const cacheTTL = cacheSettings?.cacheTTL || 300; // Default to 5 minutes if not specified
 
     // Get the global locale setting
-    const globalLocale = this.getNodeParameter('locale', 0, 'en-us') as string;
 
     // Per-execution VQD cache for image search.
     // Keyed by normalised query (trim + lowercase). Avoids a redundant page GET
@@ -1037,7 +1004,7 @@ export class DuckDuckGo implements INodeType {
           // Set up search options with correct API according to duck-duck-scrape documentation
           const searchOptions: SearchOptions = {
             safeSearch: getSafeSearchType(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-            locale: options.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
+            locale: options.region ?? DEFAULT_PARAMETERS.REGION,
           };
 
 
@@ -1086,7 +1053,7 @@ export class DuckDuckGo implements INodeType {
 
               // SIMPLIFIED: Execute search directly using our direct implementation
               const directResults = await directWebSearch(enhancedQuery, {
-                locale: searchOptions.locale || 'us-en',
+                locale: searchOptions.locale || DEFAULT_PARAMETERS.REGION,
                 safeSearch: getSafeSearchString(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
                 maxResults: undefined, // Let it fetch all available results
               });
@@ -1223,7 +1190,7 @@ export class DuckDuckGo implements INodeType {
           // Set up search options with correct API according to duck-duck-scrape documentation
           const searchOptions: ImageSearchOptions = {
             safeSearch: getSafeSearchType(imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-            locale: imageSearchOptions.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
+            locale: imageSearchOptions.region ?? DEFAULT_PARAMETERS.REGION,
           };
 
 
@@ -1278,7 +1245,7 @@ export class DuckDuckGo implements INodeType {
               const directImageResults = await directImageSearch(
                 imageQuery,
                 {
-                  locale: searchOptions.locale || 'us-en',
+                  locale: searchOptions.locale || DEFAULT_PARAMETERS.REGION,
                   safeSearch: getSafeSearchString(imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
                   maxResults: undefined, // Let it fetch all available results
                 },
@@ -1429,7 +1396,7 @@ export class DuckDuckGo implements INodeType {
           // Set up search options with correct API according to duck-duck-scrape documentation
           const searchOptions: NewsSearchOptions = {
             safeSearch: getSafeSearchType(newsSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-            locale: newsSearchOptions.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
+            locale: newsSearchOptions.region ?? DEFAULT_PARAMETERS.REGION,
             time: getSearchTimeType(newsSearchOptions.timePeriod ?? DEFAULT_PARAMETERS.TIME_PERIOD),
           };
 
@@ -1739,7 +1706,7 @@ export class DuckDuckGo implements INodeType {
           // Set up search options with correct API according to duck-duck-scrape documentation
           const searchOptions: VideoSearchOptions = {
             safeSearch: getSafeSearchType(videoSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-            locale: videoSearchOptions.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
+            locale: videoSearchOptions.region ?? DEFAULT_PARAMETERS.REGION,
           };
 
           // Note: maxResults is handled during processing, not in search options

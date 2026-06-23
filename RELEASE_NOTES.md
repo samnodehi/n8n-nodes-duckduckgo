@@ -1,3 +1,63 @@
+# v32.6.0 — Dead Code Removal, Locale Cleanup, and Repo Hardening
+
+**Release Date:** 2026-06-23
+
+An internal cleanup pass: a large amount of dead, never-executed code is removed, locale handling is unified and corrected, and the repository is brought up to a professional standard. No new search capabilities are added.
+
+---
+
+## Highlights
+
+- **~2,200 lines of dead, never-executed code removed** — 8 modules unreachable from the node (including an unused third-party SearchAPI.io client path with a hardcoded `demo-key`), their dead tests, and orphaned dependencies.
+- **Locale handling unified and corrected.** The Region dropdowns now use only valid DuckDuckGo region codes; the previous default `en-us` was an invalid code that DuckDuckGo ignored. The default is now `wt-wt` (worldwide).
+- **Redundant top-level Locale option removed** — locale is set per operation via the Region option.
+- **Correct MIT license detection, a working package entry point, current CI actions, and new repo hygiene** (security policy, Dependabot, issue templates).
+
+---
+
+## Removed
+
+- 8 dead modules: `apiClient`, `multiBackendSearch`, `reliabilityManager`, `searchFilters`, `rateLimiter`, `proxy`, `errorHandler`, `telemetry` (and their dead tests). The removed `apiClient`/`multiBackendSearch` contained an unused SearchAPI.io (third-party) path that never executed.
+- Unused dependencies: `https-proxy-agent`, `socks-proxy-agent` (production), `uuid`, `@types/uuid`, `@types/express`, `@types/request-promise-native` (dev), and the `semantic-release` toolchain.
+- The redundant top-level **Locale** node option (use the per-operation **Region** option instead).
+
+## Changed
+
+- **Default region is now `wt-wt` (worldwide)** instead of the previously invalid `en-us`.
+- `main` now points at `dist/nodes/index.js`, so `require()` of the package resolves correctly.
+
+## Fixed
+
+- Restored canonical MIT license text so the license is detected as MIT (was "Other").
+
+## Tests / CI
+
+- Added unit tests for the `cache` and `processors` modules.
+- Bumped GitHub Actions (`checkout` v4, `action-gh-release` v2); added Dependabot, a security policy, and issue templates.
+
+---
+
+## Compatibility
+
+- Workflows continue to load and run. Saved values for the removed top-level `locale` option are silently ignored; the per-operation Region (or the `wt-wt` default) is used.
+- The default search region changes from an ignored `en-us` to `wt-wt` (worldwide) when no region is explicitly selected.
+
+---
+
+## Validation
+
+- `tsc`, ESLint, full suite (218 tests across 10 suites), `npm run build:prod`, and `verify-build` all pass.
+
+---
+
+## Installation
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.6.0
+```
+
+---
+
 # v32.5.2 — News Fallback Quality and Image Source Fix
 
 **Release Date:** 2026-05-18

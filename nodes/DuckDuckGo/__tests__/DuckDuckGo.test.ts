@@ -64,18 +64,11 @@ jest.mock('../directSearch', () => ({
   }),
 }));
 
-// Mock uuid
-jest.mock('uuid', () => ({
-  v4: jest.fn().mockReturnValue('mock-uuid-1234'),
-}));
-
 // Mock the fallbackSearch module
 jest.mock('../fallbackSearch', () => ({
   fallbackNewsSearch: jest.fn(),
   fallbackVideoSearch: jest.fn(),
   fallbackWebSearch: jest.fn(),
-  fallbackImageSearch: jest.fn(),
-  searchWithFallback: jest.fn(),
 }));
 
 

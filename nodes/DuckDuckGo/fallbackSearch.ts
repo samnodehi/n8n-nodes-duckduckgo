@@ -1,22 +1,10 @@
 /**
- * Fallback search wrapper that uses SearchAPI.io when duck-duck-scrape fails
- * Updated to work without cheerio dependency - using regex-based parsing
+ * Direct DuckDuckGo HTML-Lite fallback search for News and Video operations.
+ * Uses regex-based parsing (no cheerio dependency). Requests go only to
+ * html.duckduckgo.com — no third-party search APIs are used.
  */
 
-import {
-  search as duckSearch,
-  searchNews as duckSearchNews,
-  searchVideos as duckSearchVideos,
-  SearchOptions,
-  NewsSearchOptions,
-  VideoSearchOptions,
-} from 'duck-duck-scrape';
-
-import {
-  searchWithAPI,
-  searchNewsWithAPI,
-  searchVideosWithAPI,
-} from './apiClient';
+import { SearchOptions } from 'duck-duck-scrape';
 
 import axios from 'axios';
 import { BROWSER_USER_AGENT } from './constants';
@@ -33,92 +21,6 @@ export interface FallbackSearchResponse {
   results: FallbackSearchResult[];
   vqd?: string;
   error?: string;
-}
-
-/**
- * Enhanced search function with SearchAPI fallback
- */
-export async function searchWithFallback(query: string, options: SearchOptions = {}): Promise<any> {
-  try {
-    // Try duck-duck-scrape first
-    const result = await duckSearch(query, options);
-
-    // If successful, return the result
-    if (result && result.results && result.results.length > 0) {
-      return result;
-    }
-
-    // If no results, fallback to SearchAPI
-    console.warn('Duck-duck-scrape returned no results, falling back to SearchAPI');
-    return await searchWithAPI(query, options);
-
-  } catch (error) {
-    // If duck-duck-scrape fails (especially with regex issues), use SearchAPI
-    console.warn(`Duck-duck-scrape failed: ${error.message}, falling back to SearchAPI`);
-
-    try {
-      return await searchWithAPI(query, options);
-    } catch (fallbackError) {
-      // If both fail, throw the SearchAPI error as it's more reliable
-      throw new Error(`Both search methods failed. SearchAPI error: ${fallbackError.message}`);
-    }
-  }
-}
-
-
-
-/**
- * Enhanced news search function with SearchAPI fallback
- */
-export async function searchNewsWithFallback(query: string, options: NewsSearchOptions = {}): Promise<any> {
-  try {
-    // Try duck-duck-scrape first
-    const result = await duckSearchNews(query, options);
-
-    if (result && result.results && result.results.length > 0) {
-      return result;
-    }
-
-    // If no results, fallback to SearchAPI
-    console.warn('Duck-duck-scrape news returned no results, falling back to SearchAPI');
-    return await searchNewsWithAPI(query, options);
-
-  } catch (error) {
-    console.warn(`Duck-duck-scrape news failed: ${error.message}, falling back to SearchAPI`);
-
-    try {
-      return await searchNewsWithAPI(query, options);
-    } catch (fallbackError) {
-      throw new Error(`Both news search methods failed. SearchAPI error: ${fallbackError.message}`);
-    }
-  }
-}
-
-/**
- * Enhanced video search function with SearchAPI fallback
- */
-export async function searchVideosWithFallback(query: string, options: VideoSearchOptions = {}): Promise<any> {
-  try {
-    // Try duck-duck-scrape first
-    const result = await duckSearchVideos(query, options);
-
-    if (result && result.results && result.results.length > 0) {
-      return result;
-    }
-
-    // If no results, fallback to SearchAPI
-    console.warn('Duck-duck-scrape videos returned no results, falling back to SearchAPI');
-    return await searchVideosWithAPI(query, options);
-
-  } catch (error) {
-    console.warn(`Duck-duck-scrape videos failed: ${error.message}, falling back to SearchAPI`);
-
-    try {
-      return await searchVideosWithAPI(query, options);
-    } catch (fallbackError) {
-      throw new Error(`Both video search methods failed. SearchAPI error: ${fallbackError.message}`);
-    }
-  }
 }
 
 /**
@@ -284,29 +186,6 @@ export async function fallbackWebSearch(
       noResults: true,
       results: [],
       error: `Fallback search failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    };
-  }
-}
-
-/**
- * Fallback image search using DuckDuckGo HTML search with image-focused query
- */
-export async function fallbackImageSearch(
-  query: string,
-  options: SearchOptions = {}
-): Promise<FallbackSearchResponse> {
-  try {
-    // Use web search with image-focused keywords as a fallback
-    const imageQuery = `${query} images photos pictures`;
-    return await fallbackWebSearch(imageQuery, options);
-
-  } catch (error) {
-    console.error('Fallback image search error:', error);
-    return {
-      success: false,
-      noResults: true,
-      results: [],
-      error: `Fallback image search failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
     };
   }
 }

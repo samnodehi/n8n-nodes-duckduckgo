@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: n8n Community Forum
+    url: https://community.n8n.io/
+    about: General n8n questions and workflow help (not specific to this node).

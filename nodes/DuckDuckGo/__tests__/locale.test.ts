@@ -34,23 +34,21 @@ describe('DuckDuckGo Node - Locale Support', () => {
   let mockGetNodeParameter: jest.Mock;
 
   beforeEach(() => {
-    // Create a new DuckDuckGo node instance for each test
     duckDuckGoNode = new DuckDuckGo();
-
-    // Create mock functions
     mockGetNodeParameter = jest.fn();
 
-    // Mock the execute functions context
     mockExecuteFunction = {
       getInputData: jest.fn().mockReturnValue([{ json: {} }]),
       getNodeParameter: mockGetNodeParameter,
       getNode: jest.fn().mockReturnValue({
         name: 'DuckDuckGo',
         type: 'n8n-nodes-base.duckDuckGo',
-        typeVersion: 1
+        typeVersion: 1,
       }),
       helpers: {
-        returnJsonArray: jest.fn((items: any[]) => items.map((item: any, index: number) => ({ json: item, pairedItem: { item: index } }))),
+        returnJsonArray: jest.fn((items: any[]) =>
+          items.map((item: any, index: number) => ({ json: item, pairedItem: { item: index } })),
+        ),
       },
       continueOnFail: jest.fn().mockReturnValue(false),
       logger: {
@@ -61,146 +59,66 @@ describe('DuckDuckGo Node - Locale Support', () => {
       },
     } as unknown as IExecuteFunctions;
 
-    // Reset all mocks
     jest.clearAllMocks();
   });
 
-  describe('Locale Parameter', () => {
-    it('should use global locale when region is not specified', async () => {
-      // Mock the node parameters
-      mockGetNodeParameter
-        .mockImplementation((parameter: string, _itemIndex: number, fallback: any) => {
+  describe('Region / locale', () => {
+    it('uses the per-operation region when specified (web search)', async () => {
+      mockGetNodeParameter.mockImplementation(
+        (parameter: string, _itemIndex: number, fallback: any) => {
           switch (parameter) {
             case 'operation':
               return 'search';
             case 'query':
               return 'test query';
-            case 'locale':
-              return 'fr-fr'; // Global locale: French
             case 'webSearchOptions':
-              return {
-                maxResults: 10,
-                safeSearch: 1,
-                // No region specified
-              };
+              return { maxResults: 10, region: 'fr-fr', safeSearch: 1 };
             case 'debugMode':
               return false;
             case 'errorHandling':
               return 'continueOnFail';
             case 'cacheSettings':
-              return {
-                enableCache: false,
-              };            case 'useApiKey':
-              return false;
+              return { enableCache: false };
             default:
               return fallback;
           }
-        });
+        },
+      );
 
-      // Mock search result
       (directSearch.directWebSearch as jest.Mock).mockResolvedValue({
-        results: [
-          {
-            title: 'Test Result',
-            url: 'https://example.com',
-            description: 'Test description'
-          }
-        ]
+        results: [{ title: 'Test Result', url: 'https://example.com', description: 'Test description' }],
       });
 
-      // Execute the node
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-      // Verify the search was called with the global locale
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('test query', expect.objectContaining({
-        locale: 'fr-fr',
-        safeSearch: 'moderate',
-      }));
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+        'test query',
+        expect.objectContaining({ locale: 'fr-fr', safeSearch: 'moderate' }),
+      );
     });
 
-    it('should prioritize region-specific setting over global locale', async () => {
-      // Mock the node parameters
-      mockGetNodeParameter
-        .mockImplementation((parameter: string, _itemIndex: number, fallback: any) => {
-          switch (parameter) {
-            case 'operation':
-              return 'search';
-            case 'query':
-              return 'test query';
-            case 'locale':
-              return 'fr-fr'; // Global locale: French
-            case 'webSearchOptions':
-              return {
-                maxResults: 10,
-                region: 'de-de', // Region specific: German
-                safeSearch: 1,
-              };
-            case 'debugMode':
-              return false;
-            case 'errorHandling':
-              return 'continueOnFail';
-            case 'cacheSettings':
-              return {
-                enableCache: false,
-              };            case 'useApiKey':
-              return false;
-            default:
-              return fallback;
-          }
-        });
-
-      // Mock search result
-      (directSearch.directWebSearch as jest.Mock).mockResolvedValue({
-        results: [
-          {
-            title: 'Test Result',
-            url: 'https://example.com',
-            description: 'Test description'
-          }
-        ]
-      });
-
-      // Execute the node
-      await duckDuckGoNode.execute.call(mockExecuteFunction);
-
-      // Verify the search was called with the region-specific locale (not global)
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('test query', expect.objectContaining({
-        locale: 'de-de',
-        safeSearch: 'moderate',
-      }));
-    });
-
-    it('should work with different search types', async () => {
-      // Mock the node parameters for image search
-      mockGetNodeParameter
-        .mockImplementation((parameter: string, _itemIndex: number, fallback: any) => {
+    it('uses the per-operation region for other search types (image search)', async () => {
+      mockGetNodeParameter.mockImplementation(
+        (parameter: string, _itemIndex: number, fallback: any) => {
           switch (parameter) {
             case 'operation':
               return 'searchImages';
             case 'imageQuery':
               return 'test image query';
-            case 'locale':
-              return 'es-es'; // Global locale: Spanish
             case 'imageSearchOptions':
-              return {
-                maxResults: 10,
-                safeSearch: 1,
-                // No region specified
-              };
+              return { maxResults: 10, region: 'es-es', safeSearch: 1 };
             case 'debugMode':
               return false;
             case 'errorHandling':
               return 'continueOnFail';
             case 'cacheSettings':
-              return {
-                enableCache: false,
-              };
+              return { enableCache: false };
             default:
               return fallback;
           }
-        });
+        },
+      );
 
-      // Mock search result for images
       (directSearch.directImageSearch as jest.Mock).mockResolvedValue({
         results: [
           {
@@ -208,73 +126,52 @@ describe('DuckDuckGo Node - Locale Support', () => {
             url: 'https://example.com/image.jpg',
             thumbnail: 'https://example.com/thumb.jpg',
             source: 'https://example.com',
-          }
+          },
         ],
         vqd: '3-locale-test-vqd',
       });
 
-      // Execute the node
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-      // Verify the search was called with the global locale for image search
       expect(directSearch.directImageSearch).toHaveBeenCalledWith(
         'test image query',
-        expect.objectContaining({
-          locale: 'es-es',
-        }),
+        expect.objectContaining({ locale: 'es-es' }),
         undefined, // no vqdHint on the first (and only) call
       );
     });
 
-    it('should use default locale when neither global nor region is specified', async () => {
-      // Mock the node parameters but don't specify locale or region
-      mockGetNodeParameter
-        .mockImplementation((parameter: string, _itemIndex: number, fallback: any) => {
+    it('falls back to the default region (wt-wt) when none is specified', async () => {
+      mockGetNodeParameter.mockImplementation(
+        (parameter: string, _itemIndex: number, fallback: any) => {
           switch (parameter) {
             case 'operation':
               return 'search';
             case 'query':
               return 'test query';
-            // No locale specified, should use default
             case 'webSearchOptions':
-              return {
-                maxResults: 10,
-                safeSearch: 1,
-                // No region specified
-              };
+              return { maxResults: 10, safeSearch: 1 }; // no region
             case 'debugMode':
               return false;
             case 'errorHandling':
               return 'continueOnFail';
             case 'cacheSettings':
-              return {
-                enableCache: false,
-              };            case 'useApiKey':
-              return false;
+              return { enableCache: false };
             default:
               return fallback;
           }
-        });
+        },
+      );
 
-      // Mock search result
       (directSearch.directWebSearch as jest.Mock).mockResolvedValue({
-        results: [
-          {
-            title: 'Test Result',
-            url: 'https://example.com',
-            description: 'Test description'
-          }
-        ]
+        results: [{ title: 'Test Result', url: 'https://example.com', description: 'Test description' }],
       });
 
-      // Execute the node
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-      // Verify the default locale was passed to the search function
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('test query', expect.objectContaining({
-        locale: 'en-us',
-        safeSearch: 'moderate',
-      }));
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+        'test query',
+        expect.objectContaining({ locale: 'wt-wt', safeSearch: 'moderate' }),
+      );
     });
   });
 });

@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a problem with the DuckDuckGo n8n node
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug report. Please fill in as much as you can so the issue can be reproduced.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected to happen instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: operation
+    attributes:
+      label: Operation
+      description: Which search operation is affected?
+      options:
+        - Web Search
+        - Image Search
+        - News Search
+        - Video Search
+        - Other / not sure
+    validations:
+      required: true
+  - type: input
+    id: query
+    attributes:
+      label: Example query
+      description: A query that reproduces the issue (omit anything sensitive).
+  - type: input
+    id: node-version
+    attributes:
+      label: Node package version
+      description: Version of n8n-nodes-duckduckgo-search (Settings → Community Nodes).
+    validations:
+      required: true
+  - type: input
+    id: n8n-version
+    attributes:
+      label: n8n version
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / error output
+      render: shell
