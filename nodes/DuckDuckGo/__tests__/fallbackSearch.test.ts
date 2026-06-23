@@ -20,12 +20,6 @@ jest.mock('duck-duck-scrape', () => ({
   SafeSearchType: { STRICT: 'strict', MODERATE: 'moderate', OFF: 'off' },
   SearchTimeType: { DAY: 'd', WEEK: 'w', MONTH: 'm', YEAR: 'y', ALL: 'a' },
 }));
-jest.mock('../apiClient', () => ({
-  searchWithAPI: jest.fn(),
-  searchNewsWithAPI: jest.fn(),
-  searchVideosWithAPI: jest.fn(),
-}));
-
 import axios from 'axios';
 import { fallbackWebSearch, fallbackNewsSearch } from '../fallbackSearch';
 
