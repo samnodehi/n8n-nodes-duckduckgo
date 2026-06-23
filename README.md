@@ -562,7 +562,7 @@ The primary search path failed and the fallback HTML path was used. Results are 
 ## 🔒 Privacy & Security
 
 - **No API key required**: This node makes direct requests to DuckDuckGo's public search endpoints. No account or API key is needed.
-- **No analytics or telemetry**: The telemetry module is a confirmed no-op. No query data, result data, or execution metadata is sent to any analytics or telemetry service. Search requests go to DuckDuckGo only.
+- **No analytics or telemetry**: This node contains no telemetry or analytics code. No query data, result data, or execution metadata is sent to any analytics or telemetry service. Search requests go to DuckDuckGo only.
 - **No credentials registered**: The n8n credential registry for this package is empty. n8n will not prompt for any DuckDuckGo credentials.
 - **Direct requests only**: Requests go directly to DuckDuckGo (`duckduckgo.com`, `i.js`). No third-party proxies or intermediaries.
 - **No disk storage**: The node does not write queries or results to disk. Optional in-memory caching may temporarily keep results for the configured cache TTL (default 5 minutes) within the running n8n process.
