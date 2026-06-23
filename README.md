@@ -495,6 +495,7 @@ The following UI options were removed because they had no effect on execution or
 | Web Search `timePeriod` | The date-filter parameter was not included in the web search request body |
 | Image filter options (`size`, `color`, `type`, `layout`) | The `i.js` filter parameter is undocumented; smoke testing showed unreliable/silent behavior |
 | Video filter options (`duration`, `resolution`, `publishedTime`) | Removed with the reliability and filter cleanup |
+| Top-level `locale` option | Redundant with each operation's `Region` option; the per-operation Region (or the `wt-wt` default) is used instead |
 
 ### Output field changes
 

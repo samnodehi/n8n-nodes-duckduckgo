@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (production), `uuid`, `@types/uuid`, `@types/express`,
   `@types/request-promise-native` (dev), and the `semantic-release`
   toolchain (with `.releaserc`), which CI no longer used.
+- Removed the redundant top-level **Locale** node option; locale is now
+  set per operation via the **Region** option (saved `locale` values are
+  silently ignored).
 
 ### Changed
 

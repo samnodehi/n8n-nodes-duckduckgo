@@ -178,16 +178,6 @@ export class DuckDuckGo implements INodeType {
         ],
       },
 
-      // Locale Parameter - For multi-language search
-      {
-        displayName: 'Locale',
-        name: 'locale',
-        type: 'options',
-        default: DEFAULT_PARAMETERS.REGION,
-        description: 'Default DuckDuckGo region/locale (kl parameter) for all operations. Can be overridden per operation via its Region option.',
-        options: REGIONS,
-      },
-
 
       // ----------------------------------------
       // Web Search Operation Parameters
@@ -940,7 +930,6 @@ export class DuckDuckGo implements INodeType {
     const cacheTTL = cacheSettings?.cacheTTL || 300; // Default to 5 minutes if not specified
 
     // Get the global locale setting
-    const globalLocale = this.getNodeParameter('locale', 0, DEFAULT_PARAMETERS.REGION) as string;
 
     // Per-execution VQD cache for image search.
     // Keyed by normalised query (trim + lowercase). Avoids a redundant page GET
@@ -1015,7 +1004,7 @@ export class DuckDuckGo implements INodeType {
           // Set up search options with correct API according to duck-duck-scrape documentation
           const searchOptions: SearchOptions = {
             safeSearch: getSafeSearchType(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-            locale: options.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
+            locale: options.region ?? DEFAULT_PARAMETERS.REGION,
           };
 
 
@@ -1201,7 +1190,7 @@ export class DuckDuckGo implements INodeType {
           // Set up search options with correct API according to duck-duck-scrape documentation
           const searchOptions: ImageSearchOptions = {
             safeSearch: getSafeSearchType(imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-            locale: imageSearchOptions.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
+            locale: imageSearchOptions.region ?? DEFAULT_PARAMETERS.REGION,
           };
 
 
@@ -1407,7 +1396,7 @@ export class DuckDuckGo implements INodeType {
           // Set up search options with correct API according to duck-duck-scrape documentation
           const searchOptions: NewsSearchOptions = {
             safeSearch: getSafeSearchType(newsSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-            locale: newsSearchOptions.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
+            locale: newsSearchOptions.region ?? DEFAULT_PARAMETERS.REGION,
             time: getSearchTimeType(newsSearchOptions.timePeriod ?? DEFAULT_PARAMETERS.TIME_PERIOD),
           };
 
@@ -1717,7 +1706,7 @@ export class DuckDuckGo implements INodeType {
           // Set up search options with correct API according to duck-duck-scrape documentation
           const searchOptions: VideoSearchOptions = {
             safeSearch: getSafeSearchType(videoSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
-            locale: videoSearchOptions.region ?? globalLocale ?? DEFAULT_PARAMETERS.REGION,
+            locale: videoSearchOptions.region ?? DEFAULT_PARAMETERS.REGION,
           };
 
           // Note: maxResults is handled during processing, not in search options
