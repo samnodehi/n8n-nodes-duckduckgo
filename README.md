@@ -564,7 +564,7 @@ The primary search path failed and the fallback HTML path was used. Results are 
 - **No API key required**: This node makes direct requests to DuckDuckGo's public search endpoints. No account or API key is needed.
 - **No analytics or telemetry**: This node contains no telemetry or analytics code. No query data, result data, or execution metadata is sent to any analytics or telemetry service. Search requests go to DuckDuckGo only.
 - **No credentials registered**: The n8n credential registry for this package is empty. n8n will not prompt for any DuckDuckGo credentials.
-- **Direct requests only**: Requests go directly to DuckDuckGo (`duckduckgo.com`, `i.js`). No third-party proxies or intermediaries.
+- **Direct requests only**: Requests go directly to DuckDuckGo (`duckduckgo.com`, `html.duckduckgo.com`, `i.js`). No third-party search API, proxy, or intermediary is involved — there is no code path that sends your query anywhere except DuckDuckGo.
 - **No disk storage**: The node does not write queries or results to disk. Optional in-memory caching may temporarily keep results for the configured cache TTL (default 5 minutes) within the running n8n process.
 
 ---
@@ -578,7 +578,7 @@ The primary search path failed and the fallback HTML path was used. Results are 
 | News Search | `duck-duck-scrape` `searchNews` | HTML-based fallback |
 | Video Search | `duck-duck-scrape` `searchVideos` | HTML-based fallback |
 
-There is no user-configurable backend selector. Each operation type uses the most reliable path available.
+There is no user-configurable backend selector. Each operation type uses the most reliable path available. Every path — primary and fallback — talks only to DuckDuckGo; no third-party search API is used.
 
 ---
 
