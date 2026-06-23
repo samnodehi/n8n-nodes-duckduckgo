@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Optional page content extraction for Web Search.** A new opt-in **Fetch Page Content** option fetches the top-N result pages and extracts their main readable text into a `pageContent` field, with `pageContentMaxResults` (default 3), `pageContentMaxLength` (default 2000), and `pageContentTimeout` (default 8000 ms) controls. Extraction uses a lightweight, dependency-free heuristic — no new dependencies. It is off by default; when enabled it makes HTTP requests to third-party result sites (the only path that contacts non-DuckDuckGo hosts). Per-page failures are reported via `pageContentError` / `pageContentTruncated` and never abort the search.
+
+---
+
 ## [32.6.0] - 2026-06-23
 
 ### Removed

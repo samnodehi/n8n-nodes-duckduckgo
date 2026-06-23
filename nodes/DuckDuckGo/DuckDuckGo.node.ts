@@ -57,6 +57,7 @@ import {
 import { buildSearchQuery, validateSearchOperators, OPERATOR_INFO, ISearchOperators } from './searchOperators';
 import { paginateWithVqd, DEFAULT_PAGINATION_CONFIG } from './vqdPagination';
 import { fallbackNewsSearch, fallbackVideoSearch } from './fallbackSearch';
+import { fetchPageContents } from './pageContent';
 
 // Sleep for a fixed amount of time
 function sleep(ms: number): Promise<void> {
@@ -271,6 +272,60 @@ export class DuckDuckGo implements INodeType {
             type: 'boolean',
             default: false,
             description: 'Whether to return the raw API response instead of processed results',
+          },
+          {
+            displayName: 'Fetch Page Content',
+            name: 'fetchPageContent',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to fetch each result page and extract its main text into a pageContent field (makes extra requests to third-party sites, so it is slower and not limited to DuckDuckGo)',
+          },
+          {
+            displayName: 'Number of Results to Fetch',
+            name: 'pageContentMaxResults',
+            type: 'number',
+            default: 3,
+            description: 'How many of the top results to fetch and extract page content for',
+            typeOptions: {
+              minValue: 1,
+              maxValue: 20,
+            },
+            displayOptions: {
+              show: {
+                fetchPageContent: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Max Content Length',
+            name: 'pageContentMaxLength',
+            type: 'number',
+            default: 2000,
+            description: 'Maximum number of characters of extracted text to keep, or 0 for no limit',
+            typeOptions: {
+              minValue: 0,
+            },
+            displayOptions: {
+              show: {
+                fetchPageContent: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Page Fetch Timeout',
+            name: 'pageContentTimeout',
+            type: 'number',
+            default: 8000,
+            description: 'Maximum time in milliseconds to wait for each page to load',
+            typeOptions: {
+              minValue: 1000,
+              maxValue: 60000,
+            },
+            displayOptions: {
+              show: {
+                fetchPageContent: [true],
+              },
+            },
           },
           {
             displayName: 'Use Search Operators',
@@ -966,6 +1021,10 @@ export class DuckDuckGo implements INodeType {
             returnRawResults?: boolean;
             useSearchOperators?: boolean;
             searchOperators?: ISearchOperators;
+            fetchPageContent?: boolean;
+            pageContentMaxResults?: number;
+            pageContentMaxLength?: number;
+            pageContentTimeout?: number;
           };
 
           // Enhanced query processing for better results
@@ -1136,6 +1195,47 @@ export class DuckDuckGo implements INodeType {
                 // Process and return the results with enhanced data
                 const maxResults = options.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
                 results = processWebSearchResults(result.results as any, itemIndex, result).slice(0, maxResults);
+
+                // Optional, opt-in: enrich the top-N results with extracted page text.
+                // This makes extra HTTP requests to the result sites (not DuckDuckGo),
+                // so it only runs when the user enables "Fetch Page Content".
+                if (options.fetchPageContent && results.length > 0) {
+                  const count = Math.min(options.pageContentMaxResults ?? 3, results.length);
+                  const pcOptions = {
+                    timeout: options.pageContentTimeout ?? 8000,
+                    maxLength: options.pageContentMaxLength ?? 2000,
+                  };
+
+                  // Initialise the field on every returned result for predictable output.
+                  for (const r of results) {
+                    r.json.pageContent = '';
+                  }
+
+                  const targets = results.slice(0, count);
+                  const pcResults = await fetchPageContents(
+                    targets.map(r => (typeof r.json.url === 'string' ? r.json.url : '')),
+                    pcOptions,
+                  );
+                  targets.forEach((r, i) => {
+                    const pc = pcResults[i];
+                    r.json.pageContent = pc.content;
+                    if (pc.truncated) {
+                      r.json.pageContentTruncated = true;
+                    }
+                    if (pc.error) {
+                      r.json.pageContentError = pc.error;
+                    }
+                  });
+
+                  if (debugMode) {
+                    console.log(JSON.stringify(createLogEntry(
+                      LogLevel.INFO,
+                      `Fetched page content for ${count} of ${results.length} web results`,
+                      operation,
+                      { count, pageContentOptions: pcOptions },
+                    )));
+                  }
+                }
 
                 // Add cache information to the first result if in debug mode
                 if (debugMode && results.length > 0) {
