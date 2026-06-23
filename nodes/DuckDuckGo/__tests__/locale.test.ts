@@ -270,9 +270,10 @@ describe('DuckDuckGo Node - Locale Support', () => {
       // Execute the node
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-      // Verify the default locale was passed to the search function
+      // Verify the default locale (DEFAULT_PARAMETERS.REGION = 'wt-wt') was
+      // passed to the search function when neither global locale nor region is set
       expect(directSearch.directWebSearch).toHaveBeenCalledWith('test query', expect.objectContaining({
-        locale: 'en-us',
+        locale: 'wt-wt',
         safeSearch: 'moderate',
       }));
     });

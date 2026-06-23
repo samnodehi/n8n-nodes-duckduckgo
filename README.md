@@ -73,7 +73,7 @@ Searches DuckDuckGo and returns organic web results.
 | `query` | string | required | Search terms |
 | `maxResults` | number | 10 | Number of results (1–50) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
-| `region` | string | us-en | Locale code (e.g. `de-de`, `fr-fr`) |
+| `region` | string | wt-wt | Locale code (e.g. `de-de`, `fr-fr`) |
 | `useSearchOperators` | boolean | false | Enable advanced operator parsing |
 | `searchOperators` | string | — | Operator string appended to query |
 
@@ -167,7 +167,7 @@ Searches DuckDuckGo news results.
 | `newsQuery` | string | required | News search terms |
 | `maxResults` | number | 10 | Number of results (1–50) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
-| `region` | string | us-en | Locale code |
+| `region` | string | wt-wt | Locale code |
 | `timePeriod` | string | — | Time filter: `d` (day), `w` (week), `m` (month), `y` (year) |
 
 **Example:**
@@ -219,7 +219,7 @@ Searches DuckDuckGo video results.
 | `videoQuery` | string | required | Video search terms |
 | `maxResults` | number | 10 | Number of results (1–50) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
-| `region` | string | us-en | Locale code |
+| `region` | string | wt-wt | Locale code |
 
 **Example:**
 
@@ -266,7 +266,7 @@ Searches DuckDuckGo video results.
 |-----------|------|---------|--------|
 | `maxResults` | number | 10 | 1–50 |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, `Off` |
-| `region` | string | `us-en` | DuckDuckGo locale code (e.g. `de-de`, `fr-fr`) |
+| `region` | string | `wt-wt` | DuckDuckGo locale code (e.g. `de-de`, `fr-fr`) |
 
 ### Operation-specific parameters
 
@@ -469,7 +469,7 @@ Pass a DuckDuckGo locale code as the `region` parameter. The node does not apply
 | Italy | `it-it` |
 | Japan | `jp-jp` |
 | Brazil (Portuguese) | `br-pt` |
-| China | `zh-cn` |
+| China | `cn-zh` |
 | Russia | `ru-ru` |
 | Netherlands | `nl-nl` |
 
