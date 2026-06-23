@@ -20,6 +20,7 @@ An n8n community node for DuckDuckGo search. Search the web, find images, discov
 - **Search operators**: Advanced query syntax for Web Search (`site:`, `filetype:`, `intitle:`, etc.)
 - **Region/locale support**: Configure DuckDuckGo locale codes per operation
 - **Safe search**: Configurable per operation
+- **Optional page content extraction**: Fetch and extract the main text of result pages (Web Search, opt-in)
 
 ---
 
@@ -76,6 +77,10 @@ Searches DuckDuckGo and returns organic web results.
 | `region` | string | wt-wt | Locale code (e.g. `de-de`, `fr-fr`) |
 | `useSearchOperators` | boolean | false | Enable advanced operator parsing |
 | `searchOperators` | string | — | Operator string appended to query |
+| `fetchPageContent` | boolean | false | Fetch each result's page and extract its main text (opt-in; see [Page Content Extraction](#-page-content-extraction)) |
+| `pageContentMaxResults` | number | 3 | How many top results to fetch content for (when enabled) |
+| `pageContentMaxLength` | number | 2000 | Truncate extracted text to N characters (0 = no limit) |
+| `pageContentTimeout` | number | 8000 | Per-page fetch timeout in ms |
 
 **Example:**
 
@@ -303,6 +308,9 @@ Cache is in-memory only and is not shared across n8n worker processes or restart
 | `url` | string | Page URL |
 | `hostname` | string | Domain name |
 | `sourceType` | string | Always `"web"` |
+| `pageContent` | string | Extracted main text of the result page (only when **Fetch Page Content** is enabled; empty for results beyond the fetched top-N) |
+| `pageContentTruncated` | boolean | Present and `true` when `pageContent` was cut to `pageContentMaxLength` |
+| `pageContentError` | string | Present only when the page could not be fetched/parsed (e.g. `HTTP 403`, `Timed out after 8000ms`) |
 
 ### Image Search
 
@@ -560,12 +568,53 @@ The primary search path failed and the fallback HTML path was used. Results are 
 
 ---
 
+## 📄 Page Content Extraction
+
+By default, Web Search returns DuckDuckGo's short snippet (the `description` field). DuckDuckGo controls that snippet length, and the node already returns all of it.
+
+To get **more text**, enable **Fetch Page Content** (Web Search only, off by default). The node then fetches the actual page behind each of the top results and extracts its main readable text into a `pageContent` field.
+
+| Option | Default | Purpose |
+|--------|---------|---------|
+| `fetchPageContent` | `false` | Master toggle |
+| `pageContentMaxResults` | `3` | Fetch content for the top N results only (controls speed) |
+| `pageContentMaxLength` | `2000` | Truncate each `pageContent` to N characters (`0` = no limit) |
+| `pageContentTimeout` | `8000` | Per-page fetch timeout in milliseconds |
+
+**How it works:** extraction is three-tiered — (1) [Mozilla Readability](https://github.com/mozilla/readability) over a lightweight [linkedom](https://github.com/WebReflection/linkedom) DOM pulls the main article text and drops nav/boilerplate; (2) when Readability finds no article, a DOM heuristic removes boilerplate and high link-density blocks (menus not wrapped in `<nav>`); (3) if DOM parsing fails, a dependency-free regex heuristic is the last resort. The result feeds clean text to downstream nodes or AI agents.
+
+**Important caveats:**
+
+- ⚠️ **Privacy:** when enabled, the node makes HTTP requests to the **third-party result sites** — not only to DuckDuckGo. It is off by default precisely to preserve the DuckDuckGo-only guarantee.
+- **Speed:** each fetched result is one extra HTTP request. Keep `pageContentMaxResults` small (default 3) for fast workflows.
+- **Resilience:** a page that times out, blocks bots, or returns non-HTML does not fail the search — that result gets an empty `pageContent` and a `pageContentError` instead.
+- **JavaScript-rendered sites:** pages that render content client-side return little text from a raw fetch. Extracting those needs a headless browser, which is out of scope for this node.
+- **Quality:** Readability handles most article pages cleanly; sites it cannot parse fall back to a DOM/heuristic path that may keep a little navigation text. For the highest-quality extraction or summarisation, pipe `pageContent` into a downstream LLM node in your workflow.
+
+**Example:**
+
+```json
+{
+  "operation": "search",
+  "query": "transformer architecture explained",
+  "webSearchOptions": {
+    "maxResults": 10,
+    "fetchPageContent": true,
+    "pageContentMaxResults": 3,
+    "pageContentMaxLength": 3000
+  }
+}
+```
+
+---
+
 ## 🔒 Privacy & Security
 
 - **No API key required**: This node makes direct requests to DuckDuckGo's public search endpoints. No account or API key is needed.
 - **No analytics or telemetry**: This node contains no telemetry or analytics code. No query data, result data, or execution metadata is sent to any analytics or telemetry service. Search requests go to DuckDuckGo only.
 - **No credentials registered**: The n8n credential registry for this package is empty. n8n will not prompt for any DuckDuckGo credentials.
-- **Direct requests only**: Requests go directly to DuckDuckGo (`duckduckgo.com`, `html.duckduckgo.com`, `i.js`). No third-party search API, proxy, or intermediary is involved — there is no code path that sends your query anywhere except DuckDuckGo.
+- **Direct requests only (by default)**: Search requests go directly to DuckDuckGo (`duckduckgo.com`, `html.duckduckgo.com`, `i.js`). No third-party search API, proxy, or intermediary is involved. The one exception is the opt-in Fetch Page Content feature below.
+- **Optional page-content fetch (off by default)**: If you enable **Fetch Page Content** (Web Search), the node additionally requests each fetched result's page from its own third-party server to extract text. This is the only path that contacts non-DuckDuckGo hosts, and it is disabled unless you turn it on. See [Page Content Extraction](#-page-content-extraction).
 - **No disk storage**: The node does not write queries or results to disk. Optional in-memory caching may temporarily keep results for the configured cache TTL (default 5 minutes) within the running n8n process.
 
 ---

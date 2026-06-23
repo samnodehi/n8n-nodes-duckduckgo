@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-duckduckgo-search",
-  "version": "32.6.0",
+  "version": "32.7.0",
   "description": "AI Agent-ready n8n community node for DuckDuckGo search. Search the web, images, news, and videos with no API key required and no outbound telemetry. Provides robust error handling, fallback result paths for news and video, and clean output for downstream AI Agent use.",
   "keywords": [
     "n8n-community-node-package",
@@ -74,7 +74,9 @@
   },
   "dependencies": {
     "duck-duck-scrape": "^2.2.7",
-    "axios": "^1.13.0"
+    "axios": "^1.13.0",
+    "@mozilla/readability": "^0.5.0",
+    "linkedom": "^0.18.0"
   },
   "engines": {
     "node": ">=18.0.0"

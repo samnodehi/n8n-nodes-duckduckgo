@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [32.7.0] - 2026-06-23
+
+### Added
+
+- **Optional page content extraction for Web Search.** A new opt-in **Fetch Page Content** option fetches the top-N result pages and extracts their main readable text into a `pageContent` field, with `pageContentMaxResults` (default 3), `pageContentMaxLength` (default 2000), and `pageContentTimeout` (default 8000 ms) controls. Extraction is three-tiered: Mozilla Readability (over a linkedom DOM) for clean article text, a DOM heuristic that drops menus by link density when Readability finds no article, and a regex heuristic as a last resort (adds the `@mozilla/readability` and `linkedom` dependencies). It is off by default; when enabled it makes HTTP requests to third-party result sites (the only path that contacts non-DuckDuckGo hosts). Per-page failures are reported via `pageContentError` / `pageContentTruncated` and never abort the search.
+
+---
+
 ## [32.6.0] - 2026-06-23
 
 ### Removed
