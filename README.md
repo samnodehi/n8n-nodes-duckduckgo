@@ -581,7 +581,7 @@ To get **more text**, enable **Fetch Page Content** (Web Search only, off by def
 | `pageContentMaxLength` | `2000` | Truncate each `pageContent` to N characters (`0` = no limit) |
 | `pageContentTimeout` | `8000` | Per-page fetch timeout in milliseconds |
 
-**How it works:** extraction is a lightweight, dependency-free heuristic — it removes script/style/nav/header/footer/aside boilerplate, keeps the `<body>`, converts block elements to line breaks, strips remaining tags, decodes HTML entities, and normalises whitespace. It is designed to feed clean-ish text to downstream nodes or AI agents.
+**How it works:** extraction is three-tiered — (1) [Mozilla Readability](https://github.com/mozilla/readability) over a lightweight [linkedom](https://github.com/WebReflection/linkedom) DOM pulls the main article text and drops nav/boilerplate; (2) when Readability finds no article, a DOM heuristic removes boilerplate and high link-density blocks (menus not wrapped in `<nav>`); (3) if DOM parsing fails, a dependency-free regex heuristic is the last resort. The result feeds clean text to downstream nodes or AI agents.
 
 **Important caveats:**
 
@@ -589,7 +589,7 @@ To get **more text**, enable **Fetch Page Content** (Web Search only, off by def
 - **Speed:** each fetched result is one extra HTTP request. Keep `pageContentMaxResults` small (default 3) for fast workflows.
 - **Resilience:** a page that times out, blocks bots, or returns non-HTML does not fail the search — that result gets an empty `pageContent` and a `pageContentError` instead.
 - **JavaScript-rendered sites:** pages that render content client-side return little text from a raw fetch. Extracting those needs a headless browser, which is out of scope for this node.
-- **Quality:** the heuristic is good but not perfect. For higher-quality extraction or summarisation, pipe `pageContent` into a downstream readability or LLM node in your workflow.
+- **Quality:** Readability handles most article pages cleanly; sites it cannot parse fall back to a DOM/heuristic path that may keep a little navigation text. For the highest-quality extraction or summarisation, pipe `pageContent` into a downstream LLM node in your workflow.
 
 **Example:**
 

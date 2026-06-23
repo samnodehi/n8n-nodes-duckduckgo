@@ -6,14 +6,15 @@
  * result sites — not only to DuckDuckGo. This module is used only when the
  * user explicitly opts in via the "Fetch Page Content" option (off by default).
  *
- * Extraction is intentionally a simple heuristic (no cheerio/jsdom): it strips
- * boilerplate elements, keeps the <body>, turns block elements into line
- * breaks, removes the remaining tags, decodes entities, and normalises
- * whitespace. It is good enough for feeding text to downstream nodes/agents
- * and can later be upgraded to a readability library if needed.
+ * Extraction is three-tiered: (1) Mozilla Readability over a linkedom DOM for
+ * clean article text; (2) a linkedom DOM heuristic that drops boilerplate and
+ * high link-density blocks (menus) when Readability finds no article; and
+ * (3) a dependency-free regex heuristic as a last resort if DOM parsing fails.
  */
 
 import axios from 'axios';
+import { Readability } from '@mozilla/readability';
+import { parseHTML } from 'linkedom';
 import { BROWSER_USER_AGENT } from './constants';
 
 export interface PageContentOptions {
@@ -87,22 +88,93 @@ export function extractMainText(html: string): string {
   const body = s.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
   if (body) s = body[1];
 
-  // Convert block-level boundaries into newlines for readable paragraphs.
+  return htmlFragmentToText(s);
+}
+
+/**
+ * Convert an HTML fragment to readable text: block elements become line breaks,
+ * remaining tags are removed, entities decoded, and whitespace normalised.
+ */
+function htmlFragmentToText(html: string): string {
+  let s = html;
   s = s.replace(/<\/(p|div|section|article|h[1-6]|li|tr|blockquote|td|th|pre)>/gi, '\n');
   s = s.replace(/<br\s*\/?>/gi, '\n');
-
-  // Remove all remaining tags.
   s = s.replace(/<[^>]+>/g, ' ');
-
-  // Decode entities, then normalise whitespace (keep newlines as paragraph hints).
   s = decodeEntities(s);
-  s = s
+  return normaliseWhitespace(s);
+}
+
+const BOILERPLATE_SELECTOR =
+  'script,style,noscript,template,svg,head,nav,footer,header,aside,form,iframe,button,select,figure';
+const LINK_DENSITY_SELECTOR = 'ul,ol,div,section,table';
+
+/**
+ * DOM-based fallback (linkedom) for pages where Readability finds no article.
+ * Removes boilerplate elements and high link-density blocks (menus / link lists
+ * not wrapped in <nav>), then extracts text from the main article/body. Returns
+ * null on failure so the caller can fall back to the regex heuristic.
+ */
+export function extractWithDomHeuristic(html: string): string | null {
+  if (!html) return null;
+  try {
+    const doc: any = parseHTML(html).document;
+    Array.from(doc.querySelectorAll(BOILERPLATE_SELECTOR)).forEach((el: any) => el.remove());
+    // Drop blocks whose text is mostly link text (navigation / menus).
+    Array.from(doc.querySelectorAll(LINK_DENSITY_SELECTOR)).forEach((el: any) => {
+      const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!text || text.length > 2000) return;
+      const linkText = Array.from(el.querySelectorAll('a'))
+        .map((a: any) => a.textContent || '')
+        .join('')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (linkText.length / text.length > 0.5) el.remove();
+    });
+    const container = doc.querySelector('article') || doc.querySelector('main') || doc.body;
+    const fragment: string = container ? container.innerHTML : '';
+    const text = htmlFragmentToText(fragment);
+    return text.length > 0 ? text : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Collapse runs of spaces/tabs, trim around newlines, and cap blank lines. */
+function normaliseWhitespace(s: string): string {
+  return s
+    .replace(/\r\n?/g, '\n')
     .replace(/[^\S\n]+/g, ' ')
     .replace(/ *\n */g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
 
-  return s;
+/**
+ * Minimum article length (characters) for a Readability result to be trusted.
+ * Below this the page is likely not an article, so the heuristic is used.
+ */
+const MIN_READABLE_LENGTH = 200;
+
+/**
+ * Extract clean article text using Mozilla Readability over a linkedom DOM.
+ * Returns null when no substantial article is found, so the caller can fall
+ * back to the heuristic extractor. Never throws.
+ */
+export function extractWithReadability(html: string): string | null {
+  if (!html) return null;
+  try {
+    const { document } = parseHTML(html);
+    // linkedom's Document is structurally compatible enough for Readability;
+    // cast to any because this project does not include the DOM lib types.
+    const article = new Readability(document as any).parse();
+    if (article && article.textContent && (article.length ?? 0) >= MIN_READABLE_LENGTH) {
+      const text = normaliseWhitespace(article.textContent);
+      return text.length > 0 ? text : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /** Truncate at a word boundary, appending an ellipsis when cut. */
@@ -163,7 +235,12 @@ export async function fetchPageContent(
     }
 
     const html = typeof response.data === 'string' ? response.data : String(response.data ?? '');
-    const text = extractMainText(html);
+    // Three-tier extraction: Readability for clean article text; a linkedom DOM
+    // heuristic (drops menus by link density) when Readability finds no article;
+    // and the regex heuristic as a last resort if DOM parsing fails.
+    const text = extractWithReadability(html)
+      ?? extractWithDomHeuristic(html)
+      ?? extractMainText(html);
     const { text: finalText, truncated } = truncateText(text, maxLength);
     return { content: finalText, truncated };
   } catch (error: any) {

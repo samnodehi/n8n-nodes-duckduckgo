@@ -9,6 +9,8 @@ import axios from 'axios';
 import {
   decodeEntities,
   extractMainText,
+  extractWithReadability,
+  extractWithDomHeuristic,
   truncateText,
   fetchPageContent,
   fetchPageContents,
@@ -68,6 +70,60 @@ describe('pageContent', () => {
     });
   });
 
+  describe('extractWithReadability', () => {
+    it('returns clean article text and drops nav/footer boilerplate', () => {
+      const html = `<!DOCTYPE html><html><head><title>Understanding Widgets</title></head><body>
+        <nav>MENU_ITEM_SHOULD_BE_REMOVED Home Pricing Login</nav>
+        <article>
+          <h1>Understanding Widgets</h1>
+          <p>Widgets are small reusable components that encapsulate behaviour and presentation. They are widely used across modern software to compose complex interfaces from simple parts.</p>
+          <p>A well designed widget exposes a clear interface, hides its internal state, and can be tested in isolation. This makes large applications easier to reason about and maintain over time.</p>
+          <p>In practice, teams build libraries of widgets so that common patterns do not have to be reinvented for every screen or feature that they ship to their users.</p>
+        </article>
+        <footer>FOOTER_SHOULD_BE_REMOVED copyright 2026</footer>
+      </body></html>`;
+
+      const text = extractWithReadability(html);
+      expect(text).not.toBeNull();
+      expect(text as string).toContain('reusable components');
+      expect(text as string).not.toContain('MENU_ITEM_SHOULD_BE_REMOVED');
+      expect(text as string).not.toContain('FOOTER_SHOULD_BE_REMOVED');
+    });
+
+    it('returns null for pages with too little content (caller falls back)', () => {
+      expect(extractWithReadability('<html><body><p>hi</p></body></html>')).toBeNull();
+      expect(extractWithReadability('')).toBeNull();
+    });
+  });
+
+  describe('extractWithDomHeuristic', () => {
+    it('removes high link-density menus (not in <nav>) and keeps article text', () => {
+      const html = `<!DOCTYPE html><html><body>
+        <ul class="site-menu">
+          <li><a href="/a">Courses</a></li>
+          <li><a href="/b">Tutorials</a></li>
+          <li><a href="/c">DSA</a></li>
+          <li><a href="/d">Python</a></li>
+          <li><a href="/e">Java</a></li>
+        </ul>
+        <article>
+          <h1>Real Title</h1>
+          <p>This is the genuine article body with enough descriptive prose that it clearly is not a navigation menu and should be preserved by the extractor.</p>
+        </article>
+      </body></html>`;
+
+      const text = extractWithDomHeuristic(html);
+      expect(text).not.toBeNull();
+      expect(text as string).toContain('genuine article body');
+      expect(text as string).not.toContain('DSA');
+      expect(text as string).not.toContain('Tutorials');
+    });
+
+    it('returns null for empty input', () => {
+      expect(extractWithDomHeuristic('')).toBeNull();
+    });
+  });
+
   describe('truncateText', () => {
     it('returns text unchanged when under the limit', () => {
       expect(truncateText('short', 100)).toEqual({ text: 'short', truncated: false });
@@ -86,6 +142,24 @@ describe('pageContent', () => {
   });
 
   describe('fetchPageContent', () => {
+    it('uses Readability output (clean article, no nav) for article pages', async () => {
+      const html = `<!DOCTYPE html><html><head><title>A</title></head><body>
+        <nav>NAVBOILERPLATE</nav>
+        <article><h1>Topic</h1>
+        <p>This is a sufficiently long article paragraph about an interesting topic that contains enough words for Readability to treat it as the main content of the page rather than boilerplate navigation links.</p>
+        <p>It continues with a second paragraph so the extracted article comfortably exceeds the minimum length threshold used to trust the Readability result instead of the heuristic fallback path.</p>
+        </article></body></html>`;
+      mockedAxios.get = jest.fn().mockResolvedValue({
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        data: html,
+      });
+      const result = await fetchPageContent('https://example.com/article');
+      expect(result.error).toBeUndefined();
+      expect(result.content).toContain('interesting topic');
+      expect(result.content).not.toContain('NAVBOILERPLATE');
+    });
+
     it('extracts main text from an HTML response', async () => {
       mockedAxios.get = jest.fn().mockResolvedValue({
         status: 200,
