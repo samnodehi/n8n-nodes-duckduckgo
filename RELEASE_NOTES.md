@@ -1,3 +1,50 @@
+# v32.7.0 — Optional Page Content Extraction (Web Search)
+
+**Release Date:** 2026-06-23
+
+Adds an opt-in way to get the full text of result pages, not just DuckDuckGo's short snippet.
+
+---
+
+## Highlights
+
+- **New Web Search option: Fetch Page Content (off by default).** When enabled, the node fetches the top-N result pages and extracts their main readable text into a `pageContent` field.
+- **Three-tier extraction for clean text:** Mozilla Readability (over a linkedom DOM) for article pages; a DOM heuristic that strips menus by link density when Readability finds no article; and a regex heuristic as a last resort.
+- **Controls:** `pageContentMaxResults` (default 3), `pageContentMaxLength` (default 2000 chars, 0 = no limit), `pageContentTimeout` (default 8000 ms).
+- **Resilient:** per-page failures (403, timeout, non-HTML) are reported via `pageContentError` and never abort the search; truncation is flagged with `pageContentTruncated`.
+
+---
+
+## Privacy
+
+- The feature is **off by default**. When enabled, the node makes HTTP requests to the third-party result sites — the only path that contacts non-DuckDuckGo hosts. With it off, behaviour is unchanged (DuckDuckGo only).
+
+## New dependencies
+
+- `@mozilla/readability` and `linkedom` (both pure JS; loaded only when the feature runs).
+
+---
+
+## Compatibility
+
+- No breaking changes. Existing workflows are unaffected; the new fields appear only when Fetch Page Content is enabled.
+
+---
+
+## Validation
+
+- `tsc`, ESLint, full suite (242 tests across 11 suites), `npm run build:prod`, and `verify-build` all pass.
+
+---
+
+## Installation
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.7.0
+```
+
+---
+
 # v32.6.0 — Dead Code Removal, Locale Cleanup, and Repo Hardening
 
 **Release Date:** 2026-06-23
