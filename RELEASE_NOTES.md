@@ -1,3 +1,44 @@
+# v32.9.0 — Page Metadata, Extract-from-URL, and Instant Answers
+
+**Release Date:** 2026-06-24
+
+Three free, no-key, no-new-dependency additions that make the node a fuller research toolkit.
+
+---
+
+## Highlights
+
+- **New operation: Extract Page Content** — give the node any URL and it returns the page's main text (`content`) plus optional metadata. A "read any page" tool for AI Agents, using the same three-tier extractor as search.
+- **New operation: Instant Answer** — DuckDuckGo's official free, no-key Instant Answer API: direct answers, Wikipedia-style abstracts, definitions, and related topics.
+- **Page metadata for Fetch Page Content** — a new **Include Page Metadata** option adds `pageTitle`, `pageAuthor`, `pagePublished`, `pageExcerpt`, and `pageSiteName` to Web and News results when the page is an article.
+
+---
+
+## Notes
+
+- All three are **free, need no API key, and add no paid or external dependencies** (they reuse axios + the existing extractor and DuckDuckGo's own endpoints).
+- 🔒 The Extract Page Content operation fetches a third-party URL directly (like the opt-in Fetch Page Content). Instant Answer and search talk only to DuckDuckGo.
+
+## Compatibility
+
+- No breaking changes. The new operations and fields are additive; existing operations are unchanged.
+
+---
+
+## Validation
+
+- `tsc`, ESLint, full suite (249 tests across 12 suites), `npm run build:prod`, and `verify-build` all pass. Verified live in n8n 2.27.3 (both new operations + metadata, against real pages and the Instant Answer API).
+
+---
+
+## Installation
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.9.0
+```
+
+---
+
 # v32.8.0 — Page Content Extraction for News Search
 
 **Release Date:** 2026-06-24
