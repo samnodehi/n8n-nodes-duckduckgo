@@ -6,6 +6,7 @@ import {
   INodeExecutionData,
   INodeType,
   INodeTypeDescription,
+  IDataObject,
   NodeOperationError,
   NodeConnectionType,
 } from 'n8n-workflow';
@@ -57,7 +58,8 @@ import {
 import { buildSearchQuery, validateSearchOperators, OPERATOR_INFO, ISearchOperators } from './searchOperators';
 import { paginateWithVqd, DEFAULT_PAGINATION_CONFIG } from './vqdPagination';
 import { fallbackNewsSearch, fallbackVideoSearch } from './fallbackSearch';
-import { fetchPageContents } from './pageContent';
+import { fetchPageContent, fetchPageContents } from './pageContent';
+import { getInstantAnswer } from './instantAnswer';
 
 // Sleep for a fixed amount of time
 function sleep(ms: number): Promise<void> {
@@ -133,6 +135,7 @@ async function enrichWithPageContent(
     pageContentMaxResults?: number;
     pageContentMaxLength?: number;
     pageContentTimeout?: number;
+    includePageMetadata?: boolean;
   },
   debugMode: boolean,
   operation: string,
@@ -164,6 +167,13 @@ async function enrichWithPageContent(
     }
     if (pc.error) {
       r.json.pageContentError = pc.error;
+    }
+    if (pageOpts.includePageMetadata && pc.meta) {
+      if (pc.meta.title) r.json.pageTitle = pc.meta.title;
+      if (pc.meta.author) r.json.pageAuthor = pc.meta.author;
+      if (pc.meta.published) r.json.pagePublished = pc.meta.published;
+      if (pc.meta.excerpt) r.json.pageExcerpt = pc.meta.excerpt;
+      if (pc.meta.siteName) r.json.pageSiteName = pc.meta.siteName;
     }
   });
 
@@ -232,10 +242,106 @@ export class DuckDuckGo implements INodeType {
             value: DuckDuckGoOperation.SearchVideos,
             description: 'Find videos from various sources',
             action: 'Search for videos',
+          },
+          {
+            name: 'Extract Page Content',
+            value: DuckDuckGoOperation.ExtractContent,
+            description: 'Fetch any URL and extract its main text and metadata',
+            action: 'Extract page content from a URL',
+          },
+          {
+            name: 'Instant Answer',
+            value: DuckDuckGoOperation.InstantAnswer,
+            description: 'Get a direct answer, abstract, or definition from DuckDuckGo',
+            action: 'Get an instant answer',
           }
         ],
       },
 
+
+      // ----------------------------------------
+      // Extract Page Content Operation Parameters
+      // ----------------------------------------
+      {
+        displayName: 'URL',
+        name: 'url',
+        type: 'string',
+        required: true,
+        default: '',
+        description: 'The URL of the page to fetch and extract text from',
+        placeholder: 'https://example.com/article',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.ExtractContent,
+            ],
+          },
+        },
+      },
+      {
+        displayName: 'Options',
+        name: 'extractOptions',
+        type: 'collection',
+        placeholder: 'Add Option',
+        default: {},
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.ExtractContent,
+            ],
+          },
+        },
+        options: [
+          {
+            displayName: 'Max Content Length',
+            name: 'pageContentMaxLength',
+            type: 'number',
+            default: 2000,
+            description: 'Maximum number of characters of extracted text to keep, or 0 for no limit',
+            typeOptions: {
+              minValue: 0,
+            },
+          },
+          {
+            displayName: 'Page Fetch Timeout',
+            name: 'pageContentTimeout',
+            type: 'number',
+            default: 8000,
+            description: 'Maximum time in milliseconds to wait for the page to load',
+            typeOptions: {
+              minValue: 1000,
+              maxValue: 60000,
+            },
+          },
+          {
+            displayName: 'Include Page Metadata',
+            name: 'includePageMetadata',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to also return page metadata (title, author, published, excerpt, siteName) when the page is an article',
+          },
+        ],
+      },
+
+      // ----------------------------------------
+      // Instant Answer Operation Parameters
+      // ----------------------------------------
+      {
+        displayName: 'Query',
+        name: 'instantAnswerQuery',
+        type: 'string',
+        required: true,
+        default: '',
+        description: 'The term or question to get an instant answer for (e.g. a person, place, or concept)',
+        placeholder: 'e.g. DuckDuckGo',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.InstantAnswer,
+            ],
+          },
+        },
+      },
 
       // ----------------------------------------
       // Web Search Operation Parameters
@@ -378,6 +484,18 @@ export class DuckDuckGo implements INodeType {
               minValue: 1000,
               maxValue: 60000,
             },
+            displayOptions: {
+              show: {
+                fetchPageContent: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Include Page Metadata',
+            name: 'includePageMetadata',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to also add page metadata (pageTitle, pageAuthor, pagePublished, pageExcerpt, pageSiteName) when the page is an article',
             displayOptions: {
               show: {
                 fetchPageContent: [true],
@@ -812,6 +930,18 @@ export class DuckDuckGo implements INodeType {
               },
             },
           },
+          {
+            displayName: 'Include Page Metadata',
+            name: 'includePageMetadata',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to also add page metadata (pageTitle, pageAuthor, pagePublished, pageExcerpt, pageSiteName) when the page is an article',
+            displayOptions: {
+              show: {
+                fetchPageContent: [true],
+              },
+            },
+          },
         ],
       },
 
@@ -1136,6 +1266,7 @@ export class DuckDuckGo implements INodeType {
             pageContentMaxResults?: number;
             pageContentMaxLength?: number;
             pageContentTimeout?: number;
+            includePageMetadata?: boolean;
           };
 
           // Enhanced query processing for better results
@@ -1570,6 +1701,7 @@ export class DuckDuckGo implements INodeType {
             pageContentMaxResults?: number;
             pageContentMaxLength?: number;
             pageContentTimeout?: number;
+            includePageMetadata?: boolean;
           };
 
           // Set up search options with correct API according to duck-duck-scrape documentation
@@ -2158,6 +2290,82 @@ export class DuckDuckGo implements INodeType {
 
             }
           }
+        }
+        else if (operation === DuckDuckGoOperation.ExtractContent) {
+          const url = this.getNodeParameter('url', itemIndex) as string;
+          if (!url || url.trim() === '') {
+            throw new NodeOperationError(
+              this.getNode(),
+              'URL is required for the Extract Page Content operation',
+              { itemIndex }
+            );
+          }
+
+          const extractOptions = this.getNodeParameter('extractOptions', itemIndex, {}) as {
+            pageContentMaxLength?: number;
+            pageContentTimeout?: number;
+            includePageMetadata?: boolean;
+          };
+
+          const pc = await fetchPageContent(url.trim(), {
+            maxLength: extractOptions.pageContentMaxLength ?? 2000,
+            timeout: extractOptions.pageContentTimeout ?? 8000,
+          });
+
+          const json: IDataObject = {
+            url: url.trim(),
+            content: pc.content,
+            sourceType: 'pageContent',
+          };
+          if (pc.truncated) {
+            json.pageContentTruncated = true;
+          }
+          if (pc.error) {
+            json.error = pc.error;
+          }
+          if (extractOptions.includePageMetadata && pc.meta) {
+            if (pc.meta.title) json.title = pc.meta.title;
+            if (pc.meta.author) json.author = pc.meta.author;
+            if (pc.meta.published) json.published = pc.meta.published;
+            if (pc.meta.excerpt) json.excerpt = pc.meta.excerpt;
+            if (pc.meta.siteName) json.siteName = pc.meta.siteName;
+          }
+
+          results = [{ json, pairedItem: { item: itemIndex } }];
+        }
+        else if (operation === DuckDuckGoOperation.InstantAnswer) {
+          const query = this.getNodeParameter('instantAnswerQuery', itemIndex) as string;
+          if (!query || query.trim() === '') {
+            throw new NodeOperationError(
+              this.getNode(),
+              'Query is required for the Instant Answer operation',
+              { itemIndex }
+            );
+          }
+
+          const ia = await getInstantAnswer(query.trim(), { timeout: 8000 });
+
+          const json: IDataObject = {
+            query: query.trim(),
+            heading: ia.heading,
+            abstract: ia.abstract,
+            abstractSource: ia.abstractSource,
+            abstractURL: ia.abstractURL,
+            answer: ia.answer,
+            answerType: ia.answerType,
+            definition: ia.definition,
+            definitionSource: ia.definitionSource,
+            definitionURL: ia.definitionURL,
+            image: ia.image,
+            type: ia.type,
+            relatedTopics: ia.relatedTopics,
+            sourceType: 'instantAnswer',
+          };
+          if (ia.error) {
+            json.error = ia.error;
+          }
+
+          results = [{ json, pairedItem: { item: itemIndex } }];
         }
         else {
           throw new NodeOperationError(
