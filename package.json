@@ -76,7 +76,7 @@
     "typescript": "^5.4.0"
   },
   "dependencies": {
-    "@mozilla/readability": "^0.5.0",
+    "@mozilla/readability": "^0.6.0",
     "axios": "^1.18.1",
     "duck-duck-scrape": "^2.2.7",
     "linkedom": "^0.18.0"
