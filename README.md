@@ -72,7 +72,7 @@ Searches DuckDuckGo and returns organic web results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `query` | string | required | Search terms |
-| `maxResults` | number | 10 | Number of results (1–50) |
+| `maxResults` | number | 10 | Number of results (1–100) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code (e.g. `de-de`, `fr-fr`) |
 | `useSearchOperators` | boolean | false | Enable advanced operator parsing |
@@ -124,7 +124,7 @@ Searches DuckDuckGo images and returns image metadata.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `imageQuery` | string | required | Image search terms |
-| `maxResults` | number | 10 | Number of results (1–50) |
+| `maxResults` | number | 10 | Number of results (1–100) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
 
 **Example:**
@@ -170,7 +170,7 @@ Searches DuckDuckGo news results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `newsQuery` | string | required | News search terms |
-| `maxResults` | number | 10 | Number of results (1–50) |
+| `maxResults` | number | 10 | Number of results (1–100) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
 | `timePeriod` | string | — | Time filter: `d` (day), `w` (week), `m` (month), `y` (year) |
@@ -222,7 +222,7 @@ Searches DuckDuckGo video results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `videoQuery` | string | required | Video search terms |
-| `maxResults` | number | 10 | Number of results (1–50) |
+| `maxResults` | number | 10 | Number of results (1–100) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
 
@@ -269,7 +269,7 @@ Searches DuckDuckGo video results.
 
 | Parameter | Type | Default | Values |
 |-----------|------|---------|--------|
-| `maxResults` | number | 10 | 1–50 |
+| `maxResults` | number | 10 | 1–100 |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, `Off` |
 | `region` | string | `wt-wt` | DuckDuckGo locale code (e.g. `de-de`, `fr-fr`) |
 
@@ -277,7 +277,7 @@ Searches DuckDuckGo video results.
 
 | Operation | Extra parameters |
 |-----------|-----------------|
-| Web Search | `useSearchOperators`, `searchOperators` |
+| Web Search | `useSearchOperators`, `searchOperators`, `fetchPageContent` (+ `pageContentMaxResults`, `pageContentMaxLength`, `pageContentTimeout`) |
 | News Search | `timePeriod` (`d`, `w`, `m`, `y`) |
 | Image Search | *(none beyond common)* |
 | Video Search | *(none beyond common)* |
