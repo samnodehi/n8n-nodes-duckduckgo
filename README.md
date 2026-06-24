@@ -20,7 +20,7 @@ An n8n community node for DuckDuckGo search. Search the web, find images, discov
 - **Search operators**: Advanced query syntax for Web Search (`site:`, `filetype:`, `intitle:`, etc.)
 - **Region/locale support**: Configure DuckDuckGo locale codes per operation
 - **Safe search**: Configurable per operation
-- **Optional page content extraction**: Fetch and extract the main text of result pages (Web Search, opt-in)
+- **Optional page content extraction**: Fetch and extract the main text of result pages (Web and News, opt-in)
 
 ---
 
@@ -72,7 +72,7 @@ Searches DuckDuckGo and returns organic web results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `query` | string | required | Search terms |
-| `maxResults` | number | 10 | Number of results (1–50) |
+| `maxResults` | number | 10 | Number of results (1–100) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code (e.g. `de-de`, `fr-fr`) |
 | `useSearchOperators` | boolean | false | Enable advanced operator parsing |
@@ -124,7 +124,7 @@ Searches DuckDuckGo images and returns image metadata.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `imageQuery` | string | required | Image search terms |
-| `maxResults` | number | 10 | Number of results (1–50) |
+| `maxResults` | number | 10 | Number of results (1–100) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
 
 **Example:**
@@ -170,10 +170,14 @@ Searches DuckDuckGo news results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `newsQuery` | string | required | News search terms |
-| `maxResults` | number | 10 | Number of results (1–50) |
+| `maxResults` | number | 10 | Number of results (1–100) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
 | `timePeriod` | string | — | Time filter: `d` (day), `w` (week), `m` (month), `y` (year) |
+| `fetchPageContent` | boolean | false | Fetch each article's page and extract its main text (opt-in; see [Page Content Extraction](#-page-content-extraction)) |
+| `pageContentMaxResults` | number | 3 | How many top results to fetch content for (when enabled) |
+| `pageContentMaxLength` | number | 2000 | Truncate extracted text to N characters (0 = no limit) |
+| `pageContentTimeout` | number | 8000 | Per-page fetch timeout in ms |
 
 **Example:**
 
@@ -222,7 +226,7 @@ Searches DuckDuckGo video results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `videoQuery` | string | required | Video search terms |
-| `maxResults` | number | 10 | Number of results (1–50) |
+| `maxResults` | number | 10 | Number of results (1–100) |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
 
@@ -269,7 +273,7 @@ Searches DuckDuckGo video results.
 
 | Parameter | Type | Default | Values |
 |-----------|------|---------|--------|
-| `maxResults` | number | 10 | 1–50 |
+| `maxResults` | number | 10 | 1–100 |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, `Off` |
 | `region` | string | `wt-wt` | DuckDuckGo locale code (e.g. `de-de`, `fr-fr`) |
 
@@ -277,8 +281,8 @@ Searches DuckDuckGo video results.
 
 | Operation | Extra parameters |
 |-----------|-----------------|
-| Web Search | `useSearchOperators`, `searchOperators` |
-| News Search | `timePeriod` (`d`, `w`, `m`, `y`) |
+| Web Search | `useSearchOperators`, `searchOperators`, `fetchPageContent` (+ `pageContentMaxResults`, `pageContentMaxLength`, `pageContentTimeout`) |
+| News Search | `timePeriod` (`d`, `w`, `m`, `y`), `fetchPageContent` (+ `pageContentMaxResults`, `pageContentMaxLength`, `pageContentTimeout`) |
 | Image Search | *(none beyond common)* |
 | Video Search | *(none beyond common)* |
 
@@ -339,6 +343,9 @@ Cache is in-memory only and is not shared across n8n worker processes or restart
 | `isOld` | boolean | Whether DuckDuckGo considers the article old |
 | `isFallback` | boolean | `true` if result came from fallback path |
 | `sourceType` | string | Always `"news"` |
+| `pageContent` | string | Extracted main text of the article page (only when **Fetch Page Content** is enabled; empty for results beyond the fetched top-N) |
+| `pageContentTruncated` | boolean | Present and `true` when `pageContent` was cut to `pageContentMaxLength` |
+| `pageContentError` | string | Present only when the page could not be fetched/parsed |
 
 ### Video Search
 
@@ -572,7 +579,7 @@ The primary search path failed and the fallback HTML path was used. Results are 
 
 By default, Web Search returns DuckDuckGo's short snippet (the `description` field). DuckDuckGo controls that snippet length, and the node already returns all of it.
 
-To get **more text**, enable **Fetch Page Content** (Web Search only, off by default). The node then fetches the actual page behind each of the top results and extracts its main readable text into a `pageContent` field.
+To get **more text**, enable **Fetch Page Content** (available on **Web Search** and **News Search**, off by default). The node then fetches the actual page behind each of the top results and extracts its main readable text into a `pageContent` field.
 
 | Option | Default | Purpose |
 |--------|---------|---------|
@@ -614,7 +621,7 @@ To get **more text**, enable **Fetch Page Content** (Web Search only, off by def
 - **No analytics or telemetry**: This node contains no telemetry or analytics code. No query data, result data, or execution metadata is sent to any analytics or telemetry service. Search requests go to DuckDuckGo only.
 - **No credentials registered**: The n8n credential registry for this package is empty. n8n will not prompt for any DuckDuckGo credentials.
 - **Direct requests only (by default)**: Search requests go directly to DuckDuckGo (`duckduckgo.com`, `html.duckduckgo.com`, `i.js`). No third-party search API, proxy, or intermediary is involved. The one exception is the opt-in Fetch Page Content feature below.
-- **Optional page-content fetch (off by default)**: If you enable **Fetch Page Content** (Web Search), the node additionally requests each fetched result's page from its own third-party server to extract text. This is the only path that contacts non-DuckDuckGo hosts, and it is disabled unless you turn it on. See [Page Content Extraction](#-page-content-extraction).
+- **Optional page-content fetch (off by default)**: If you enable **Fetch Page Content** (Web or News Search), the node additionally requests each fetched result's page from its own third-party server to extract text. This is the only path that contacts non-DuckDuckGo hosts, and it is disabled unless you turn it on. See [Page Content Extraction](#-page-content-extraction).
 - **No disk storage**: The node does not write queries or results to disk. Optional in-memory caching may temporarily keep results for the configured cache TTL (default 5 minutes) within the running n8n process.
 
 ---

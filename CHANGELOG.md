@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [32.8.0] - 2026-06-24
+
+### Added
+
+- **Page content extraction now also works for News Search.** The opt-in **Fetch Page Content** option (and its `pageContentMaxResults` / `pageContentMaxLength` / `pageContentTimeout` controls) is now available on News Search, fetching each article's page and extracting its main text into `pageContent`. The same three-tier extractor (Readability → DOM heuristic → regex) and per-result error handling apply. Web and News now share a single enrichment path.
+
+---
+
 ## [32.7.0] - 2026-06-23
 
 ### Added
