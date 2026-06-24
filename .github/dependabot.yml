@@ -11,6 +11,22 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: "development"
+    ignore:
+      # eslint-plugin-n8n-nodes-base uses APIs removed in ESLint 10
+      # (e.g. context.getFilename), so stay on ESLint 9 until the plugin
+      # supports v10 with flat config.
+      - dependency-name: "eslint"
+        versions: [">=10.0.0"]
+      # TypeScript 6 and the Jest 30 family are deferred for now (bleeding-edge
+      # dev-tooling majors); upgrade them deliberately, not via automated PRs.
+      - dependency-name: "typescript"
+        versions: [">=6.0.0"]
+      - dependency-name: "jest"
+        versions: [">=30.0.0"]
+      - dependency-name: "@types/jest"
+        versions: [">=30.0.0"]
+      - dependency-name: "babel-jest"
+        versions: [">=30.0.0"]
 
   # GitHub Actions used in workflows
   - package-ecosystem: "github-actions"

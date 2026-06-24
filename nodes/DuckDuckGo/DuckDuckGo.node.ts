@@ -8,7 +8,6 @@ import {
   INodeTypeDescription,
   IDataObject,
   NodeOperationError,
-  NodeConnectionType,
 } from 'n8n-workflow';
 
 // Import types from duck-duck-scrape for compatibility, but use fallback functions
@@ -203,8 +202,8 @@ export class DuckDuckGo implements INodeType {
     defaults: {
       name: NODE_INFO.DISPLAY_NAME,
     },
-    inputs: ['main' as NodeConnectionType],
-    outputs: ['main' as NodeConnectionType],
+    inputs: ['main'],
+    outputs: ['main'],
     // @ts-ignore - Enable this node to be used as an AI Agent tool
     usableAsTool: true,
     credentials: [],
@@ -528,7 +527,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.site.placeholder,
-                description: `${OPERATOR_INFO.site.description}. Example: ${OPERATOR_INFO.site.example}`,
+                description: `${OPERATOR_INFO.site.description}. Example: ${OPERATOR_INFO.site.example}.`,
               },
               {
                 displayName: 'File Type',
@@ -536,7 +535,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.filetype.placeholder,
-                description: `${OPERATOR_INFO.filetype.description}. Example: ${OPERATOR_INFO.filetype.example}`,
+                description: `${OPERATOR_INFO.filetype.description}. Example: ${OPERATOR_INFO.filetype.example}.`,
               },
               {
                 displayName: 'In Title',
@@ -544,7 +543,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.intitle.placeholder,
-                description: `${OPERATOR_INFO.intitle.description}. Example: ${OPERATOR_INFO.intitle.example}`,
+                description: `${OPERATOR_INFO.intitle.description}. Example: ${OPERATOR_INFO.intitle.example}.`,
               },
               {
                 displayName: 'In URL',
@@ -552,7 +551,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.inurl.placeholder,
-                description: `${OPERATOR_INFO.inurl.description}. Example: ${OPERATOR_INFO.inurl.example}`,
+                description: `${OPERATOR_INFO.inurl.description}. Example: ${OPERATOR_INFO.inurl.example}.`,
               },
               {
                 displayName: 'In Body',
@@ -560,7 +559,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.inbody.placeholder,
-                description: `${OPERATOR_INFO.inbody.description}. Example: ${OPERATOR_INFO.inbody.example}`,
+                description: `${OPERATOR_INFO.inbody.description}. Example: ${OPERATOR_INFO.inbody.example}.`,
               },
               {
                 displayName: 'Exclude Words',
@@ -568,7 +567,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.exclude.placeholder,
-                description: `${OPERATOR_INFO.exclude.description}. Example: ${OPERATOR_INFO.exclude.example}`,
+                description: `${OPERATOR_INFO.exclude.description}. Example: ${OPERATOR_INFO.exclude.example}.`,
               },
               {
                 displayName: 'Exact Phrase',
@@ -576,7 +575,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.exact.placeholder,
-                description: `${OPERATOR_INFO.exact.description}. Example: ${OPERATOR_INFO.exact.example}`,
+                description: `${OPERATOR_INFO.exact.description}. Example: ${OPERATOR_INFO.exact.example}.`,
               },
               {
                 displayName: 'OR Terms',
@@ -584,7 +583,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: 'term1, term2, term3',
-                description: 'Search for any of these terms (comma-separated). Example: python, javascript, typescript',
+                description: 'Search for any of these terms (comma-separated). Example: python, javascript, typescript.',
               },
               {
                 displayName: 'Related',
@@ -592,7 +591,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.related.placeholder,
-                description: `${OPERATOR_INFO.related.description}. Example: ${OPERATOR_INFO.related.example}`,
+                description: `${OPERATOR_INFO.related.description}. Example: ${OPERATOR_INFO.related.example}.`,
               },
               {
                 displayName: 'Cache',
@@ -600,7 +599,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.cache.placeholder,
-                description: `${OPERATOR_INFO.cache.description}. Example: ${OPERATOR_INFO.cache.example}`,
+                description: `${OPERATOR_INFO.cache.description}. Example: ${OPERATOR_INFO.cache.example}.`,
               },
               {
                 displayName: 'Define',
@@ -608,7 +607,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.define.placeholder,
-                description: `${OPERATOR_INFO.define.description}. Example: ${OPERATOR_INFO.define.example}`,
+                description: `${OPERATOR_INFO.define.description}. Example: ${OPERATOR_INFO.define.example}.`,
               },
               {
                 displayName: 'All In Title',
@@ -616,7 +615,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.allintitle.placeholder,
-                description: `${OPERATOR_INFO.allintitle.description}. Example: ${OPERATOR_INFO.allintitle.example}`,
+                description: `${OPERATOR_INFO.allintitle.description}. Example: ${OPERATOR_INFO.allintitle.example}.`,
               },
               {
                 displayName: 'All In URL',
@@ -624,7 +623,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.allinurl.placeholder,
-                description: `${OPERATOR_INFO.allinurl.description}. Example: ${OPERATOR_INFO.allinurl.example}`,
+                description: `${OPERATOR_INFO.allinurl.description}. Example: ${OPERATOR_INFO.allinurl.example}.`,
               },
               {
                 displayName: 'All In Text',
@@ -632,7 +631,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.allintext.placeholder,
-                description: `${OPERATOR_INFO.allintext.description}. Example: ${OPERATOR_INFO.allintext.example}`,
+                description: `${OPERATOR_INFO.allintext.description}. Example: ${OPERATOR_INFO.allintext.example}.`,
               },
               {
                 displayName: 'Location',
@@ -640,7 +639,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.location.placeholder,
-                description: `${OPERATOR_INFO.location.description}. Example: ${OPERATOR_INFO.location.example}`,
+                description: `${OPERATOR_INFO.location.description}. Example: ${OPERATOR_INFO.location.example}.`,
               },
               {
                 displayName: 'Language Code',
@@ -648,7 +647,7 @@ export class DuckDuckGo implements INodeType {
                 type: 'string',
                 default: '',
                 placeholder: OPERATOR_INFO.language.placeholder,
-                description: `${OPERATOR_INFO.language.description}. Example: ${OPERATOR_INFO.language.example}`,
+                description: `${OPERATOR_INFO.language.description}. Example: ${OPERATOR_INFO.language.example}.`,
               },
             ],
           },
@@ -1065,7 +1064,7 @@ export class DuckDuckGo implements INodeType {
         name: 'debugMode',
         type: 'boolean',
         default: false,
-        description: 'When enabled, includes detailed request and response information for troubleshooting',
+        description: 'Whether to include detailed request and response information for troubleshooting',
       },
 
       // Cache settings
