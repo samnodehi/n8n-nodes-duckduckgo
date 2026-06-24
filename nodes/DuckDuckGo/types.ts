@@ -23,6 +23,8 @@ export enum DuckDuckGoOperation {
   SearchImages = 'searchImages',
   SearchNews = 'searchNews',
   SearchVideos = 'searchVideos',
+  ExtractContent = 'extractContent',
+  InstantAnswer = 'instantAnswer',
 }
 
 /**

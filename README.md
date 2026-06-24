@@ -20,7 +20,9 @@ An n8n community node for DuckDuckGo search. Search the web, find images, discov
 - **Search operators**: Advanced query syntax for Web Search (`site:`, `filetype:`, `intitle:`, etc.)
 - **Region/locale support**: Configure DuckDuckGo locale codes per operation
 - **Safe search**: Configurable per operation
-- **Optional page content extraction**: Fetch and extract the main text of result pages (Web and News, opt-in)
+- **Optional page content extraction**: Fetch and extract the main text of result pages (Web and News, opt-in), with optional page metadata
+- **Extract Page Content operation**: Give any URL → clean main text + metadata (a "read any page" tool for AI Agents)
+- **Instant Answer operation**: Direct answers, abstracts, and definitions from DuckDuckGo's free Instant Answer API
 
 ---
 
@@ -267,6 +269,66 @@ Searches DuckDuckGo video results.
 
 ---
 
+### Extract Page Content
+
+Fetches **any URL** (not a search) and extracts its main readable text — useful when an AI Agent already has a URL and needs to read the page.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `url` | string | required | The page URL to fetch and extract |
+| `pageContentMaxLength` | number | 2000 | Truncate extracted text to N characters (0 = no limit) |
+| `pageContentTimeout` | number | 8000 | Fetch timeout in ms |
+| `includePageMetadata` | boolean | false | Also return title/author/published/excerpt/siteName when the page is an article |
+
+**Sample output:**
+
+```json
+{
+  "url": "https://example.com/article",
+  "content": "Extracted main text of the page…",
+  "sourceType": "pageContent",
+  "title": "Article Title",
+  "siteName": "Example"
+}
+```
+
+> ⚠️ This operation fetches a third-party URL directly (not DuckDuckGo). See [Privacy & Security](#-privacy--security).
+
+---
+
+### Instant Answer
+
+Returns DuckDuckGo's **Instant Answer** for a query — a direct answer, a Wikipedia-style abstract, a definition, and related topics — via the official **free, no-key** API.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `instantAnswerQuery` | string | required | The term or question (e.g. a person, place, or concept) |
+
+**Sample output:**
+
+```json
+{
+  "query": "DuckDuckGo",
+  "heading": "DuckDuckGo",
+  "abstract": "DuckDuckGo is an internet search engine that emphasizes protecting searchers' privacy…",
+  "abstractSource": "Wikipedia",
+  "abstractURL": "https://en.wikipedia.org/wiki/DuckDuckGo",
+  "relatedTopics": [
+    { "text": "…", "url": "https://duckduckgo.com/…" }
+  ],
+  "type": "A",
+  "sourceType": "instantAnswer"
+}
+```
+
+> **Note:** Instant Answers exist only for some queries (entities, definitions, calculations). For general queries the fields may be empty — use Web Search instead.
+
+---
+
 ## ⚙️ Configuration Reference
 
 ### Common Parameters (all operations)
@@ -285,6 +347,8 @@ Searches DuckDuckGo video results.
 | News Search | `timePeriod` (`d`, `w`, `m`, `y`), `fetchPageContent` (+ `pageContentMaxResults`, `pageContentMaxLength`, `pageContentTimeout`) |
 | Image Search | *(none beyond common)* |
 | Video Search | *(none beyond common)* |
+| Extract Page Content | `url`, `pageContentMaxLength`, `pageContentTimeout`, `includePageMetadata` |
+| Instant Answer | `instantAnswerQuery` |
 
 ### Cache Settings
 
@@ -587,6 +651,7 @@ To get **more text**, enable **Fetch Page Content** (available on **Web Search**
 | `pageContentMaxResults` | `3` | Fetch content for the top N results only (controls speed) |
 | `pageContentMaxLength` | `2000` | Truncate each `pageContent` to N characters (`0` = no limit) |
 | `pageContentTimeout` | `8000` | Per-page fetch timeout in milliseconds |
+| `includePageMetadata` | `false` | Also add `pageTitle` / `pageAuthor` / `pagePublished` / `pageExcerpt` / `pageSiteName` (when the page is an article) |
 
 **How it works:** extraction is three-tiered — (1) [Mozilla Readability](https://github.com/mozilla/readability) over a lightweight [linkedom](https://github.com/WebReflection/linkedom) DOM pulls the main article text and drops nav/boilerplate; (2) when Readability finds no article, a DOM heuristic removes boilerplate and high link-density blocks (menus not wrapped in `<nav>`); (3) if DOM parsing fails, a dependency-free regex heuristic is the last resort. The result feeds clean text to downstream nodes or AI agents.
 

@@ -83,11 +83,12 @@ describe('pageContent', () => {
         <footer>FOOTER_SHOULD_BE_REMOVED copyright 2026</footer>
       </body></html>`;
 
-      const text = extractWithReadability(html);
-      expect(text).not.toBeNull();
-      expect(text as string).toContain('reusable components');
-      expect(text as string).not.toContain('MENU_ITEM_SHOULD_BE_REMOVED');
-      expect(text as string).not.toContain('FOOTER_SHOULD_BE_REMOVED');
+      const result = extractWithReadability(html);
+      expect(result).not.toBeNull();
+      expect(result!.text).toContain('reusable components');
+      expect(result!.text).not.toContain('MENU_ITEM_SHOULD_BE_REMOVED');
+      expect(result!.text).not.toContain('FOOTER_SHOULD_BE_REMOVED');
+      expect(result!.meta.title).toContain('Understanding Widgets');
     });
 
     it('returns null for pages with too little content (caller falls back)', () => {
@@ -158,6 +159,7 @@ describe('pageContent', () => {
       expect(result.error).toBeUndefined();
       expect(result.content).toContain('interesting topic');
       expect(result.content).not.toContain('NAVBOILERPLATE');
+      expect(result.meta).toBeDefined();
     });
 
     it('extracts main text from an HTML response', async () => {

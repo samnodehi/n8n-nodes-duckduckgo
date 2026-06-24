@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [32.9.0] - 2026-06-24
+
+### Added
+
+- **New operation: Extract Page Content.** Give the node any URL and it fetches the page and returns the main text (`content`) plus optional metadata, using the same three-tier extractor (Readability → DOM heuristic → regex) as search. Turns the node into a "read any page" tool for AI agents.
+- **New operation: Instant Answer.** Queries DuckDuckGo's official, free, no-key Instant Answer API and returns a direct `answer`, `abstract` (Wikipedia-style summary), `definition`, `relatedTopics`, image, source, and type.
+- **Page metadata for Fetch Page Content.** A new **Include Page Metadata** sub-option adds `pageTitle`, `pageAuthor`, `pagePublished`, `pageExcerpt`, and `pageSiteName` (from Readability) to Web and News results when the page is an article.
+
+All three are free, require no API key, and add no paid or external dependencies (they reuse axios + the existing extractor / DuckDuckGo's own endpoints).
+
+---
+
 ## [32.8.0] - 2026-06-24
 
 ### Added

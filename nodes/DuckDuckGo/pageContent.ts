@@ -26,11 +26,26 @@ export interface PageContentOptions {
   maxBytes?: number;
 }
 
+export interface PageMeta {
+  /** Article title. */
+  title?: string;
+  /** Author / byline. */
+  author?: string;
+  /** Short excerpt or description. */
+  excerpt?: string;
+  /** Published time as reported by the page. */
+  published?: string;
+  /** Site name. */
+  siteName?: string;
+}
+
 export interface PageContentResult {
   /** Extracted (and possibly truncated) main text. Empty string on failure. */
   content: string;
   /** True when the text was cut to fit maxLength. */
   truncated: boolean;
+  /** Article metadata, present only when Readability identified an article. */
+  meta?: PageMeta;
   /** Present only when the page could not be fetched or parsed. */
   error?: string;
 }
@@ -155,12 +170,19 @@ function normaliseWhitespace(s: string): string {
  */
 const MIN_READABLE_LENGTH = 200;
 
+export interface ReadabilityResult {
+  /** Clean, normalised article text. */
+  text: string;
+  /** Article metadata extracted alongside the text. */
+  meta: PageMeta;
+}
+
 /**
- * Extract clean article text using Mozilla Readability over a linkedom DOM.
- * Returns null when no substantial article is found, so the caller can fall
- * back to the heuristic extractor. Never throws.
+ * Extract clean article text and metadata using Mozilla Readability over a
+ * linkedom DOM. Returns null when no substantial article is found, so the
+ * caller can fall back to the heuristic extractor. Never throws.
  */
-export function extractWithReadability(html: string): string | null {
+export function extractWithReadability(html: string): ReadabilityResult | null {
   if (!html) return null;
   try {
     const { document } = parseHTML(html);
@@ -169,7 +191,14 @@ export function extractWithReadability(html: string): string | null {
     const article = new Readability(document as any).parse();
     if (article && article.textContent && (article.length ?? 0) >= MIN_READABLE_LENGTH) {
       const text = normaliseWhitespace(article.textContent);
-      return text.length > 0 ? text : null;
+      if (text.length === 0) return null;
+      const meta: PageMeta = {};
+      if (article.title) meta.title = article.title;
+      if (article.byline) meta.author = article.byline;
+      if (article.excerpt) meta.excerpt = article.excerpt;
+      if (article.publishedTime) meta.published = article.publishedTime;
+      if (article.siteName) meta.siteName = article.siteName;
+      return { text, meta };
     }
     return null;
   } catch {
@@ -235,14 +264,19 @@ export async function fetchPageContent(
     }
 
     const html = typeof response.data === 'string' ? response.data : String(response.data ?? '');
-    // Three-tier extraction: Readability for clean article text; a linkedom DOM
-    // heuristic (drops menus by link density) when Readability finds no article;
-    // and the regex heuristic as a last resort if DOM parsing fails.
-    const text = extractWithReadability(html)
-      ?? extractWithDomHeuristic(html)
-      ?? extractMainText(html);
-    const { text: finalText, truncated } = truncateText(text, maxLength);
-    return { content: finalText, truncated };
+    // Three-tier extraction: Readability (with metadata) for clean article text;
+    // a linkedom DOM heuristic (drops menus by link density) when Readability
+    // finds no article; and the regex heuristic as a last resort.
+    const readable = extractWithReadability(html);
+    const rawText = readable
+      ? readable.text
+      : (extractWithDomHeuristic(html) ?? extractMainText(html));
+    const { text: finalText, truncated } = truncateText(rawText, maxLength);
+    const result: PageContentResult = { content: finalText, truncated };
+    if (readable && Object.keys(readable.meta).length > 0) {
+      result.meta = readable.meta;
+    }
+    return result;
   } catch (error: any) {
     let message: string;
     if (error?.code === 'ECONNABORTED') {
