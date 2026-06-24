@@ -1,3 +1,42 @@
+# v32.8.0 — Page Content Extraction for News Search
+
+**Release Date:** 2026-06-24
+
+Extends the opt-in Fetch Page Content feature (added in 32.7.0 for Web Search) to **News Search**.
+
+---
+
+## Highlights
+
+- **News Search now supports Fetch Page Content** (off by default). When enabled, the node fetches each article's page and extracts its main text into `pageContent`, with the same `pageContentMaxResults` / `pageContentMaxLength` / `pageContentTimeout` controls.
+- Uses the same three-tier extractor (Mozilla Readability → linkedom DOM heuristic → regex) and per-result error handling as Web Search. Web and News now share a single enrichment path.
+
+---
+
+## Privacy
+
+- Off by default. When enabled, the node fetches the third-party article pages — the only path that contacts non-DuckDuckGo hosts. Unchanged when off.
+
+## Compatibility
+
+- No breaking changes. The new fields (`pageContent`, `pageContentTruncated`, `pageContentError`) appear on News results only when the option is enabled.
+
+---
+
+## Validation
+
+- `tsc`, ESLint, full suite (242 tests across 11 suites), `npm run build:prod`, and `verify-build` all pass. Verified live in n8n 2.27.3 against real news queries.
+
+---
+
+## Installation
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.8.0
+```
+
+---
+
 # v32.7.0 — Optional Page Content Extraction (Web Search)
 
 **Release Date:** 2026-06-23
