@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [32.9.1] - 2026-06-24
+
+### Changed
+
+- **Dependencies:** bumped `axios` from 1.13.5 to 1.18.1 (bug and security fixes).
+- **CI:** updated GitHub Actions — `actions/checkout` 4→7, `actions/setup-node` 4→6, and `softprops/action-gh-release` 2→3 (clears the deprecated Node 20 runner warnings). No change to the published package or runtime behaviour.
+
+---
+
 ## [32.9.0] - 2026-06-24
 
 ### Added

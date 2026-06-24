@@ -1,3 +1,30 @@
+# v32.9.1 — Maintenance (dependencies & CI)
+
+**Release Date:** 2026-06-24
+
+A small maintenance release. No user-facing feature or behaviour changes.
+
+---
+
+## Highlights
+
+- **Dependencies:** `axios` bumped 1.13.5 → 1.18.1 (bug and security fixes).
+- **CI:** GitHub Actions updated — `actions/checkout` 4→7, `actions/setup-node` 4→6, and `softprops/action-gh-release` 2→3, clearing the deprecated Node 20 runner warnings.
+
+## Compatibility
+
+- No breaking changes; no change to the published node's runtime behaviour.
+
+---
+
+## Installation
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.9.1
+```
+
+---
+
 # v32.9.0 — Page Metadata, Extract-from-URL, and Instant Answers
 
 **Release Date:** 2026-06-24
