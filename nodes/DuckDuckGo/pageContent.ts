@@ -1,6 +1,6 @@
 /**
- * Optional page-content fetching and main-text extraction for Web Search
- * results.
+ * Optional page-content fetching and main-text extraction for Web and News
+ * Search results.
  *
  * IMPORTANT: fetching page content makes HTTP requests to the third-party
  * result sites — not only to DuckDuckGo. This module is used only when the

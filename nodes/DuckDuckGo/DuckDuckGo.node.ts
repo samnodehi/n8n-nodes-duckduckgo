@@ -120,6 +120,63 @@ function enhanceSearchQuery(query: string, searchType: string = 'web'): string {
   return enhancedQuery;
 }
 
+/**
+ * Opt-in enrichment: fetch the top-N result pages and attach their extracted
+ * main text as `pageContent` (with `pageContentTruncated` / `pageContentError`
+ * when relevant). No-op unless `fetchPageContent` is enabled. Shared by Web and
+ * News search. Makes HTTP requests to the third-party result sites.
+ */
+async function enrichWithPageContent(
+  results: INodeExecutionData[],
+  pageOpts: {
+    fetchPageContent?: boolean;
+    pageContentMaxResults?: number;
+    pageContentMaxLength?: number;
+    pageContentTimeout?: number;
+  },
+  debugMode: boolean,
+  operation: string,
+): Promise<void> {
+  if (!pageOpts.fetchPageContent || results.length === 0) {
+    return;
+  }
+  const count = Math.min(pageOpts.pageContentMaxResults ?? 3, results.length);
+  const pcOptions = {
+    timeout: pageOpts.pageContentTimeout ?? 8000,
+    maxLength: pageOpts.pageContentMaxLength ?? 2000,
+  };
+
+  // Initialise the field on every returned result for predictable output.
+  for (const r of results) {
+    r.json.pageContent = '';
+  }
+
+  const targets = results.slice(0, count);
+  const pcResults = await fetchPageContents(
+    targets.map(r => (typeof r.json.url === 'string' ? r.json.url : '')),
+    pcOptions,
+  );
+  targets.forEach((r, i) => {
+    const pc = pcResults[i];
+    r.json.pageContent = pc.content;
+    if (pc.truncated) {
+      r.json.pageContentTruncated = true;
+    }
+    if (pc.error) {
+      r.json.pageContentError = pc.error;
+    }
+  });
+
+  if (debugMode) {
+    console.log(JSON.stringify(createLogEntry(
+      LogLevel.INFO,
+      `Fetched page content for ${count} of ${results.length} ${operation} results`,
+      operation,
+      { count, pageContentOptions: pcOptions },
+    )));
+  }
+}
+
 
 /**
  * DuckDuckGo node implementation with cleanly separated operations
@@ -701,6 +758,60 @@ export class DuckDuckGo implements INodeType {
             default: false,
             description: 'Whether to return the raw API response instead of processed results',
           },
+          {
+            displayName: 'Fetch Page Content',
+            name: 'fetchPageContent',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to fetch each article page and extract its main text into a pageContent field (makes extra requests to third-party sites, so it is slower and not limited to DuckDuckGo)',
+          },
+          {
+            displayName: 'Number of Results to Fetch',
+            name: 'pageContentMaxResults',
+            type: 'number',
+            default: 3,
+            description: 'How many of the top results to fetch and extract page content for',
+            typeOptions: {
+              minValue: 1,
+              maxValue: 20,
+            },
+            displayOptions: {
+              show: {
+                fetchPageContent: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Max Content Length',
+            name: 'pageContentMaxLength',
+            type: 'number',
+            default: 2000,
+            description: 'Maximum number of characters of extracted text to keep, or 0 for no limit',
+            typeOptions: {
+              minValue: 0,
+            },
+            displayOptions: {
+              show: {
+                fetchPageContent: [true],
+              },
+            },
+          },
+          {
+            displayName: 'Page Fetch Timeout',
+            name: 'pageContentTimeout',
+            type: 'number',
+            default: 8000,
+            description: 'Maximum time in milliseconds to wait for each page to load',
+            typeOptions: {
+              minValue: 1000,
+              maxValue: 60000,
+            },
+            displayOptions: {
+              show: {
+                fetchPageContent: [true],
+              },
+            },
+          },
         ],
       },
 
@@ -1197,45 +1308,9 @@ export class DuckDuckGo implements INodeType {
                 results = processWebSearchResults(result.results as any, itemIndex, result).slice(0, maxResults);
 
                 // Optional, opt-in: enrich the top-N results with extracted page text.
-                // This makes extra HTTP requests to the result sites (not DuckDuckGo),
+                // Makes extra HTTP requests to the result sites (not DuckDuckGo),
                 // so it only runs when the user enables "Fetch Page Content".
-                if (options.fetchPageContent && results.length > 0) {
-                  const count = Math.min(options.pageContentMaxResults ?? 3, results.length);
-                  const pcOptions = {
-                    timeout: options.pageContentTimeout ?? 8000,
-                    maxLength: options.pageContentMaxLength ?? 2000,
-                  };
-
-                  // Initialise the field on every returned result for predictable output.
-                  for (const r of results) {
-                    r.json.pageContent = '';
-                  }
-
-                  const targets = results.slice(0, count);
-                  const pcResults = await fetchPageContents(
-                    targets.map(r => (typeof r.json.url === 'string' ? r.json.url : '')),
-                    pcOptions,
-                  );
-                  targets.forEach((r, i) => {
-                    const pc = pcResults[i];
-                    r.json.pageContent = pc.content;
-                    if (pc.truncated) {
-                      r.json.pageContentTruncated = true;
-                    }
-                    if (pc.error) {
-                      r.json.pageContentError = pc.error;
-                    }
-                  });
-
-                  if (debugMode) {
-                    console.log(JSON.stringify(createLogEntry(
-                      LogLevel.INFO,
-                      `Fetched page content for ${count} of ${results.length} web results`,
-                      operation,
-                      { count, pageContentOptions: pcOptions },
-                    )));
-                  }
-                }
+                await enrichWithPageContent(results, options, debugMode, operation);
 
                 // Add cache information to the first result if in debug mode
                 if (debugMode && results.length > 0) {
@@ -1491,6 +1566,10 @@ export class DuckDuckGo implements INodeType {
             region?: string;
             returnRawResults?: boolean;
             timePeriod?: string;
+            fetchPageContent?: boolean;
+            pageContentMaxResults?: number;
+            pageContentMaxLength?: number;
+            pageContentTimeout?: number;
           };
 
           // Set up search options with correct API according to duck-duck-scrape documentation
@@ -1683,6 +1762,9 @@ export class DuckDuckGo implements INodeType {
                 const maxResults = newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
                 results = processNewsSearchResults(result.results as any, itemIndex).slice(0, maxResults);
 
+                // Optional, opt-in: enrich the top-N results with extracted page text.
+                await enrichWithPageContent(results, newsSearchOptions, debugMode, operation);
+
                 // Add cache information to the first result if in debug mode
                 if (debugMode && results.length > 0) {
                   results[0].json.fromCache = result !== undefined;
@@ -1750,6 +1832,8 @@ export class DuckDuckGo implements INodeType {
                   }));
 
                   results = processNewsSearchResults(newsResults, itemIndex).slice(0, newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS);
+                  // Optional, opt-in: enrich fallback results too.
+                  await enrichWithPageContent(results, newsSearchOptions, debugMode, operation);
                 }
                 // If relevantResults is empty, fall through to the error-item path below
                 // so the caller gets a meaningful signal instead of silence.
