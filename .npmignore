@@ -29,8 +29,7 @@ dist/credentials/
 
 # Config files
 .editorconfig
-.eslintrc.js
-.eslintrc.prepublish.js
+eslint.config.js
 .prettierrc.js
 # Dev dependencies
 node_modules/
