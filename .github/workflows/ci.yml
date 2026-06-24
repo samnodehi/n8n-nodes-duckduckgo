@@ -22,7 +22,7 @@ jobs:
 
       # Setup Node.js environment
       - name: Set up Node.js 22 LTS
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
