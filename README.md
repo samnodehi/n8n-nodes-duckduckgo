@@ -379,6 +379,7 @@ Cache is in-memory only and is not shared across n8n worker processes or restart
 | `pageContent` | string | Extracted main text of the result page (only when **Fetch Page Content** is enabled; empty for results beyond the fetched top-N) |
 | `pageContentTruncated` | boolean | Present and `true` when `pageContent` was cut to `pageContentMaxLength` |
 | `pageContentError` | string | Present only when the page could not be fetched/parsed (e.g. `HTTP 403`, `Timed out after 8000ms`) |
+| `pageTitle` / `pageAuthor` / `pagePublished` / `pageExcerpt` / `pageSiteName` | string | Page metadata — present only when **Include Page Metadata** is enabled and the page is an article |
 
 ### Image Search
 
@@ -410,6 +411,7 @@ Cache is in-memory only and is not shared across n8n worker processes or restart
 | `pageContent` | string | Extracted main text of the article page (only when **Fetch Page Content** is enabled; empty for results beyond the fetched top-N) |
 | `pageContentTruncated` | boolean | Present and `true` when `pageContent` was cut to `pageContentMaxLength` |
 | `pageContentError` | string | Present only when the page could not be fetched/parsed |
+| `pageTitle` / `pageAuthor` / `pagePublished` / `pageExcerpt` / `pageSiteName` | string | Page metadata — present only when **Include Page Metadata** is enabled and the page is an article |
 
 ### Video Search
 
@@ -661,7 +663,7 @@ To get **more text**, enable **Fetch Page Content** (available on **Web Search**
 - **Speed:** each fetched result is one extra HTTP request. Keep `pageContentMaxResults` small (default 3) for fast workflows.
 - **Resilience:** a page that times out, blocks bots, or returns non-HTML does not fail the search — that result gets an empty `pageContent` and a `pageContentError` instead.
 - **JavaScript-rendered sites:** pages that render content client-side return little text from a raw fetch. Extracting those needs a headless browser, which is out of scope for this node.
-- **Quality:** Readability handles most article pages cleanly; sites it cannot parse fall back to a DOM/heuristic path that may keep a little navigation text. For the highest-quality extraction or summarisation, pipe `pageContent` into a downstream LLM node in your workflow.
+- **Quality:** Readability handles most article pages cleanly; sites it cannot parse fall back to a DOM/heuristic path that may keep a little navigation text. Page metadata (especially `pageAuthor`) is also extracted heuristically and may occasionally be imprecise. For the highest-quality extraction or summarisation, pipe `pageContent` into a downstream LLM node in your workflow.
 
 **Example:**
 
