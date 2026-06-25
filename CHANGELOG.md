@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [32.9.2] - 2026-06-25
+
+### Changed
+
+- **Dependencies:** updated `@mozilla/readability` 0.5.0 → 0.6.0, the engine behind Fetch Page Content and the Extract Page Content operation.
+- **Tooling:** migrated ESLint to the flat-config format (`eslint.config.js`, ESLint 9), and the main node file is now linted. This tidied parameter descriptions (consistent final periods, a "Whether" boolean description) and the node input/output declarations — no runtime behaviour change.
+- **Dev dependencies:** glob 13.0.6, n8n-core 2.16.1, prettier 3.8.4, rimraf 6.1.3, ts-jest 29.4.11.
+
+---
+
 ## [32.9.1] - 2026-06-24
 
 ### Changed

@@ -1,3 +1,31 @@
+# v32.9.2 — Maintenance (readability 0.6, ESLint flat config, deps)
+
+**Release Date:** 2026-06-25
+
+A maintenance release. No new features and no change to runtime search behaviour.
+
+---
+
+## Highlights
+
+- **`@mozilla/readability` 0.5 → 0.6** — the engine behind Fetch Page Content and the Extract Page Content operation.
+- **ESLint flat-config migration** (ESLint 9); the main node file is now linted, which tidied parameter descriptions and input/output declarations.
+- **Dev-dependency refresh:** glob 13, n8n-core 2.16.1, prettier 3.8.4, rimraf 6.1.3, ts-jest 29.4.11.
+
+## Compatibility
+
+- No breaking changes; existing workflows are unaffected.
+
+---
+
+## Installation
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.9.2
+```
+
+---
+
 # v32.9.1 — Maintenance (dependencies & CI)
 
 **Release Date:** 2026-06-24
