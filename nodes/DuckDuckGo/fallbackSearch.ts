@@ -4,7 +4,7 @@
  * html.duckduckgo.com — no third-party search APIs are used.
  */
 
-import { SearchOptions } from 'duck-duck-scrape';
+import { SearchOptions } from 'ddg-kit';
 
 import axios from 'axios';
 import { BROWSER_USER_AGENT } from './constants';

@@ -1,9 +1,17 @@
 import { IExecuteFunctions } from 'n8n-workflow';
 import { DuckDuckGo } from '../DuckDuckGo.node';
-import * as duckDuckScrape from 'duck-duck-scrape';
+import * as duckDuckScrapeModule from 'duck-duck-scrape';
+import * as ddgKit from 'ddg-kit';
 import * as cache from '../cache';
 import * as directSearch from '../directSearch';
 import * as fallbackSearch from '../fallbackSearch';
+
+// Keep media and legacy-only assertions on duck-duck-scrape while routing the
+// Web/News compatibility assertions through ddg-kit.
+const duckDuckScrape = {
+  ...duckDuckScrapeModule,
+  searchNews: ddgKit.searchNews,
+};
 
 
 // Mock the duck-duck-scrape library
@@ -39,6 +47,23 @@ jest.mock('duck-duck-scrape', () => ({
     CREATIVE_COMMONS: 'creativeCommons',
     YOUTUBE: 'youtube',
     ALL: 'all',
+  },
+}));
+
+jest.mock('ddg-kit', () => ({
+  search: jest.fn(),
+  searchNews: jest.fn(),
+  SafeSearchType: {
+    STRICT: 0,
+    MODERATE: -1,
+    OFF: -2,
+  },
+  SearchTimeType: {
+    DAY: 'd',
+    WEEK: 'w',
+    MONTH: 'm',
+    YEAR: 'y',
+    ALL: 'a',
   },
 }));
 

@@ -5,12 +5,12 @@ import {
   IPaginationOptions,
 } from '../vqdPagination';
 
-// Mock duck-duck-scrape
-jest.mock('duck-duck-scrape', () => ({
+// Mock ddg-kit Web search
+jest.mock('ddg-kit', () => ({
   search: jest.fn(),
 }));
 
-import { search } from 'duck-duck-scrape';
+import { search } from 'ddg-kit';
 const mockSearch = search as jest.Mock;
 
 describe('VQD Pagination', () => {

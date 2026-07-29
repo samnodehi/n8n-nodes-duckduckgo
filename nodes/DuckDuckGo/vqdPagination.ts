@@ -3,7 +3,7 @@
  * Provides improved pagination capabilities for DuckDuckGo searches with 2025 API compatibility
  */
 
-import { search, SearchOptions } from 'duck-duck-scrape';
+import { search, SearchOptions } from 'ddg-kit';
 import { createLogEntry, LogLevel } from './utils';
 import { DuckDuckGoError, DuckDuckGoErrorType } from './errors';
 

@@ -10,22 +10,24 @@ import {
   NodeOperationError,
 } from 'n8n-workflow';
 
-// Import types from duck-duck-scrape for compatibility, but use fallback functions
+// News calls and shared Web compatibility types come from ddg-kit. The node's
+// existing direct HTML Web adapter remains in place. Image/Video still use the
+// legacy package until ddg-kit P1 media support is verified.
 import {
   searchNews,
-  searchVideos,
   SearchOptions,
-  ImageSearchOptions,
   NewsSearchOptions,
-  VideoSearchOptions,
   SafeSearchType,
   SearchTimeType,
+} from 'ddg-kit';
+import {
+  searchVideos,
+  ImageSearchOptions,
+  VideoSearchOptions,
 } from 'duck-duck-scrape';
 
 // Import our direct search implementations
 import { directWebSearch, directImageSearch, getSafeSearchString } from './directSearch';
-
-// Use duck-duck-scrape types directly
 
 import {
   DuckDuckGoOperation,

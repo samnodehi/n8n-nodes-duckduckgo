@@ -78,6 +78,7 @@
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "axios": "^1.18.1",
+    "ddg-kit": "^0.1.0",
     "duck-duck-scrape": "^2.2.7",
     "linkedom": "^0.18.0"
   },
