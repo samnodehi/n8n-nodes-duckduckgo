@@ -79,7 +79,7 @@
     "@mozilla/readability": "^0.6.0",
     "axios": "^1.18.1",
     "duck-duck-scrape": "^2.2.7",
-    "linkedom": "^0.18.0"
+    "linkedom": "^0.18.13"
   },
   "engines": {
     "node": ">=18.0.0"
