@@ -8,6 +8,7 @@ import { SearchOptions } from 'duck-duck-scrape';
 
 import axios from 'axios';
 import { BROWSER_USER_AGENT } from './constants';
+import { isChallengePage, createChallengeError } from './challengeDetection';
 
 export interface FallbackSearchResult {
   title: string;
@@ -21,6 +22,8 @@ export interface FallbackSearchResponse {
   results: FallbackSearchResult[];
   vqd?: string;
   error?: string;
+  /** True when DuckDuckGo answered with its bot-detection challenge page. */
+  challenged?: boolean;
 }
 
 /**
@@ -169,6 +172,19 @@ export async function fallbackWebSearch(
 
     // Parse results using regex instead of cheerio
     const results = parseSearchResultsFromHTML(response.data);
+
+    // A challenge page parses to zero results. Report it instead of letting it
+    // masquerade as "no results": the block is scoped to this IP, so retrying
+    // another DuckDuckGo host would only add load and prolong it.
+    if (results.length === 0 && isChallengePage(response.data)) {
+      return {
+        success: false,
+        noResults: true,
+        results: [],
+        challenged: true,
+        error: createChallengeError('fallback search', response.status).userMessage,
+      };
+    }
 
     // Check if no results found
     const noResultsIndicator = response.data.includes('no-results') || results.length === 0;
