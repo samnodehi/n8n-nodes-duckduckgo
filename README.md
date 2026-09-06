@@ -457,6 +457,23 @@ This allows downstream nodes and AI Agents to detect and handle fallback results
 
 The node surfaces specific, actionable error messages rather than generic failures.
 
+### Bot-detection challenge (rate limiting)
+
+DuckDuckGo answers a client it considers automated with a human-verification page instead of results. That page is served with **HTTP 202**, which ordinary HTTP clients treat as success — so earlier versions parsed it, found no result blocks, and returned an **empty array with no error at all**.
+
+The node now detects that page and throws:
+
+> `DuckDuckGo served a bot-detection challenge instead of results. This blocks the IP address your n8n instance sends requests from, typically for tens of minutes. Wait before retrying, and reduce how frequently this node runs — shared or cloud IP addresses are affected sooner.`
+
+**What triggers it:** roughly fifteen or more requests from the same IP within a few minutes. The block is tied to the **IP address** — not to your account, query or region — lasts tens of minutes, and is not cleared by retrying or by changing User-Agent. The node therefore marks this error **non-retryable**: an immediate retry only prolongs the block.
+
+**If you hit it regularly:**
+
+- Space executions out, and put a **Wait** node between iterations of a loop
+- Reduce **Max Results** and avoid re-running the same workflow in tight cycles
+- On n8n Cloud or shared hosting you share an outbound IP with other tenants, so the threshold is reached sooner
+- Enable **Cache Settings** so repeated identical queries do not reach DuckDuckGo again
+
 ### Image Search: VQD token missing
 
 If DuckDuckGo's image search page does not return a valid VQD token (a session token required to query image results), the node throws:
@@ -481,9 +498,22 @@ If `directWebSearch` receives an HTTP 200 response with a large body but cannot 
 
 This is distinct from a genuine no-results response, which returns an empty array without an error.
 
+### Extract Page Content: refused address
+
+**Extract Page Content** and **Fetch Page Content** retrieve a URL supplied by the caller — and when the node runs as an AI Agent tool, the agent chooses that URL. The node therefore refuses any address that is not publicly routable:
+
+> `Refused to fetch a private, loopback or link-local address`
+> `Refused to fetch a non-HTTP(S) URL (file)`
+
+Refused targets include `localhost` and `127.0.0.0/8`, cloud instance metadata (`169.254.169.254`), the private ranges (`10/8`, `172.16/12`, `192.168/16`), IPv6 loopback / link-local / unique-local addresses, and every non-`http(s)` scheme. **Redirects are re-checked at each hop**, so a public URL cannot redirect into a private one.
+
+This stops a prompt-injected agent from making your n8n host read internal services — including n8n's own API — and hand their contents back to the model. Fetching internal addresses is deliberately unsupported.
+
 ### Empty results
 
 An empty result array (`[]`) is a valid response when DuckDuckGo genuinely finds no results for the query. This is not an error condition.
+
+Since v32.10.0 an empty array means only that. A bot-detection challenge is reported as the error above instead of being reported as "no results".
 
 ---
 
@@ -616,6 +646,13 @@ The following field names were incorrect in previous documentation. Use the name
 - Check region/language settings — some queries return fewer results in non-default locales
 - Verify safe search settings are not filtering valid results
 - DuckDuckGo may temporarily return no results for some queries; retry after a short delay
+- If every query comes back empty after a few successful runs, you are most likely rate-limited — see [bot-detection challenge](#search-returns-a-bot-detection-challenge-error)
+
+### Search returns a bot-detection challenge error
+
+Your n8n instance's outbound IP address has been temporarily blocked by DuckDuckGo — see [Bot-detection challenge](#bot-detection-challenge-rate-limiting) for what triggers it and how to reduce it. Wait before retrying; the block lasts tens of minutes and immediate retries prolong it. This is not a fault in the node or in your query.
+
+Before v32.10.0 this condition returned an empty result list with no error, which is the cause behind most historical "web search returns nothing" reports.
 
 ### Image search fails with VQD error
 
@@ -689,6 +726,7 @@ To get **more text**, enable **Fetch Page Content** (available on **Web Search**
 - **No credentials registered**: The n8n credential registry for this package is empty. n8n will not prompt for any DuckDuckGo credentials.
 - **Direct requests only (by default)**: Search requests go directly to DuckDuckGo (`duckduckgo.com`, `html.duckduckgo.com`, `i.js`). No third-party search API, proxy, or intermediary is involved. The one exception is the opt-in Fetch Page Content feature below.
 - **Optional page-content fetch (off by default)**: If you enable **Fetch Page Content** (Web or News Search), the node additionally requests each fetched result's page from its own third-party server to extract text. This is the only path that contacts non-DuckDuckGo hosts, and it is disabled unless you turn it on. See [Page Content Extraction](#-page-content-extraction).
+- **Outbound fetches are restricted**: the page-fetching features refuse non-`http(s)` schemes and any private, loopback or link-local address (including cloud instance metadata), and re-check every redirect hop. This holds even when an AI Agent chooses the URL.
 - **No disk storage**: The node does not write queries or results to disk. Optional in-memory caching may temporarily keep results for the configured cache TTL (default 5 minutes) within the running n8n process.
 
 ---

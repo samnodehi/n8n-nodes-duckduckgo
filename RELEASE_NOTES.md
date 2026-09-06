@@ -1,3 +1,62 @@
+# v32.10.0 — Bot-detection challenges surfaced, SSRF guard, resilient VQD
+
+**Release Date:** 2026-09-06
+
+The most significant correctness and security release since the page-content features. No breaking
+API changes; one deliberate behaviour change described below.
+
+---
+
+## Why this matters
+
+If your Web Search sometimes returned **nothing at all** — especially after a few successful runs —
+this release explains and fixes it. DuckDuckGo serves a human-verification page to clients it
+considers automated, using **HTTP 202**. Because 2xx means success, the node parsed that page, found
+no results, and returned an empty list **with no error**. It looked like "DuckDuckGo has no results
+for this query" when it actually meant "your IP is temporarily blocked".
+
+## Highlights
+
+- **Bot-detection challenges are now surfaced**, with a named, non-retryable error that says the
+  instance's IP is blocked and roughly how long for. Retrying immediately prolongs the block, so the
+  node deliberately does not mark it retryable.
+- **Security: page fetching refuses private addresses.** Extract Page Content / Fetch Page Content
+  no longer retrieve loopback, link-local (cloud metadata) or RFC 1918 addresses, or non-HTTP(S)
+  schemes — and every redirect hop is re-checked. This matters because the node runs as an AI Agent
+  tool, where the agent chooses the URL and can be steered by injected text.
+- **Image search is more robust**: the VQD token is matched in every shape DuckDuckGo has used,
+  not just one.
+- **The News/Video fallback no longer hides a block** behind "no results".
+
+## Behaviour change
+
+Where a rate-limited search previously returned `[]` with no error, it now **throws**. If a workflow
+relied on the empty array, set **On Error → Continue** on the node, or check for the error item.
+A genuine empty result set still returns `[]` as before.
+
+## Compatibility
+
+- No breaking API or output-shape changes. New optional `challenged` flag on fallback responses.
+
+---
+
+## Validation
+
+- `tsc`, ESLint, `npm run build:prod`, `verify-build`, and the full suite — **327 tests across 15
+  suites** — all pass. Three new pure modules (`challengeDetection`, `urlGuard`, `vqdExtraction`)
+  are unit-tested directly, including a regression test that a genuine HTTP 202 no-results page
+  still returns an empty list.
+
+---
+
+## Installation
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.10.0
+```
+
+---
+
 # v32.9.2 — Maintenance (readability 0.6, ESLint flat config, deps)
 
 **Release Date:** 2026-06-25

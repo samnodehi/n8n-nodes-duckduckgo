@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [32.10.0] - 2026-09-06
+
+### Fixed
+
+- **Bot-detection challenges are no longer reported as "no results".** DuckDuckGo answers a client it considers automated with a human-verification page served as **HTTP 202**. Because 2xx is a success status, that page was parsed, no result blocks were found, and an **empty array was returned with no error**. `directSearch.ts` also encoded the assumption that "HTTP 202 = genuine no-results page", which is what silently swallowed it — DuckDuckGo uses 202 for both, so the response body is now inspected before the status is trusted. This is the root cause behind the long-standing "web search returns nothing" and "empty results after 2 or 3 executions" reports. The node now throws a named, non-retryable `BOT_CHALLENGE` error explaining that the instance's IP is temporarily blocked. Detection runs only where parsing already produced zero results, so text inside a real result can never trigger it.
+- **The News/Video fallback no longer masks a challenge.** It reports `challenged: true` instead of `success: true, noResults: true`, so an IP-level block is no longer indistinguishable from an empty result set.
+- **VQD extraction no longer depends on a single pattern.** Image search matched only `vqd=<digits>` and could not match the JSON form `"vqd":"…"` DuckDuckGo has been moving toward. Every known shape is now tried.
+
+### Security
+
+- **Page fetching refuses addresses that are not publicly routable.** `fetchPageContent` previously retrieved any caller-supplied URL with no scheme or host validation. Because the node is exposed to AI agents (`usableAsTool`), and an agent can be steered by text arriving inside the search results the node itself returns, that URL is untrusted input. It could be used to make the n8n host read its own API (`127.0.0.1:5678`), cloud instance metadata (`169.254.169.254`) or internal services, and return the contents to the model. Non-`http(s)` schemes and loopback, `.localhost`, `0.0.0.0`, `127.0.0.0/8`, `169.254.0.0/16`, RFC 1918, CGNAT and IPv6 loopback/link-local/unique-local addresses are now refused, and **every redirect hop is re-checked**. Known residual risk: DNS rebinding is not covered, because the checks are literal-address based and do not resolve DNS.
+
+### Documentation
+
+- README documents the bot-detection challenge, what triggers it, how to reduce it, and the refused-address behaviour.
+
+---
+
 ## [32.9.2] - 2026-06-25
 
 ### Changed
