@@ -6,6 +6,7 @@
 import axios from 'axios';
 import { BROWSER_USER_AGENT } from './constants';
 import { assertNotChallenged } from './challengeDetection';
+import { extractVqd } from './vqdExtraction';
 import { DuckDuckGoError } from './errors';
 
 /**
@@ -251,8 +252,10 @@ export async function directImageSearch(query: string, options: {
       // instead of surfacing as a misleading "token could not be extracted".
       assertNotChallenged(response.data, response.status, 'image search');
 
-      const vqdMatch = response.data.match(/vqd=([\d-]+)/);
-      const extracted = vqdMatch ? vqdMatch[1] : null;
+      // DuckDuckGo has served this token as a bare parameter, a quoted value and
+      // a JSON property; extractVqd tries each known shape rather than betting
+      // on one, so a markup change does not silently break image search.
+      const extracted = extractVqd(response.data);
 
       if (!extracted) {
         throw new Error(
