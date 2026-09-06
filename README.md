@@ -23,6 +23,7 @@ An n8n community node for DuckDuckGo search. Search the web, find images, discov
 - **Optional page content extraction**: Fetch and extract the main text of result pages (Web and News, opt-in), with optional page metadata
 - **Extract Page Content operation**: Give any URL → clean main text + metadata (a "read any page" tool for AI Agents)
 - **Instant Answer operation**: Direct answers, abstracts, and definitions from DuckDuckGo's free Instant Answer API
+- **Search Suggestions operation**: Query autocomplete from DuckDuckGo's suggestion endpoint — the surface least affected by rate limiting
 
 ---
 
@@ -329,6 +330,61 @@ Returns DuckDuckGo's **Instant Answer** for a query — a direct answer, a Wikip
 
 ---
 
+### Search Suggestions
+
+Returns DuckDuckGo's autocomplete suggestions for a partial query — what the search box would offer as you type. Useful for query expansion, keyword research, and giving an AI Agent alternative phrasings before it commits to a search.
+
+This uses DuckDuckGo's suggestion endpoint, which needs no VQD token and returns a very small payload. In endpoint testing it was **the surface least affected by rate limiting**, so it often still answers when Web Search is temporarily blocked.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `autocompleteQuery` | string | required | The partial search term |
+| `maxResults` | number | 10 | Maximum suggestions (1–50) |
+| `region` | options | wt-wt | Locale code (e.g. `de-de`) |
+| `splitIntoItems` | boolean | false | Return one n8n item per suggestion instead of one item holding the list |
+
+**Example:**
+
+```json
+{
+  "operation": "autocomplete",
+  "autocompleteQuery": "how to build",
+  "autocompleteOptions": {
+    "maxResults": 5,
+    "region": "us-en"
+  }
+}
+```
+
+**Sample output (default):**
+
+```json
+{
+  "query": "how to build",
+  "suggestions": [
+    "how to build a pc",
+    "how to build credit fast",
+    "how to build a website",
+    "how to build an ai agent"
+  ],
+  "count": 4,
+  "sourceType": "autocomplete"
+}
+```
+
+**Sample output (`splitIntoItems: true`)** — one item per suggestion, ready to fan out into a loop:
+
+```json
+[
+  { "query": "how to build", "suggestion": "how to build a pc", "position": 1, "sourceType": "autocomplete" },
+  { "query": "how to build", "suggestion": "how to build a website", "position": 2, "sourceType": "autocomplete" }
+]
+```
+
+---
+
 ## ⚙️ Configuration Reference
 
 ### Common Parameters (all operations)
@@ -473,6 +529,7 @@ The node now detects that page and throws:
 - Reduce **Max Results** and avoid re-running the same workflow in tight cycles
 - On n8n Cloud or shared hosting you share an outbound IP with other tenants, so the threshold is reached sooner
 - Enable **Cache Settings** so repeated identical queries do not reach DuckDuckGo again
+- The **Search Suggestions** operation uses a different, much lighter endpoint and is the least affected by this limit
 
 ### Image Search: VQD token missing
 
@@ -739,6 +796,7 @@ To get **more text**, enable **Fetch Page Content** (available on **Web Search**
 | Image Search | `directImageSearch` (duckduckgo.com + i.js) | None |
 | News Search | `duck-duck-scrape` `searchNews` | HTML-based fallback |
 | Video Search | `duck-duck-scrape` `searchVideos` | HTML-based fallback |
+| Search Suggestions | `getAutocomplete` (duckduckgo.com/ac/) | None |
 
 There is no user-configurable backend selector. Each operation type uses the most reliable path available. Every path — primary and fallback — talks only to DuckDuckGo; no third-party search API is used.
 

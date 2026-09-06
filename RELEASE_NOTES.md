@@ -1,3 +1,48 @@
+# v32.11.0 — Search Suggestions (autocomplete)
+
+**Release Date:** 2026-09-06
+
+Adds a seventh operation. Free, no API key, no new dependencies — as always.
+
+---
+
+## Highlights
+
+- **New operation: Search Suggestions.** Give it a partial query and it returns DuckDuckGo's
+  autocomplete suggestions — what the search box would offer as you type.
+- **`splitIntoItems`** emits one n8n item per suggestion, so the results drop straight into a loop.
+- **Region aware** (`kl`), verified live against `us-en` and `de-de`.
+
+## Why this one is worth having
+
+It uses a different, much lighter DuckDuckGo endpoint than search: no VQD token, no cookies, a
+response of a few hundred bytes. During the endpoint testing behind 32.10.0 it was **the only
+surface never answered with a bot-detection challenge** — so when Web Search is temporarily
+rate-limited, this operation generally still works. It pairs naturally with the challenge detection
+shipped in 32.10.0.
+
+## Compatibility
+
+- Purely additive. No changes to existing operations or output shapes.
+
+---
+
+## Validation
+
+- `tsc`, ESLint, `build:prod`, `verify-build`, and **344 tests across 16 suites** pass.
+- Verified live against the real endpoint in English and German, including region handling and the
+  empty-query guard.
+
+---
+
+## Installation
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.11.0
+```
+
+---
+
 # v32.10.0 — Bot-detection challenges surfaced, SSRF guard, resilient VQD
 
 **Release Date:** 2026-09-06

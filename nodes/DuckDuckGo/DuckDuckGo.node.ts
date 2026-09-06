@@ -59,6 +59,7 @@ import { paginateWithVqd, DEFAULT_PAGINATION_CONFIG } from './vqdPagination';
 import { fallbackNewsSearch, fallbackVideoSearch } from './fallbackSearch';
 import { fetchPageContent, fetchPageContents } from './pageContent';
 import { getInstantAnswer } from './instantAnswer';
+import { getAutocomplete } from './autocomplete';
 
 // Sleep for a fixed amount of time
 function sleep(ms: number): Promise<void> {
@@ -253,6 +254,12 @@ export class DuckDuckGo implements INodeType {
             value: DuckDuckGoOperation.InstantAnswer,
             description: 'Get a direct answer, abstract, or definition from DuckDuckGo',
             action: 'Get an instant answer',
+          },
+          {
+            name: 'Search Suggestions',
+            value: DuckDuckGoOperation.Autocomplete,
+            description: 'Get query suggestions (autocomplete) for a partial search term',
+            action: 'Get search suggestions',
           }
         ],
       },
@@ -340,6 +347,68 @@ export class DuckDuckGo implements INodeType {
             ],
           },
         },
+      },
+
+      // ----------------------------------------
+      // Search Suggestions Operation Parameters
+      // ----------------------------------------
+      {
+        displayName: 'Partial Query',
+        name: 'autocompleteQuery',
+        type: 'string',
+        required: true,
+        default: '',
+        description: 'The partial search term to get suggestions for',
+        placeholder: 'e.g. how to build',
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.Autocomplete,
+            ],
+          },
+        },
+      },
+      {
+        displayName: 'Options',
+        name: 'autocompleteOptions',
+        type: 'collection',
+        placeholder: 'Add Option',
+        default: {},
+        displayOptions: {
+          show: {
+            operation: [
+              DuckDuckGoOperation.Autocomplete,
+            ],
+          },
+        },
+        options: [
+          {
+            displayName: 'Maximum Suggestions',
+            name: 'maxResults',
+            type: 'number',
+            default: 10,
+            typeOptions: {
+              minValue: 1,
+              maxValue: 50,
+            },
+            description: 'Maximum number of suggestions to return',
+          },
+          {
+            displayName: 'Region',
+            name: 'region',
+            type: 'options',
+            options: REGIONS,
+            default: DEFAULT_PARAMETERS.REGION,
+            description: 'Region/language for the suggestions',
+          },
+          {
+            displayName: 'Split Into Items',
+            name: 'splitIntoItems',
+            type: 'boolean',
+            default: false,
+            description: 'Whether to return one n8n item per suggestion instead of a single item holding the list',
+          },
+        ],
       },
 
       // ----------------------------------------
@@ -2365,6 +2434,54 @@ export class DuckDuckGo implements INodeType {
           }
 
           results = [{ json, pairedItem: { item: itemIndex } }];
+        }
+        else if (operation === DuckDuckGoOperation.Autocomplete) {
+          const partialQuery = this.getNodeParameter('autocompleteQuery', itemIndex) as string;
+          if (!partialQuery || partialQuery.trim() === '') {
+            throw new NodeOperationError(
+              this.getNode(),
+              'Partial Query is required for the Search Suggestions operation',
+              { itemIndex }
+            );
+          }
+
+          const acOptions = this.getNodeParameter('autocompleteOptions', itemIndex, {}) as {
+            maxResults?: number;
+            region?: string;
+            splitIntoItems?: boolean;
+          };
+
+          const ac = await getAutocomplete(partialQuery.trim(), {
+            maxResults: acOptions.maxResults ?? 10,
+            region: acOptions.region ?? DEFAULT_PARAMETERS.REGION,
+            timeout: 8000,
+          });
+
+          // One item per suggestion is the shape most workflows want when the
+          // suggestions are fanned out; the default keeps them together so a
+          // single execution maps to a single item.
+          if (acOptions.splitIntoItems && ac.suggestions.length > 0) {
+            results = ac.suggestions.map((suggestion, position) => ({
+              json: {
+                query: partialQuery.trim(),
+                suggestion,
+                position: position + 1,
+                sourceType: 'autocomplete',
+              } as IDataObject,
+              pairedItem: { item: itemIndex },
+            }));
+          } else {
+            const json: IDataObject = {
+              query: partialQuery.trim(),
+              suggestions: ac.suggestions,
+              count: ac.suggestions.length,
+              sourceType: 'autocomplete',
+            };
+            if (ac.error) {
+              json.error = ac.error;
+            }
+            results = [{ json, pairedItem: { item: itemIndex } }];
+          }
         }
         else {
           throw new NodeOperationError(
