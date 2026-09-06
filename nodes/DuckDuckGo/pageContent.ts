@@ -16,6 +16,7 @@ import axios from 'axios';
 import { Readability } from '@mozilla/readability';
 import { parseHTML } from 'linkedom';
 import { BROWSER_USER_AGENT } from './constants';
+import { getUrlBlockReason, isBlockedHost } from './urlGuard';
 
 export interface PageContentOptions {
   /** Per-request timeout in milliseconds. */
@@ -240,8 +241,11 @@ export async function fetchPageContent(
   const maxLength = options.maxLength ?? DEFAULTS.maxLength;
   const maxBytes = options.maxBytes ?? DEFAULTS.maxBytes;
 
-  if (!url || typeof url !== 'string') {
-    return { content: '', truncated: false, error: 'No URL to fetch' };
+  // The URL is untrusted input: with usableAsTool an AI agent chooses it, and the
+  // agent can be steered by text inside the results this node itself returned.
+  const blockReason = getUrlBlockReason(url);
+  if (blockReason) {
+    return { content: '', truncated: false, error: blockReason };
   }
 
   try {
@@ -251,6 +255,15 @@ export async function fetchPageContent(
       maxContentLength: maxBytes,
       maxBodyLength: maxBytes,
       validateStatus: (status: number) => status >= 200 && status < 300,
+      // A redirect can point somewhere the original URL could not, so every hop
+      // is re-checked. Throwing here aborts the request chain.
+      beforeRedirect: (options: Record<string, any>) => {
+        const nextProtocol = String(options.protocol ?? '');
+        const nextHost = String(options.hostname ?? options.host ?? '');
+        if ((nextProtocol !== 'http:' && nextProtocol !== 'https:') || isBlockedHost(nextHost)) {
+          throw new Error('Refused to follow a redirect to a private, loopback or non-HTTP(S) address');
+        }
+      },
       headers: {
         'User-Agent': BROWSER_USER_AGENT,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
