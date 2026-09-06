@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [32.11.0] - 2026-09-06
+
+### Added
+
+- **New operation: Search Suggestions (autocomplete).** Returns DuckDuckGo's query suggestions for a partial search term via its public suggestion endpoint — no VQD token, no key, and a very small payload. Options: `maxResults` (default 10), `region`, and `splitIntoItems` to emit one n8n item per suggestion instead of a single item holding the list. Useful for query expansion, keyword research, and offering an AI Agent alternative phrasings before it commits to a search.
+
+  This endpoint was **the surface least affected by rate limiting** during endpoint testing, so it often still answers when Web Search is temporarily blocked — a deliberate companion to the challenge detection added in 32.10.0. Both response shapes DuckDuckGo has returned (the `type=list` pair form and the `{ phrase }` object form) are handled, and an unfamiliar shape degrades to an empty list rather than throwing.
+
+---
+
 ## [32.10.0] - 2026-09-06
 
 ### Fixed

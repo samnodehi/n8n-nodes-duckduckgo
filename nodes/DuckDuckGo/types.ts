@@ -25,6 +25,7 @@ export enum DuckDuckGoOperation {
   SearchVideos = 'searchVideos',
   ExtractContent = 'extractContent',
   InstantAnswer = 'instantAnswer',
+  Autocomplete = 'autocomplete',
 }
 
 /**
