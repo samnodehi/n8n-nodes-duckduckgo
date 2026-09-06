@@ -21,6 +21,7 @@ export enum DuckDuckGoErrorType {
   API_ERROR = 'API_ERROR',
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
   TOO_MANY_REQUESTS = 'TOO_MANY_REQUESTS',
+  BOT_CHALLENGE = 'BOT_CHALLENGE',
   SERVER_ERROR = 'SERVER_ERROR',
   BAD_GATEWAY = 'BAD_GATEWAY',
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
@@ -97,6 +98,7 @@ export class DuckDuckGoError extends Error {
         return ErrorSeverity.HIGH;
       case DuckDuckGoErrorType.RATE_LIMIT_EXCEEDED:
       case DuckDuckGoErrorType.TOO_MANY_REQUESTS:
+      case DuckDuckGoErrorType.BOT_CHALLENGE:
       case DuckDuckGoErrorType.TIMEOUT:
         return ErrorSeverity.MEDIUM;
       case DuckDuckGoErrorType.INVALID_INPUT:
@@ -120,6 +122,10 @@ export class DuckDuckGoError extends Error {
       case DuckDuckGoErrorType.GATEWAY_TIMEOUT:
       case DuckDuckGoErrorType.VQD_TOKEN_ERROR:
         return true;
+      // A challenge is scoped to the requesting IP and lasts tens of minutes.
+      // Retrying immediately only adds load and prolongs the block.
+      case DuckDuckGoErrorType.BOT_CHALLENGE:
+        return false;
       default:
         return false;
     }
@@ -141,6 +147,11 @@ export class DuckDuckGoError extends Error {
         return 'DuckDuckGo servers are temporarily unavailable. Please try again later.';
       case DuckDuckGoErrorType.VQD_TOKEN_ERROR:
         return 'Search session expired. The search will be retried automatically.';
+      case DuckDuckGoErrorType.BOT_CHALLENGE:
+        return 'DuckDuckGo served a bot-detection challenge instead of results. This blocks the '
+          + 'IP address your n8n instance sends requests from, typically for tens of minutes. '
+          + 'Wait before retrying, and reduce how frequently this node runs — shared or cloud '
+          + 'IP addresses are affected sooner.';
       case DuckDuckGoErrorType.INVALID_INPUT:
         return `Invalid input: ${originalMessage}`;
       case DuckDuckGoErrorType.RESULTS_PARSING_ERROR:

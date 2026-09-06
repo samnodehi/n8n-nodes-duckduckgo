@@ -5,6 +5,8 @@
 
 import axios from 'axios';
 import { BROWSER_USER_AGENT } from './constants';
+import { assertNotChallenged } from './challengeDetection';
+import { DuckDuckGoError } from './errors';
 
 /**
  * Clean text by removing HTML entities and normalizing whitespace
@@ -163,17 +165,23 @@ export async function directWebSearch(query: string, options: {
       }
     }
 
-    // If no result blocks were found, distinguish legitimate no-results from parser failure.
-    // DuckDuckGo returns HTTP 202 for genuine no-results pages; HTTP 200 with a large HTML
-    // body but zero parseable blocks means the page structure has likely changed.
+    // Nothing parsed — establish why before returning an empty set. This is the
+    // only point at which a challenge page can be detected without risking a
+    // false positive on marker text appearing inside a real result.
     if (results.length === 0 && resultSections.length === 1) {
+      // DuckDuckGo serves its bot-detection page with HTTP 202 — the same status
+      // as a genuine no-results page — so the status alone cannot tell them apart.
+      // Inspecting the body first stops an IP-level block from being reported as
+      // an ordinary empty result set, which is how it used to fail silently.
+      assertNotChallenged(html, response.status, 'web search');
+
       if (response.status === 200 && html.length > 1000) {
         throw new Error(
           'DuckDuckGo web search response could not be parsed. ' +
           'The page structure may have changed. Please try again later.'
         );
       }
-      // HTTP 202 = genuine no-results page. Return empty.
+      // HTTP 202 without challenge markers = genuine no-results page. Return empty.
     }
 
     return { results };
@@ -239,6 +247,10 @@ export async function directImageSearch(query: string, options: {
         timeout: 15000,
       });
 
+      // A challenge page carries no VQD. Detect it first so the cause is named
+      // instead of surfacing as a misleading "token could not be extracted".
+      assertNotChallenged(response.data, response.status, 'image search');
+
       const vqdMatch = response.data.match(/vqd=([\d-]+)/);
       const extracted = vqdMatch ? vqdMatch[1] : null;
 
@@ -296,6 +308,12 @@ export async function directImageSearch(query: string, options: {
     return { results, vqd };
   } catch (error) {
     console.error('Direct image search error:', error.message);
+
+    // Preserve typed errors (e.g. the bot-challenge error) rather than
+    // flattening them into a generic message and losing their guidance.
+    if (error instanceof DuckDuckGoError) {
+      throw error;
+    }
 
     if (error.code === 'ECONNABORTED') {
       throw new Error('Image search request timed out. Please try again.');

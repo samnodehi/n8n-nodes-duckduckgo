@@ -7,3 +7,6 @@ npm-debug.log*
 yarn.lock
 *.tgz
 .vscode/launch.json
+
+# Internal working plan — kept local, not published
+PROJECT_PLAN.md
