@@ -6,8 +6,9 @@
 import axios from 'axios';
 import { BROWSER_USER_AGENT } from './constants';
 import { assertNotChallenged } from './challengeDetection';
+import { getCooldownReason } from './challengeCooldown';
 import { extractVqd } from './vqdExtraction';
-import { DuckDuckGoError } from './errors';
+import { DuckDuckGoError, DuckDuckGoErrorType } from './errors';
 
 /**
  * Clean text by removing HTML entities and normalizing whitespace
@@ -107,6 +108,11 @@ export async function directWebSearch(query: string, options: {
   safeSearch?: string;
   maxResults?: number;
 } = {}): Promise<{ results: DirectSearchResult[] }> {
+  // A challenge was seen very recently; sending another request would only
+  // extend the block on this IP.
+  const cooling = getCooldownReason();
+  if (cooling) throw new DuckDuckGoError(cooling, DuckDuckGoErrorType.BOT_CHALLENGE);
+
   try {
     // Use POST method to DuckDuckGo HTML endpoint
     const response = await axios.post('https://html.duckduckgo.com/html/',
@@ -223,6 +229,9 @@ export async function directImageSearch(query: string, options: {
   safeSearch?: string;
   maxResults?: number;
 } = {}, vqdHint?: string): Promise<{ results: DirectImageResult[]; vqd: string }> {
+  const cooling = getCooldownReason();
+  if (cooling) throw new DuckDuckGoError(cooling, DuckDuckGoErrorType.BOT_CHALLENGE);
+
   try {
     const searchParams = new URLSearchParams({
       q: query,

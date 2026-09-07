@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [32.12.0] - 2026-09-07
+
+### Changed
+
+- **The node now backs off after a bot-detection challenge.** Once DuckDuckGo serves a challenge, further search requests are refused locally for about a minute instead of being sent, with an error stating how many seconds remain. Every request made during a block is wasted, adds load to a service that has just said stop, and prolongs the block for everyone sharing that outbound IP — which on n8n Cloud means other tenants. The window is deliberately far shorter than the block itself, so the node throttles rather than stops: roughly one probe per minute goes out, and normal operation resumes within a minute of the block lifting.
+
+  This completes the fallback-amplification fix started in 32.10.0. A challenge seen by Web Search now also holds back the News/Video fallback, which previously could not tell a challenge from any other failure because its primary path (`duck-duck-scrape`) fails opaquely.
+
+---
+
 ## [32.11.0] - 2026-09-06
 
 ### Added
