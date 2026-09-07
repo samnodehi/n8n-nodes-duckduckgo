@@ -10,3 +10,4 @@ yarn.lock
 
 # Internal working plan — kept local, not published
 PROJECT_PLAN.md
+release-body.md

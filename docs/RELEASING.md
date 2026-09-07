@@ -56,6 +56,14 @@ Three things about that order matter:
   after a failure later in the job can still reach the release step. npm refuses
   to republish a version, which would otherwise make every rerun fail.
 
+  Existence alone is not treated as proof that the rerun is harmless: the
+  version could have been published by hand, or from a different commit. The
+  workflow reads the published version's provenance attestation and compares the
+  commit it records with the one being released. If they match, the skip is
+  silent. If they do not, the job still creates the GitHub release — that is the
+  manual-publish fallback below — but it logs a warning and appends a note to the
+  release body saying the attached archive was not the published one.
+
 - **The tag must be a version npm will publish verbatim**, and nothing derived
   from it is interpolated into a shell script. A tag name is attacker-controllable
   text and git accepts refs like `v$(cmd)`, so the version is validated and then
@@ -64,8 +72,9 @@ Three things about that order matter:
   The validation also rejects versions npm would silently rewrite: npm cleans the
   manifest version before publishing, so `v33.0.0+build-1` would reach the
   registry as `33.0.0` while the tag and the release asset still claimed the
-  build metadata. Leading-zero components such as `v01.2.3` are rejected for the
-  same reason. Tag exactly what will be published.
+  build metadata. Leading-zero components are rejected for the same reason, in
+  the version core (`v01.2.3`) and in numeric prerelease identifiers alike —
+  `v33.0.0-01` reaches npm as `33.0.0-1`. Tag exactly what will be published.
 - **The tagged commit must be on `main`.** A tag can be pushed at any commit,
   including one that never passed review; publishing from it would bypass branch
   protection, and an npm version cannot be withdrawn once published.
@@ -77,6 +86,14 @@ a prerelease on GitHub. Without that, an ordinary `npm install` would start
 serving the prerelease, because npm defaults to `latest`.
 
 Build metadata is not accepted at all, so the hyphen test is unambiguous.
+
+### Which release owns `latest`
+
+A stable release takes `latest` only if it is newer than the version `latest`
+already points at; an older one is published under `previous` instead. Two tags
+pushed close together would otherwise leave whichever job finished last in charge
+of what every unqualified `npm install` receives. The workflow also runs under a
+single concurrency group, so releases queue rather than overlap.
 
 ## Verifying a release
 
