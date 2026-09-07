@@ -31,21 +31,27 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
       "position": [220, 0],
-      "retryOnFail": true,
-      "maxTries": 2,
-      "waitBetweenTries": 5000,
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "version": 2 },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
           "conditions": [
             {
               "id": "a1b2c3d4-0003-4000-8000-0000000000c1",
               "leftValue": "={{ $json.error }}",
               "rightValue": "",
-              "operator": { "type": "string", "operation": "notExists", "singleValue": true }
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -53,10 +59,56 @@
         "options": {}
       },
       "id": "a1b2c3d4-0003-4000-8000-000000000003",
-      "name": "Only successful results",
-      "type": "n8n-nodes-base.filter",
+      "name": "Did DuckDuckGo report an error?",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1b2c3d4-0003-4000-8000-0000000000e1",
+              "name": "alert",
+              "value": "={{ 'DuckDuckGo could not complete this run: ' + $json.error }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000004",
+      "name": "Handle the error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [680, -110]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1b2c3d4-0003-4000-8000-0000000000e2",
+              "name": "headline",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "a1b2c3d4-0003-4000-8000-0000000000e3",
+              "name": "articleText",
+              "value": "={{ $json.pageContent || $json.description }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000005",
+      "name": "Shape the article",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [680, 110]
     }
   ],
   "connections": {
@@ -64,7 +116,13 @@
       "main": [[{ "node": "DuckDuckGo News", "type": "main", "index": 0 }]]
     },
     "DuckDuckGo News": {
-      "main": [[{ "node": "Only successful results", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Did DuckDuckGo report an error?", "type": "main", "index": 0 }]]
+    },
+    "Did DuckDuckGo report an error?": {
+      "main": [
+        [{ "node": "Handle the error", "type": "main", "index": 0 }],
+        [{ "node": "Shape the article", "type": "main", "index": 0 }]
+      ]
     }
   },
   "pinData": {},

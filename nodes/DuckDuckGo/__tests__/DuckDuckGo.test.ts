@@ -4,6 +4,7 @@ import * as duckDuckScrape from 'duck-duck-scrape';
 import * as cache from '../cache';
 import * as directSearch from '../directSearch';
 import * as fallbackSearch from '../fallbackSearch';
+import { noteChallenge } from '../challengeCooldown';
 
 
 // Mock the duck-duck-scrape library
@@ -1014,6 +1015,41 @@ describe('DuckDuckGo Node', () => {
         }
       ]
     };
+
+    /** What the real fallback returns while the back-off is active. */
+    const cooldownFallback = {
+      success: false,
+      noResults: true,
+      results: [],
+      challenged: true,
+      error: 'DuckDuckGo served a bot-detection challenge moments ago, so this request was not sent. Requests resume automatically in 60s.',
+    };
+
+    it('does not call the primary news client while cooling down, and surfaces the reason', async () => {
+      // Regression for two defects found in review of the first cooldown pass:
+      // the primary was not gated at all (so News still sent one request per
+      // execution from an already-blocked IP), and the challenge message the
+      // fallback returned was replaced by a generic primary error.
+      setupNodeParameters('searchNews', 'latest tech news');
+      (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue(cooldownFallback);
+      noteChallenge();
+
+      const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+      expect(duckDuckScrape.searchNews).not.toHaveBeenCalled();
+      expect(result[0][0].json.error).toContain('was not sent');
+    });
+
+    it('does not call the primary video client while cooling down, and surfaces the reason', async () => {
+      setupNodeParameters('searchVideos', 'some video');
+      (fallbackSearch.fallbackVideoSearch as jest.Mock).mockResolvedValue(cooldownFallback);
+      noteChallenge();
+
+      const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
+
+      expect(duckDuckScrape.searchVideos).not.toHaveBeenCalled();
+      expect(result[0][0].json.error).toContain('was not sent');
+    });
 
     it('should return news search results successfully', async () => {
       // Set up node parameters

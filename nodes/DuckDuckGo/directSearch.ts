@@ -111,7 +111,9 @@ export async function directWebSearch(query: string, options: {
   // A challenge was seen very recently; sending another request would only
   // extend the block on this IP.
   const cooling = getCooldownReason();
-  if (cooling) throw new DuckDuckGoError(cooling, DuckDuckGoErrorType.BOT_CHALLENGE);
+  if (cooling) {
+    throw new DuckDuckGoError(cooling, DuckDuckGoErrorType.BOT_CHALLENGE, { userMessage: cooling });
+  }
 
   try {
     // Use POST method to DuckDuckGo HTML endpoint
@@ -230,7 +232,9 @@ export async function directImageSearch(query: string, options: {
   maxResults?: number;
 } = {}, vqdHint?: string): Promise<{ results: DirectImageResult[]; vqd: string }> {
   const cooling = getCooldownReason();
-  if (cooling) throw new DuckDuckGoError(cooling, DuckDuckGoErrorType.BOT_CHALLENGE);
+  if (cooling) {
+    throw new DuckDuckGoError(cooling, DuckDuckGoErrorType.BOT_CHALLENGE, { userMessage: cooling });
+  }
 
   try {
     const searchParams = new URLSearchParams({
