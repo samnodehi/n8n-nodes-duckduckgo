@@ -29,9 +29,12 @@ Provenance needs npm to trust this repository. Do this once, on npmjs.com:
 1. Land everything on `main` and make sure CI is green.
 2. Bump the version and write the notes:
    - `package.json` version
+   - `package-lock.json`, via `npm install --package-lock-only` — it carries the
+     version twice, and the release refuses to publish while it is stale
    - a new section at the top of `CHANGELOG.md`
-   - a new section at the top of `RELEASE_NOTES.md` (the GitHub release body is
-     taken from this file)
+   - a new section at the top of `RELEASE_NOTES.md`, headed exactly
+     `# vX.Y.Z — short summary`. That section becomes the GitHub release body,
+     and the release fails if there is no section for the tag.
 3. Merge that to `main`.
 4. Tag and push:
 
@@ -41,13 +44,17 @@ Provenance needs npm to trust this repository. Do this once, on npmjs.com:
    ```
 
 The tag push triggers `release.yml`, which installs, checks that the tag matches
-`package.json`, runs the production build, publishes to npm **with provenance**,
-then packs and attaches the release asset.
+`package.json` and `package-lock.json`, runs the production build, publishes to
+npm **with provenance**, then packs and attaches the release asset with the
+notes for that version.
 
-Three things about that order matter:
+What that order buys, and what it refuses:
 
 - **Publish runs before the GitHub release is created**, so a failed publish
   cannot leave a release advertising a version that never reached npm.
+- **The release body is this version's section of `RELEASE_NOTES.md`**, not the
+  whole file. That file is a cumulative history, and attaching all of it gave
+  v32.12.1 a 623-line body opening on the v32.12.0 heading.
 - **The asset is packed after the production build**, so what is attached to the
   release is the same set of files that was published. Packing after a plain
   `npm run build` produced a 44-file tarball carrying compiled tests and

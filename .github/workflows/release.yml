@@ -71,6 +71,9 @@ jobs:
             exit 1
           fi
 
+      # The lockfile carries the version twice and is easy to forget on a bump.
+      # Left stale, the next `npm install` on a checkout of the tag rewrites it
+      # and leaves a dirty worktree for no reason the reader can see.
       - name: Verify the tag matches package.json
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
@@ -78,6 +81,12 @@ jobs:
           PKG_VERSION="$(node -p "require('./package.json').version")"
           if [ "$PKG_VERSION" != "$VERSION" ]; then
             echo "Tag v$VERSION does not match package.json ($PKG_VERSION)" >&2
+            exit 1
+          fi
+          LOCK_VERSION="$(node -p "require('./package-lock.json').version")"
+          LOCK_ROOT_VERSION="$(node -p "require('./package-lock.json').packages[''].version")"
+          if [ "$LOCK_VERSION" != "$VERSION" ] || [ "$LOCK_ROOT_VERSION" != "$VERSION" ]; then
+            echo "package-lock.json is stale ($LOCK_VERSION / $LOCK_ROOT_VERSION); run npm install --package-lock-only" >&2
             exit 1
           fi
 
@@ -174,15 +183,38 @@ jobs:
       - name: Pack the release asset
         run: npm pack
 
-      # When the registry copy did not come from this run, the attached archive
-      # is not provably the published one. Say so on the release rather than
-      # letting the two look interchangeable.
+      # RELEASE_NOTES.md is a cumulative history, so attaching the whole file
+      # gave every release the notes of every version before it - v32.12.1 went
+      # out with 623 lines opening on the v32.12.0 heading. Only this version's
+      # section is used, and a missing section fails the release rather than
+      # publishing someone else's notes.
+      #
+      # The second half covers the other way the body can mislead: when the
+      # registry copy did not come from this run, the attached archive is not
+      # provably the published one, so the release says so.
       - name: Compose the release body
         env:
           FROM_THIS_RELEASE: ${{ steps.publish.outputs.FROM_THIS_RELEASE }}
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          cp RELEASE_NOTES.md release-body.md
+          node -e '
+            const fs = require("fs");
+            const heading = "# v" + process.env.VERSION;
+            const lines = fs.readFileSync("RELEASE_NOTES.md", "utf8").split(/\r?\n/);
+            const start = lines.findIndex(
+              (l) => l === heading || l.startsWith(heading + " "),
+            );
+            if (start === -1) {
+              console.error("RELEASE_NOTES.md has no \"" + heading + "\" section.");
+              process.exit(1);
+            }
+            let end = lines.length;
+            for (let i = start + 1; i < lines.length; i++) {
+              if (/^# v/.test(lines[i])) { end = i; break; }
+            }
+            const section = lines.slice(start, end).join("\n").replace(/\s*-{3,}\s*$/, "");
+            fs.writeFileSync("release-body.md", section.trim() + "\n");
+          '
           if [ "$FROM_THIS_RELEASE" != "true" ]; then
             {
               printf '\n---\n\n'

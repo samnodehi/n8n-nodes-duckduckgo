@@ -11,13 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [32.12.2] - 2026-09-07
+
+No functional changes to the node. Release, documentation and example-workflow work only.
+
 ### Changed
 
-- **Releases now publish from CI with npm provenance.** The tag-triggered workflow publishes the package itself, attaching a signed attestation that the tarball was built from this repository at a known commit. It refuses to publish if the tag and `package.json` disagree, publishes before creating the GitHub release so a failed publish cannot leave a release advertising a version that never reached npm, and skips publishing when the version already exists so a rerun can still reach the release step. Prerelease tags go to the `next` dist-tag rather than `latest`. Setup and troubleshooting are documented in `docs/RELEASING.md`.
+- **Releases now publish from CI with npm provenance.** The tag-triggered workflow publishes the package itself, attaching a signed attestation that the tarball was built from this repository at a known commit. It refuses to publish if the tag and `package.json` disagree, publishes before creating the GitHub release so a failed publish cannot leave a release advertising a version that never reached npm, and skips publishing when the version already exists so a rerun can still reach the release step. Prerelease tags go to the `next` dist-tag rather than `latest`, and a stable tag takes `latest` only if it is newer than the version `latest` already points at. Setup and troubleshooting are documented in `docs/RELEASING.md`.
+- **The example workflows now carry sticky notes** explaining what each one does and how to adapt it, and their titles were rewritten to the form n8n's template library expects. `docs/examples/SUBMITTING-TO-N8N-IO.md` records the submission requirements.
 
 ### Fixed
 
 - **The release asset now matches what is published.** The workflow packed the tarball after a plain `npm run build`, so every GitHub release since v32.7.0 attached a 44-file archive containing compiled test files and `tsbuildinfo`, while npm received the 25-file production build. The asset is now packed after `build:prod`.
+- **The GitHub release body is now this version's notes only.** `RELEASE_NOTES.md` is a cumulative history and the whole file was attached, so v32.12.1 went out with 623 lines opening on the v32.12.0 heading. The release now uses the section matching the tag, and fails if that section is missing rather than publishing another version's notes.
+- **A tag npm would rewrite is now rejected.** npm canonicalises the manifest version before publishing, so a tag carrying build metadata (`v33.0.0+build-1` → `33.0.0`) or a non-canonical prerelease identifier (`v33.0.0-01` → `33.0.0-1`) would have reached the registry under a different version than the tag and the release asset claimed.
 
 ---
 
