@@ -5,12 +5,22 @@ on:
     tags:
       - 'v*'
 
+# Two tags pushed close together would otherwise race, and whichever job wrote
+# the dist-tag last would decide what `npm install` serves - even if it carried
+# the older version.
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # Required for npm provenance: the OIDC token proves to the registry that
+      # this build really came from this repository and workflow.
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -23,28 +33,173 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build project
-        run: npm run build
-
+      # Two reasons this is validated rather than trusted. A tag name is
+      # attacker-controllable text and git accepts refs like v$(cmd), so nothing
+      # derived from it may be interpolated into a shell script. And npm
+      # canonicalises the manifest version before publishing, so a tag carrying
+      # build metadata or a non-canonical prerelease identifier (1.0.0-01, which
+      # npm rewrites to 1.0.0-1) would be published under a different version
+      # than the tag and the release asset claim. Only versions npm keeps
+      # verbatim are accepted.
       - name: Extract version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        env:
+          RAW_REF: ${{ github.ref_name }}
+        run: |
+          VERSION="${RAW_REF#v}"
+          NUM='(0|[1-9][0-9]*)'
+          IDENT="($NUM|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)"
+          if ! printf '%s' "$VERSION" | grep -Eq "^$NUM[.]$NUM[.]$NUM(-$IDENT([.]$IDENT)*)?$"; then
+            echo "Refusing to release: tag '$RAW_REF' is not a canonical SemVer release tag." >&2
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Build distribution package
+      # A tag can be pushed at any commit, including one that never passed
+      # review. Publishing from it would bypass branch protection, and an npm
+      # version cannot be taken back once published.
+      - name: Verify the tag is on main
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Refusing to publish: $GITHUB_SHA is not contained in origin/main." >&2
+            exit 1
+          fi
+
+      - name: Verify the tag matches package.json
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$PKG_VERSION" != "$VERSION" ]; then
+            echo "Tag v$VERSION does not match package.json ($PKG_VERSION)" >&2
+            exit 1
+          fi
+
+      # A prerelease must never land on the default dist-tag, or an ordinary
+      # `npm install` would start serving it. Neither must a stable release that
+      # is older than the one `latest` already points at - a late patch on an
+      # older line would otherwise pull every unqualified install backwards.
+      - name: Determine the npm dist-tag
+        id: disttag
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          PKG_NAME: n8n-nodes-duckduckgo-search
+        run: |
+          case "$VERSION" in
+            *-*)
+              echo "TAG=next" >> "$GITHUB_OUTPUT"
+              echo "PRERELEASE=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              CURRENT_LATEST="$(npm view "$PKG_NAME" dist-tags.latest 2>/dev/null || true)"
+              TAG="$(CURRENT_LATEST="$CURRENT_LATEST" node -e '
+                const next = process.env.VERSION;
+                const current = process.env.CURRENT_LATEST;
+                if (!current) { console.log("latest"); process.exit(0); }
+                const core = (v) => v.split("-")[0].split(".").map(Number);
+                const [a, b] = [core(next), core(current)];
+                for (let i = 0; i < 3; i++) {
+                  if (a[i] !== b[i]) {
+                    console.log(a[i] > b[i] ? "latest" : "previous");
+                    process.exit(0);
+                  }
+                }
+                console.log(current.includes("-") ? "latest" : "previous");
+              ')"
+              echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+              echo "PRERELEASE=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      # Build here as well as via prepublishOnly, so that a rerun which skips
+      # publishing still has a clean dist to pack the release asset from.
+      - name: Build distribution
+        run: npm run build:prod
+
+      - name: Publish to npm with provenance
+        id: publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          DIST_TAG: ${{ steps.disttag.outputs.TAG }}
+          PKG_NAME: n8n-nodes-duckduckgo-search
+        run: |
+          if ! npm view "$PKG_NAME@$VERSION" version >/dev/null 2>&1; then
+            npm publish --provenance --access public --tag "$DIST_TAG"
+            echo "FROM_THIS_RELEASE=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # npm refuses to republish an existing version, so a rerun must not
+          # fail here. But existence alone does not mean the registry holds the
+          # build from this commit - the version may have been published by
+          # hand, or from a different commit. Only the provenance attestation
+          # settles that, so check it instead of assuming.
+          echo "Version $VERSION is already on npm - checking which build it is."
+          ATT_URL="$(npm view "$PKG_NAME@$VERSION" dist.attestations.url 2>/dev/null || true)"
+          MATCHES=false
+          if [ -n "$ATT_URL" ] && curl -fsSL "$ATT_URL" -o attestation.json; then
+            MATCHES="$(node -e '
+              try {
+                const doc = JSON.parse(require("fs").readFileSync("attestation.json", "utf8"));
+                const slsa = (doc.attestations || []).find(
+                  (a) => a.predicateType === "https://slsa.dev/provenance/v1",
+                );
+                const payload = slsa.bundle.dsseEnvelope.payload;
+                const statement = JSON.parse(Buffer.from(payload, "base64").toString());
+                const source = statement.predicate.buildDefinition.resolvedDependencies[0];
+                console.log(String(source.digest.gitCommit === process.env.GITHUB_SHA));
+              } catch {
+                console.log("false");
+              }
+            ')"
+          fi
+          rm -f attestation.json
+          if [ "$MATCHES" = "true" ]; then
+            echo "The published build came from $GITHUB_SHA - nothing to do."
+            echo "FROM_THIS_RELEASE=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::npm already serves $VERSION, but not from $GITHUB_SHA. The published package was not built by this workflow and carries no provenance from it."
+            echo "FROM_THIS_RELEASE=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Packed after the production build so the asset attached below is the
+      # same set of files that was published, not a plain build that also
+      # carries compiled tests and tsbuildinfo.
+      - name: Pack the release asset
         run: npm pack
+
+      # When the registry copy did not come from this run, the attached archive
+      # is not provably the published one. Say so on the release rather than
+      # letting the two look interchangeable.
+      - name: Compose the release body
+        env:
+          FROM_THIS_RELEASE: ${{ steps.publish.outputs.FROM_THIS_RELEASE }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          cp RELEASE_NOTES.md release-body.md
+          if [ "$FROM_THIS_RELEASE" != "true" ]; then
+            {
+              printf '\n---\n\n'
+              printf '> **Note:** `%s` was already on npm before this release ran, so it was not\n' "$VERSION"
+              printf '> published by this workflow and carries no provenance from it. The archive\n'
+              printf '> attached here is built from this tag and may differ from the published package.\n'
+            } >> release-body.md
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           name: "🎉 Release v${{ steps.version.outputs.VERSION }}"
-          body_path: RELEASE_NOTES.md
+          body_path: release-body.md
           files: |
             n8n-nodes-duckduckgo-search-${{ steps.version.outputs.VERSION }}.tgz
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.disttag.outputs.PRERELEASE == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
