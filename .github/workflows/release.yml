@@ -31,9 +31,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # A tag name is attacker-controllable text and git accepts things like
+      # v$(cmd) as a valid ref. Anything derived from it is validated as strict
+      # SemVer here, and reaches later steps through the environment rather than
+      # being interpolated into a shell script by the expression syntax.
       - name: Extract version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        env:
+          RAW_REF: ${{ github.ref_name }}
+        run: |
+          VERSION="${RAW_REF#v}"
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+.[0-9]+.[0-9]+(-[0-9A-Za-z.-]+)?(+[0-9A-Za-z.-]+)?$'; then
+            echo "Refusing to release: tag '$RAW_REF' is not a SemVer release tag." >&2
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
       # A tag can be pushed at any commit, including one that never passed
       # review. Publishing from it would bypass branch protection, and an npm
@@ -47,20 +59,23 @@ jobs:
           fi
 
       - name: Verify the tag matches package.json
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           PKG_VERSION="$(node -p "require('./package.json').version")"
-          if [ "$PKG_VERSION" != "${{ steps.version.outputs.VERSION }}" ]; then
-            echo "Tag v${{ steps.version.outputs.VERSION }} does not match package.json ($PKG_VERSION)" >&2
+          if [ "$PKG_VERSION" != "$VERSION" ]; then
+            echo "Tag v$VERSION does not match package.json ($PKG_VERSION)" >&2
             exit 1
           fi
 
       # A prerelease must never land on the default dist-tag, or an ordinary
       # `npm install` would start serving it.
       - name: Determine the npm dist-tag
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           # Only the part before "+" can carry a prerelease: a hyphen inside
           # build metadata, as in 1.2.3+build-1, does not make it one.
-          VERSION="${{ steps.version.outputs.VERSION }}"
           case "${VERSION%%+*}" in
             *-*) echo "TAG=next"   >> $GITHUB_OUTPUT
                  echo "PRERELEASE=true"  >> $GITHUB_OUTPUT ;;
@@ -77,14 +92,16 @@ jobs:
       # npm refuses to republish an existing version, which would otherwise make
       # a rerun fail here and never reach the release step.
       - name: Publish to npm with provenance
-        run: |
-          if npm view "n8n-nodes-duckduckgo-search@${{ steps.version.outputs.VERSION }}" version >/dev/null 2>&1; then
-            echo "Version ${{ steps.version.outputs.VERSION }} is already on npm - skipping publish."
-          else
-            npm publish --provenance --access public --tag "${{ steps.disttag.outputs.TAG }}"
-          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          DIST_TAG: ${{ steps.disttag.outputs.TAG }}
+        run: |
+          if npm view "n8n-nodes-duckduckgo-search@$VERSION" version >/dev/null 2>&1; then
+            echo "Version $VERSION is already on npm - skipping publish."
+          else
+            npm publish --provenance --access public --tag "$DIST_TAG"
+          fi
 
       # Packed after the production build so the asset attached below is the
       # same set of files that was published, not a plain build that also

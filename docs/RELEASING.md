@@ -56,6 +56,10 @@ Three things about that order matter:
   after a failure later in the job can still reach the release step. npm refuses
   to republish a version, which would otherwise make every rerun fail.
 
+- **The tag must be a SemVer release tag**, and nothing derived from it is
+  interpolated into a shell script. A tag name is attacker-controllable text and
+  git accepts refs like `v$(cmd)`, so the version is validated against a strict
+  SemVer pattern and passed to later steps through the environment.
 - **The tagged commit must be on `main`.** A tag can be pushed at any commit,
   including one that never passed review; publishing from it would bypass branch
   protection, and an npm version cannot be withdrawn once published.
