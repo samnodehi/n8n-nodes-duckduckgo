@@ -1,6 +1,19 @@
 {
-  "name": "DuckDuckGo — Research assistant (search + full page text)",
+  "name": "Extract full article text from DuckDuckGo web search results",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Extract full article text from DuckDuckGo web search results\n\nSearch results give you a title, a link and a two-line snippet. That is rarely enough to answer a question or to feed a language model. This template runs a DuckDuckGo web search and then fetches and extracts the readable body of the top results, so every item arrives with the article itself attached.\n\n### How it works\n1. **DuckDuckGo Search** runs one web search with **Fetch Page Content** enabled.\n2. For the first few results the node downloads the page and extracts the main article text with Mozilla Readability, dropping navigation, ads and boilerplate.\n3. **Include Page Metadata** adds site name, author, published date and language, so you can filter or cite before sending anything downstream.\n4. The node continues on error, so one unreachable page never stops the run.\n\n### Setup\n1. Self-hosted n8n only. Install the community node `n8n-nodes-duckduckgo-search` under **Settings → Community nodes**.\n2. No account, API key or credential is needed — DuckDuckGo is queried directly.\n3. Change the **Query** field and run.\n\n### Customization tips\n- Raise **Max Results** for breadth, **Page Content Max Results** for depth.\n- Put an AI Agent after the node: the extracted text is already clean enough to summarise or answer from.",
+        "height": 640,
+        "width": 560,
+        "color": 1
+      },
+      "id": "a1b2c3d4-0001-4000-8000-0000000000s1",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-620, -180]
+    },
     {
       "parameters": {},
       "id": "a1b2c3d4-0001-4000-8000-000000000001",

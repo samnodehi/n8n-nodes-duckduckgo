@@ -1,6 +1,45 @@
 {
-  "name": "DuckDuckGo — Query expansion (suggestions fan out into searches)",
+  "name": "Expand one keyword into multiple DuckDuckGo searches with autocomplete",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Expand one keyword into multiple DuckDuckGo searches\n\nA single query returns a single view of a topic. DuckDuckGo's own autocomplete knows what people actually search for around a keyword, so this template asks for those suggestions and then runs a real web search for each one — broader coverage from one input, with no API key anywhere.\n\n### How it works\n1. **Get Suggestions** calls the Search Suggestions operation with **Split Into Items** on, so each suggestion becomes its own item.\n2. **Loop Over Suggestions** takes them one at a time.\n3. **Wait** pauses three seconds between searches. DuckDuckGo rate-limits per IP and answers a burst with a bot-challenge page instead of results; this keeps the loop under that line.\n4. **Search Each Suggestion** runs a web search for that suggestion and loops back for the next.\n\n### Setup\n1. Self-hosted n8n only. Install the community node `n8n-nodes-duckduckgo-search` under **Settings → Community nodes**.\n2. No account, API key or credential is needed.\n3. Replace the seed query in **Get Suggestions** and run.\n\n### Customization tips\n- Fewer, faster searches: lower **Max Results** in Get Suggestions.\n- Feed the collected results into a Summarize or AI Agent node to merge the findings into one answer.",
+        "height": 700,
+        "width": 560,
+        "color": 1
+      },
+      "id": "a1b2c3d4-0002-4000-8000-0000000000s1",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-620, -200]
+    },
+    {
+      "parameters": {
+        "content": "## Ask what people search for\nOne seed keyword becomes several real queries.",
+        "height": 300,
+        "width": 420,
+        "color": 7
+      },
+      "id": "a1b2c3d4-0002-4000-8000-0000000000s2",
+      "name": "Section - suggestions",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [160, -180]
+    },
+    {
+      "parameters": {
+        "content": "## Search each one, politely\nThe Wait node keeps the loop under DuckDuckGo's per-IP rate limit.",
+        "height": 380,
+        "width": 500,
+        "color": 7
+      },
+      "id": "a1b2c3d4-0002-4000-8000-0000000000s3",
+      "name": "Section - searches",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [600, -60]
+    },
     {
       "parameters": {},
       "id": "a1b2c3d4-0002-4000-8000-000000000001",
