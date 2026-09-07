@@ -813,6 +813,18 @@ There is no user-configurable backend selector. Each operation type uses the mos
 - **Competitive intelligence**: Research competitors, products, or industries
 - **Automated content curation**: Build workflows that discover and process fresh content
 
+### Ready-made workflows
+
+Copy the JSON and paste it straight onto an n8n canvas (**Ctrl/Cmd+V**), or use **Import from File**.
+
+| Workflow | What it shows |
+|---|---|
+| [Research assistant](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/01-research-assistant.json) | Web Search with **Fetch Page Content** + metadata — full article text instead of snippets, ready to hand to an LLM |
+| [Query expansion](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/02-query-expansion.json) | **Search Suggestions** with `splitIntoItems`, looped into one Web Search per suggestion, with a **Wait** node so you stay under the rate limit |
+| [Daily news monitor](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/03-news-monitor.json) | Scheduled **News Search** with `timePeriod: d`, `retryOnFail`, and a filter that drops items carrying an `error` |
+
+Each one uses **On Error → Continue** on the search node, which is the recommended setting: a rate-limited search raises an error rather than returning an empty list, and continuing lets the rest of the run proceed.
+
 ---
 
 ## 🤝 Contributing
