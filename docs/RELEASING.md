@@ -56,10 +56,16 @@ Three things about that order matter:
   after a failure later in the job can still reach the release step. npm refuses
   to republish a version, which would otherwise make every rerun fail.
 
-- **The tag must be a SemVer release tag**, and nothing derived from it is
-  interpolated into a shell script. A tag name is attacker-controllable text and
-  git accepts refs like `v$(cmd)`, so the version is validated against a strict
-  SemVer pattern and passed to later steps through the environment.
+- **The tag must be a version npm will publish verbatim**, and nothing derived
+  from it is interpolated into a shell script. A tag name is attacker-controllable
+  text and git accepts refs like `v$(cmd)`, so the version is validated and then
+  passed to later steps through the environment.
+
+  The validation also rejects versions npm would silently rewrite: npm cleans the
+  manifest version before publishing, so `v33.0.0+build-1` would reach the
+  registry as `33.0.0` while the tag and the release asset still claimed the
+  build metadata. Leading-zero components such as `v01.2.3` are rejected for the
+  same reason. Tag exactly what will be published.
 - **The tagged commit must be on `main`.** A tag can be pushed at any commit,
   including one that never passed review; publishing from it would bypass branch
   protection, and an npm version cannot be withdrawn once published.
@@ -70,9 +76,7 @@ A tag like `v33.0.0-beta.1` is published under the `next` dist-tag and marked as
 a prerelease on GitHub. Without that, an ordinary `npm install` would start
 serving the prerelease, because npm defaults to `latest`.
 
-Only the part before a `+` decides this, so `v33.0.0+build-1` is treated as a
-stable release — a hyphen inside SemVer build metadata does not make a version a
-prerelease.
+Build metadata is not accepted at all, so the hyphen test is unambiguous.
 
 ## Verifying a release
 
