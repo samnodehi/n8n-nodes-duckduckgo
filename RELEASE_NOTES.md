@@ -1,3 +1,72 @@
+# v32.12.2 — Signed releases, and example workflows worth importing
+
+**Release Date:** 2026-09-07
+
+No functional changes to the node. Everything here is about how the package reaches you and how
+easy it is to start using it.
+
+---
+
+## What changed
+
+**Releases are now published from CI with npm provenance.** Every future version carries a signed
+attestation saying which repository, which workflow and which commit produced the tarball. On the
+npm page it appears as a **Provenance** section linking back to the build. Publishing by hand from
+a laptop proved nothing about where a tarball came from; this does.
+
+**The release archive on GitHub now matches what npm receives.** Every release since v32.7.0
+attached a 44-file archive that also contained compiled test files, against the 25 files actually
+published. The archive is now packed from the production build.
+
+**The release notes on GitHub are now the notes for that version.** The v32.12.1 release carried
+623 lines opening on the v32.12.0 heading, because the whole cumulative history file was attached.
+
+**The three example workflows are now annotated.** Each carries sticky notes explaining what it
+does, how to set it up and what to change — visible the moment you paste it onto a canvas.
+
+## Why it matters
+
+For a community node the supply chain is the whole trust story: you install it into an instance
+that already holds your credentials. Provenance is what lets you check the package on npm came from
+the code you can read on GitHub, rather than taking a maintainer's word for it.
+
+## Upgrading
+
+Nothing to change. The node behaves exactly as it did in 32.12.1.
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.12.2
+```
+
+---
+
+# v32.12.1 — Back-off gating for News and Video
+
+**Release Date:** 2026-09-07
+
+A follow-up to 32.12.0, closing two gaps in the bot-detection back-off.
+
+---
+
+## What changed
+
+The back-off now gates the **News and Video primaries** as well. 32.12.0 refused requests during the
+back-off on the Web, Image and fallback paths, but News and Video call `duck-duck-scrape` first, so
+every execution still sent one request from an IP DuckDuckGo had already blocked — exactly what the
+back-off exists to prevent.
+
+A challenge reported by the **fallback** path now reaches you. The News and Video error item was
+built from the earlier primary failure, so the bot-challenge message and its countdown were replaced
+by a generic error.
+
+## Upgrading
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.12.1
+```
+
+---
+
 # v32.12.0 — Automatic back-off after a bot-detection challenge
 
 **Release Date:** 2026-09-07

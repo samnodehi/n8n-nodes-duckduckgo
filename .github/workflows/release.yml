@@ -174,15 +174,38 @@ jobs:
       - name: Pack the release asset
         run: npm pack
 
-      # When the registry copy did not come from this run, the attached archive
-      # is not provably the published one. Say so on the release rather than
-      # letting the two look interchangeable.
+      # RELEASE_NOTES.md is a cumulative history, so attaching the whole file
+      # gave every release the notes of every version before it - v32.12.1 went
+      # out with 623 lines opening on the v32.12.0 heading. Only this version's
+      # section is used, and a missing section fails the release rather than
+      # publishing someone else's notes.
+      #
+      # The second half covers the other way the body can mislead: when the
+      # registry copy did not come from this run, the attached archive is not
+      # provably the published one, so the release says so.
       - name: Compose the release body
         env:
           FROM_THIS_RELEASE: ${{ steps.publish.outputs.FROM_THIS_RELEASE }}
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          cp RELEASE_NOTES.md release-body.md
+          node -e '
+            const fs = require("fs");
+            const heading = "# v" + process.env.VERSION;
+            const lines = fs.readFileSync("RELEASE_NOTES.md", "utf8").split(/\r?\n/);
+            const start = lines.findIndex(
+              (l) => l === heading || l.startsWith(heading + " "),
+            );
+            if (start === -1) {
+              console.error("RELEASE_NOTES.md has no \"" + heading + "\" section.");
+              process.exit(1);
+            }
+            let end = lines.length;
+            for (let i = start + 1; i < lines.length; i++) {
+              if (/^# v/.test(lines[i])) { end = i; break; }
+            }
+            const section = lines.slice(start, end).join("\n").replace(/\s*-{3,}\s*$/, "");
+            fs.writeFileSync("release-body.md", section.trim() + "\n");
+          '
           if [ "$FROM_THIS_RELEASE" != "true" ]; then
             {
               printf '\n---\n\n'
