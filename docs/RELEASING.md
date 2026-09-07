@@ -56,11 +56,19 @@ Three things about that order matter:
   after a failure later in the job can still reach the release step. npm refuses
   to republish a version, which would otherwise make every rerun fail.
 
+- **The tagged commit must be on `main`.** A tag can be pushed at any commit,
+  including one that never passed review; publishing from it would bypass branch
+  protection, and an npm version cannot be withdrawn once published.
+
 ### Prereleases
 
 A tag like `v33.0.0-beta.1` is published under the `next` dist-tag and marked as
 a prerelease on GitHub. Without that, an ordinary `npm install` would start
 serving the prerelease, because npm defaults to `latest`.
+
+Only the part before a `+` decides this, so `v33.0.0+build-1` is treated as a
+stable release — a hyphen inside SemVer build metadata does not make a version a
+prerelease.
 
 ## Verifying a release
 

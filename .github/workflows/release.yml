@@ -35,6 +35,17 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
+      # A tag can be pushed at any commit, including one that never passed
+      # review. Publishing from it would bypass branch protection, and an npm
+      # version cannot be taken back once published.
+      - name: Verify the tag is on main
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Refusing to publish: $GITHUB_SHA is not contained in origin/main." >&2
+            exit 1
+          fi
+
       - name: Verify the tag matches package.json
         run: |
           PKG_VERSION="$(node -p "require('./package.json').version")"
@@ -46,14 +57,17 @@ jobs:
       # A prerelease must never land on the default dist-tag, or an ordinary
       # `npm install` would start serving it.
       - name: Determine the npm dist-tag
-        id: disttag
         run: |
-          case "${{ steps.version.outputs.VERSION }}" in
+          # Only the part before "+" can carry a prerelease: a hyphen inside
+          # build metadata, as in 1.2.3+build-1, does not make it one.
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          case "${VERSION%%+*}" in
             *-*) echo "TAG=next"   >> $GITHUB_OUTPUT
                  echo "PRERELEASE=true"  >> $GITHUB_OUTPUT ;;
             *)   echo "TAG=latest" >> $GITHUB_OUTPUT
                  echo "PRERELEASE=false" >> $GITHUB_OUTPUT ;;
           esac
+        id: disttag
 
       # Build here as well as via prepublishOnly, so that a rerun which skips
       # publishing still has a clean dist to pack the release asset from.
