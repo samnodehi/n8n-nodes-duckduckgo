@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # Required for npm provenance: the OIDC token proves to the registry that
+      # this build really came from this repository and workflow.
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -23,6 +26,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm ci
@@ -36,6 +40,19 @@ jobs:
 
       - name: Build distribution package
         run: npm pack
+
+      - name: Verify the tag matches package.json
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$PKG_VERSION" != "${{ steps.version.outputs.VERSION }}" ]; then
+            echo "Tag v${{ steps.version.outputs.VERSION }} does not match package.json ($PKG_VERSION)" >&2
+            exit 1
+          fi
+
+      - name: Publish to npm with provenance
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3

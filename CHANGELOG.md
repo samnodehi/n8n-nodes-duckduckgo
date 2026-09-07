@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- **Releases now publish from CI with npm provenance.** The tag-triggered workflow publishes the package itself, attaching a signed attestation that the tarball was built from this repository at a known commit. Publishing happens before the GitHub release is created, so a failed publish cannot leave a release advertising a version that never reached npm, and the workflow refuses to publish if the tag and `package.json` disagree. Setup and troubleshooting are documented in `docs/RELEASING.md`.
+
+---
+
 ## [32.12.1] - 2026-09-07
 
 ### Fixed
