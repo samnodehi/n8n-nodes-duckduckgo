@@ -31,15 +31,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build project
-        run: npm run build
-
       - name: Extract version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Build distribution package
-        run: npm pack
 
       - name: Verify the tag matches package.json
         run: |
@@ -49,10 +43,40 @@ jobs:
             exit 1
           fi
 
+      # A prerelease must never land on the default dist-tag, or an ordinary
+      # `npm install` would start serving it.
+      - name: Determine the npm dist-tag
+        id: disttag
+        run: |
+          case "${{ steps.version.outputs.VERSION }}" in
+            *-*) echo "TAG=next"   >> $GITHUB_OUTPUT
+                 echo "PRERELEASE=true"  >> $GITHUB_OUTPUT ;;
+            *)   echo "TAG=latest" >> $GITHUB_OUTPUT
+                 echo "PRERELEASE=false" >> $GITHUB_OUTPUT ;;
+          esac
+
+      # Build here as well as via prepublishOnly, so that a rerun which skips
+      # publishing still has a clean dist to pack the release asset from.
+      - name: Build distribution
+        run: npm run build:prod
+
+      # npm refuses to republish an existing version, which would otherwise make
+      # a rerun fail here and never reach the release step.
       - name: Publish to npm with provenance
-        run: npm publish --provenance --access public
+        run: |
+          if npm view "n8n-nodes-duckduckgo-search@${{ steps.version.outputs.VERSION }}" version >/dev/null 2>&1; then
+            echo "Version ${{ steps.version.outputs.VERSION }} is already on npm - skipping publish."
+          else
+            npm publish --provenance --access public --tag "${{ steps.disttag.outputs.TAG }}"
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Packed after the production build so the asset attached below is the
+      # same set of files that was published, not a plain build that also
+      # carries compiled tests and tsbuildinfo.
+      - name: Pack the release asset
+        run: npm pack
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
@@ -62,6 +86,6 @@ jobs:
           files: |
             n8n-nodes-duckduckgo-search-${{ steps.version.outputs.VERSION }}.tgz
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.disttag.outputs.PRERELEASE == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

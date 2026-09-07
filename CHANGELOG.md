@@ -13,7 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Releases now publish from CI with npm provenance.** The tag-triggered workflow publishes the package itself, attaching a signed attestation that the tarball was built from this repository at a known commit. Publishing happens before the GitHub release is created, so a failed publish cannot leave a release advertising a version that never reached npm, and the workflow refuses to publish if the tag and `package.json` disagree. Setup and troubleshooting are documented in `docs/RELEASING.md`.
+- **Releases now publish from CI with npm provenance.** The tag-triggered workflow publishes the package itself, attaching a signed attestation that the tarball was built from this repository at a known commit. It refuses to publish if the tag and `package.json` disagree, publishes before creating the GitHub release so a failed publish cannot leave a release advertising a version that never reached npm, and skips publishing when the version already exists so a rerun can still reach the release step. Prerelease tags go to the `next` dist-tag rather than `latest`. Setup and troubleshooting are documented in `docs/RELEASING.md`.
+
+### Fixed
+
+- **The release asset now matches what is published.** The workflow packed the tarball after a plain `npm run build`, so every GitHub release since v32.7.0 attached a 44-file archive containing compiled test files and `tsbuildinfo`, while npm received the 25-file production build. The asset is now packed after `build:prod`.
 
 ---
 

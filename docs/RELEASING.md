@@ -40,12 +40,27 @@ Provenance needs npm to trust this repository. Do this once, on npmjs.com:
    git push origin vX.Y.Z
    ```
 
-The tag push triggers `release.yml`, which installs, builds, checks that the tag
-matches `package.json`, publishes to npm **with provenance**, and then creates
-the GitHub release with the packed tarball attached.
+The tag push triggers `release.yml`, which installs, checks that the tag matches
+`package.json`, runs the production build, publishes to npm **with provenance**,
+then packs and attaches the release asset.
 
-Publishing happens **before** the GitHub release is created, so a failed publish
-cannot leave a release advertising a version that never reached npm.
+Three things about that order matter:
+
+- **Publish runs before the GitHub release is created**, so a failed publish
+  cannot leave a release advertising a version that never reached npm.
+- **The asset is packed after the production build**, so what is attached to the
+  release is the same set of files that was published. Packing after a plain
+  `npm run build` produced a 44-file tarball carrying compiled tests and
+  `tsbuildinfo`, against the 25 files npm actually publishes.
+- **Publishing is skipped when the version already exists on npm**, so a rerun
+  after a failure later in the job can still reach the release step. npm refuses
+  to republish a version, which would otherwise make every rerun fail.
+
+### Prereleases
+
+A tag like `v33.0.0-beta.1` is published under the `next` dist-tag and marked as
+a prerelease on GitHub. Without that, an ordinary `npm install` would start
+serving the prerelease, because npm defaults to `latest`.
 
 ## Verifying a release
 
