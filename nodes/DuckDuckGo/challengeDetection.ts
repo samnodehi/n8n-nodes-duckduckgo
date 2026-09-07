@@ -22,6 +22,7 @@
  */
 
 import { DuckDuckGoError, DuckDuckGoErrorType } from './errors';
+import { noteChallenge } from './challengeCooldown';
 
 /**
  * Substrings identifying the challenge page. Each is structural (element id,
@@ -59,6 +60,9 @@ export function isChallengePage(body: unknown): boolean {
  * @param statusCode - HTTP status the challenge arrived with (typically 202).
  */
 export function createChallengeError(operation: string, statusCode?: number): DuckDuckGoError {
+  // Every challenge, however it is surfaced, starts the back-off window. Doing it
+  // here keeps the throwing and the non-throwing call sites consistent.
+  noteChallenge();
   return new DuckDuckGoError(
     `DuckDuckGo returned a bot-detection challenge instead of ${operation} results.`,
     DuckDuckGoErrorType.BOT_CHALLENGE,

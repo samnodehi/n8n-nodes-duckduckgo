@@ -1,3 +1,53 @@
+# v32.12.0 — Automatic back-off after a bot-detection challenge
+
+**Release Date:** 2026-09-07
+
+Completes the rate-limiting work started in 32.10.0. No new operations, no API changes.
+
+---
+
+## What changed
+
+Once DuckDuckGo serves a bot-detection challenge, the node now **refuses further search requests
+locally for about a minute** instead of sending them, and tells you how many seconds remain.
+
+## Why
+
+Every request sent during a block is wasted: the block follows your instance's outbound IP, lasts
+tens of minutes, and each extra request prolongs it — for everyone sharing that address, which on
+n8n Cloud means other tenants.
+
+The window is deliberately much shorter than the block. The node throttles rather than stops:
+roughly one probe per minute still goes out, so normal operation resumes within a minute of the
+block lifting instead of being sidelined for its full duration.
+
+This also closes the last gap from 32.10.0: a challenge seen by Web Search now holds back the
+News/Video fallback too. That path could not previously detect a challenge itself, because its
+primary (`duck-duck-scrape`) fails opaquely.
+
+## Compatibility
+
+- No API or output-shape changes. During a back-off you get the same `BOT_CHALLENGE` error type,
+  with a message that says the request was not sent and when it will resume.
+
+---
+
+## Validation
+
+- `tsc`, ESLint, `build:prod`, `verify-build`, and **354 tests across 17 suites** pass, including a
+  test that a challenge on one path stops the next request on another, and that requests resume once
+  the window has passed.
+
+---
+
+## Installation
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.12.0
+```
+
+---
+
 # v32.11.0 — Search Suggestions (autocomplete)
 
 **Release Date:** 2026-09-06

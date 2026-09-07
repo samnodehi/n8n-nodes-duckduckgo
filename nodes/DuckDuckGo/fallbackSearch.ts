@@ -9,6 +9,7 @@ import { SearchOptions } from 'duck-duck-scrape';
 import axios from 'axios';
 import { BROWSER_USER_AGENT } from './constants';
 import { isChallengePage, createChallengeError } from './challengeDetection';
+import { getCooldownReason } from './challengeCooldown';
 
 export interface FallbackSearchResult {
   title: string;
@@ -147,6 +148,13 @@ export async function fallbackWebSearch(
   query: string,
   options: SearchOptions = {}
 ): Promise<FallbackSearchResponse> {
+  // The block is IP-scoped, so a fallback request during the back-off window
+  // would hit the same wall and prolong it.
+  const cooling = getCooldownReason();
+  if (cooling) {
+    return { success: false, noResults: true, results: [], challenged: true, error: cooling };
+  }
+
   try {
     const searchUrl = 'https://html.duckduckgo.com/html/';
 

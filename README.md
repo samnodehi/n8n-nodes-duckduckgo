@@ -523,6 +523,8 @@ The node now detects that page and throws:
 
 **What triggers it:** roughly fifteen or more requests from the same IP within a few minutes. The block is tied to the **IP address** — not to your account, query or region — lasts tens of minutes, and is not cleared by retrying or by changing User-Agent. The node therefore marks this error **non-retryable**: an immediate retry only prolongs the block.
 
+**Automatic back-off.** Once a challenge is seen, the node refuses further DuckDuckGo requests locally for about a minute instead of sending them, and says how many seconds remain. Every request made during a block is wasted and prolongs it, so this protects the shared IP rather than your workflow's throughput — requests resume on their own.
+
 **If you hit it regularly:**
 
 - Space executions out, and put a **Wait** node between iterations of a loop
