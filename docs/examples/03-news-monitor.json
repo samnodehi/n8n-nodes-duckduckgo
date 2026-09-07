@@ -1,0 +1,72 @@
+{
+  "name": "DuckDuckGo — Daily news monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+        }
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000001",
+      "name": "Every 6 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "searchNews",
+        "newsQuery": "open source AI",
+        "newsSearchOptions": {
+          "maxResults": 10,
+          "region": "us-en",
+          "timePeriod": "d",
+          "fetchPageContent": true,
+          "pageContentMaxResults": 3,
+          "pageContentMaxLength": 2000
+        }
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000002",
+      "name": "DuckDuckGo News",
+      "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
+      "typeVersion": 1,
+      "position": [220, 0],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "version": 2 },
+          "conditions": [
+            {
+              "id": "a1b2c3d4-0003-4000-8000-0000000000c1",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notExists", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "Only successful results",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [440, 0]
+    }
+  ],
+  "connections": {
+    "Every 6 hours": {
+      "main": [[{ "node": "DuckDuckGo News", "type": "main", "index": 0 }]]
+    },
+    "DuckDuckGo News": {
+      "main": [[{ "node": "Only successful results", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" }
+}

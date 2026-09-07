@@ -1,0 +1,89 @@
+{
+  "name": "DuckDuckGo — Query expansion (suggestions fan out into searches)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-0002-4000-8000-000000000001",
+      "name": "When clicking Test workflow",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "autocomplete",
+        "autocompleteQuery": "how to reduce cloud costs",
+        "autocompleteOptions": {
+          "maxResults": 5,
+          "region": "us-en",
+          "splitIntoItems": true
+        }
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Get Suggestions",
+      "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
+      "typeVersion": 1,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000003",
+      "name": "Loop Over Suggestions",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000004",
+      "name": "Wait (be a good citizen)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [660, 120],
+      "webhookId": "a1b2c3d4-0002-4000-8000-00000000000w"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "query": "={{ $json.suggestion }}",
+        "webSearchOptions": {
+          "maxResults": 3,
+          "region": "us-en"
+        }
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000005",
+      "name": "Search Each Suggestion",
+      "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
+      "typeVersion": 1,
+      "position": [880, 120],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "When clicking Test workflow": {
+      "main": [[{ "node": "Get Suggestions", "type": "main", "index": 0 }]]
+    },
+    "Get Suggestions": {
+      "main": [[{ "node": "Loop Over Suggestions", "type": "main", "index": 0 }]]
+    },
+    "Loop Over Suggestions": {
+      "main": [
+        [],
+        [{ "node": "Wait (be a good citizen)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Wait (be a good citizen)": {
+      "main": [[{ "node": "Search Each Suggestion", "type": "main", "index": 0 }]]
+    },
+    "Search Each Suggestion": {
+      "main": [[{ "node": "Loop Over Suggestions", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" }
+}

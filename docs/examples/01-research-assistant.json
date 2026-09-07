@@ -1,0 +1,40 @@
+{
+  "name": "DuckDuckGo — Research assistant (search + full page text)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "When clicking Test workflow",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "query": "retrieval augmented generation best practices",
+        "webSearchOptions": {
+          "maxResults": 5,
+          "region": "wt-wt",
+          "fetchPageContent": true,
+          "pageContentMaxResults": 3,
+          "pageContentMaxLength": 3000,
+          "includePageMetadata": true
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000002",
+      "name": "DuckDuckGo Search",
+      "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
+      "typeVersion": 1,
+      "position": [220, 0],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "When clicking Test workflow": {
+      "main": [[{ "node": "DuckDuckGo Search", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" }
+}
