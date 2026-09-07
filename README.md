@@ -815,13 +815,13 @@ There is no user-configurable backend selector. Each operation type uses the mos
 
 ### Ready-made workflows
 
-Copy the JSON and paste it straight onto an n8n canvas (**Ctrl/Cmd+V**), or use **Import from File**.
+Copy the JSON and paste it straight onto an n8n canvas (**Ctrl/Cmd+V**), or use **Import from File**. Each one carries sticky notes explaining what it does and how to adapt it.
 
 | Workflow | What it shows |
 |---|---|
-| [Research assistant](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/01-research-assistant.json) | Web Search with **Fetch Page Content** + metadata — full article text instead of snippets, ready to hand to an LLM |
-| [Query expansion](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/02-query-expansion.json) | **Search Suggestions** with `splitIntoItems`, looped into one Web Search per suggestion, with a **Wait** node so you stay under the rate limit |
-| [Daily news monitor](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/03-news-monitor.json) | Scheduled **News Search** with `timePeriod: d`, branching on whether DuckDuckGo reported an `error` so a rate-limited run is handled rather than silently skipped |
+| [Extract full article text from search results](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/01-research-assistant.json) | Web Search with **Fetch Page Content** + metadata — full article text instead of snippets, ready to hand to an LLM |
+| [Expand one keyword into multiple searches](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/02-query-expansion.json) | **Search Suggestions** with `splitIntoItems`, looped into one Web Search per suggestion, with a **Wait** node so you stay under the rate limit |
+| [Monitor news on a schedule](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/03-news-monitor.json) | Scheduled **News Search** with `timePeriod: d`, branching on whether DuckDuckGo reported an `error` so a rate-limited run is handled rather than silently skipped |
 
 Each one uses **On Error → Continue** on the search node, which is the recommended setting: a rate-limited search raises an error rather than returning an empty list, and continuing lets the rest of the run proceed.
 

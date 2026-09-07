@@ -1,6 +1,45 @@
 {
-  "name": "DuckDuckGo — Daily news monitor",
+  "name": "Monitor news from DuckDuckGo on a schedule and handle rate limits",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Monitor news from DuckDuckGo on a schedule\n\nAn unattended news watch is only useful if it also notices when it stops working. This template checks DuckDuckGo News every six hours, pulls the readable body of the top stories, and routes a failed run to its own branch instead of letting it look like a quiet news day.\n\n### How it works\n1. **Every 6 hours** starts the run.\n2. **DuckDuckGo News** searches the last day (**Time Period: d**) and fetches the article text of the first few results.\n3. **Did DuckDuckGo report an error?** branches on the `error` field. DuckDuckGo rate-limits per IP; when that happens the node reports it rather than returning an empty list, and this If node is what makes the difference visible.\n4. **Handle the error** builds an alert message. **Shape the article** maps each story to `headline` and `articleText`.\n\n### Setup\n1. Self-hosted n8n only. Install the community node `n8n-nodes-duckduckgo-search` under **Settings → Community nodes**.\n2. No account, API key or credential is needed.\n3. Change the query, then connect the two outputs wherever you want them — Slack, email, a database.\n\n### Customization tips\n- **Time Period** accepts d, w, m and y.\n- Send the error branch somewhere you actually read. A monitor that fails silently is worse than none.",
+        "height": 760,
+        "width": 560,
+        "color": 1
+      },
+      "id": "a1b2c3d4-0003-4000-8000-0000000000s1",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-700, -260]
+    },
+    {
+      "parameters": {
+        "content": "## Fetch, then check\nSearch the last day of news, then ask whether DuckDuckGo reported a problem.",
+        "height": 400,
+        "width": 580,
+        "color": 7
+      },
+      "id": "a1b2c3d4-0003-4000-8000-0000000000s2",
+      "name": "Section - fetch",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-60, -240]
+    },
+    {
+      "parameters": {
+        "content": "## Two outcomes\nTop: something went wrong.\nBottom: the stories, shaped for whatever comes next.",
+        "height": 620,
+        "width": 340,
+        "color": 7
+      },
+      "id": "a1b2c3d4-0003-4000-8000-0000000000s3",
+      "name": "Section - outcomes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [620, -260]
+    },
     {
       "parameters": {
         "rule": {
