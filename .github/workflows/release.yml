@@ -41,7 +41,7 @@ jobs:
           RAW_REF: ${{ github.ref_name }}
         run: |
           VERSION="${RAW_REF#v}"
-          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+.[0-9]+.[0-9]+(-[0-9A-Za-z.-]+)?(+[0-9A-Za-z.-]+)?$'; then
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z.-]+)?([+][0-9A-Za-z.-]+)?$'; then
             echo "Refusing to release: tag '$RAW_REF' is not a SemVer release tag." >&2
             exit 1
           fi
