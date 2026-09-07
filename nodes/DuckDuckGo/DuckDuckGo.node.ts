@@ -60,6 +60,7 @@ import { fallbackNewsSearch, fallbackVideoSearch } from './fallbackSearch';
 import { fetchPageContent, fetchPageContents } from './pageContent';
 import { getInstantAnswer } from './instantAnswer';
 import { getAutocomplete } from './autocomplete';
+import { getCooldownReason } from './challengeCooldown';
 
 // Sleep for a fixed amount of time
 function sleep(ms: number): Promise<void> {
@@ -1783,6 +1784,11 @@ export class DuckDuckGo implements INodeType {
           // Note: maxResults is handled during processing, not in search options
           const maxResults = newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
 
+          // A bot-challenge or back-off message explains the failure and says when
+          // it clears. Held outside the try so the catch can prefer it over the
+          // generic primary error, which would otherwise mask it.
+          let newsChallengeMessage: string | undefined;
+
           // Create a cache key based on operation and parameters
           const cacheKey = JSON.stringify({
             operation,
@@ -1824,6 +1830,15 @@ export class DuckDuckGo implements INodeType {
                   { query: newsQuery, options: searchOptions, cacheEnabled: enableCache }
                 );
                 console.log(JSON.stringify(logEntry));
+              }
+
+              // The back-off must gate the primary call too, not just the
+              // fallback: otherwise every execution still sends one request
+              // from an IP DuckDuckGo has already blocked.
+              const newsCooling = getCooldownReason();
+              if (newsCooling) {
+                newsChallengeMessage = newsCooling;
+                throw new NodeOperationError(this.getNode(), newsCooling, { itemIndex });
               }
 
               // Execute news search
@@ -1987,6 +2002,10 @@ export class DuckDuckGo implements INodeType {
                 time: searchOptions.time,
               });
 
+              if (fallbackResult.challenged && fallbackResult.error) {
+                newsChallengeMessage = fallbackResult.error;
+              }
+
               if (fallbackResult.success && fallbackResult.results.length > 0) {
                 // Relevance filter: keep only fallback results that contain at least one
                 // query token as an exact word token in their title or body.
@@ -2045,7 +2064,8 @@ export class DuckDuckGo implements INodeType {
             // Only emit the error item when the fallback also produced nothing
             if (results.length === 0) {
               // Create a user-friendly error message
-              const errorMessage = parseApiError(error instanceof Error ? error : new Error(String(error)), 'news search');
+              const errorMessage = newsChallengeMessage
+                ?? parseApiError(error instanceof Error ? error : new Error(String(error)), 'news search');
 
               // Log detailed error if debug is enabled
               if (debugMode) {
@@ -2126,6 +2146,10 @@ export class DuckDuckGo implements INodeType {
             }
           }
 
+          // Held outside the try so the catch can prefer it over the generic
+          // primary error (see the News branch for the reasoning).
+          let videoChallengeMessage: string | undefined;
+
           try {
             // If result is not in cache, execute the search
             if (!result) {
@@ -2138,6 +2162,12 @@ export class DuckDuckGo implements INodeType {
                   { query: videoQuery, options: searchOptions, cacheEnabled: enableCache }
                 );
                 console.log(JSON.stringify(logEntry));
+              }
+
+              const videoCooling = getCooldownReason();
+              if (videoCooling) {
+                videoChallengeMessage = videoCooling;
+                throw new NodeOperationError(this.getNode(), videoCooling, { itemIndex });
               }
 
               // Execute video search
@@ -2291,6 +2321,10 @@ export class DuckDuckGo implements INodeType {
                 safeSearch: searchOptions.safeSearch,
               });
 
+              if (fallbackResult.challenged && fallbackResult.error) {
+                videoChallengeMessage = fallbackResult.error;
+              }
+
               if (fallbackResult.success && fallbackResult.results.length > 0) {
                 // Convert fallback results to video search format
                 const videoResults = fallbackResult.results.map(item => ({
@@ -2327,7 +2361,8 @@ export class DuckDuckGo implements INodeType {
             // Only emit the error item when the fallback also produced nothing
             if (results.length === 0) {
               // Create a user-friendly error message
-              const errorMessage = parseApiError(error instanceof Error ? error : new Error(String(error)), 'video search');
+              const errorMessage = videoChallengeMessage
+                ?? parseApiError(error instanceof Error ? error : new Error(String(error)), 'video search');
 
               // Log detailed error if debug is enabled
               if (debugMode) {

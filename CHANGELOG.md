@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [32.12.1] - 2026-09-07
+
+### Fixed
+
+- **The back-off now gates the News and Video primaries too.** 32.12.0 refused requests during the back-off on the Web, Image and fallback paths, but News and Video call `duck-duck-scrape` first — so every execution still sent one request from an IP DuckDuckGo had already blocked, which is exactly what the back-off exists to prevent.
+- **A challenge reported by the fallback now reaches the user.** The News and Video error item was built from the earlier primary failure, so the bot-challenge message and its countdown were replaced by a generic error. The challenge message is now preferred, and the remaining-seconds text survives the typed error instead of being overwritten by its canned wording.
+
+### Documentation
+
+- Corrected the news-monitor example: it advertised `retryOnFail`, which never fires for News or Video because those operations emit an error item rather than failing the execution. It now branches on the `error` field, and the README says so.
+
+---
+
 ## [32.12.0] - 2026-09-07
 
 ### Changed

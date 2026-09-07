@@ -821,9 +821,11 @@ Copy the JSON and paste it straight onto an n8n canvas (**Ctrl/Cmd+V**), or use 
 |---|---|
 | [Research assistant](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/01-research-assistant.json) | Web Search with **Fetch Page Content** + metadata — full article text instead of snippets, ready to hand to an LLM |
 | [Query expansion](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/02-query-expansion.json) | **Search Suggestions** with `splitIntoItems`, looped into one Web Search per suggestion, with a **Wait** node so you stay under the rate limit |
-| [Daily news monitor](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/03-news-monitor.json) | Scheduled **News Search** with `timePeriod: d`, `retryOnFail`, and a filter that drops items carrying an `error` |
+| [Daily news monitor](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/03-news-monitor.json) | Scheduled **News Search** with `timePeriod: d`, branching on whether DuckDuckGo reported an `error` so a rate-limited run is handled rather than silently skipped |
 
 Each one uses **On Error → Continue** on the search node, which is the recommended setting: a rate-limited search raises an error rather than returning an empty list, and continuing lets the rest of the run proceed.
+
+> **On `retryOnFail`:** News and Video catch their own failures and emit an item carrying an `error` field rather than failing the execution, so n8n's retry setting never fires for them. Branch on `error` — as the news monitor example does — instead of relying on retries.
 
 ---
 
