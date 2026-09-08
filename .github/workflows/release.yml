@@ -35,6 +35,15 @@ jobs:
           cache: 'npm'
           registry-url: 'https://registry.npmjs.org'
 
+      # Trusted publishing needs npm 11.5.1 or later; Node 22 still bundles
+      # npm 10, which authenticates with a token and would fail here with no
+      # token to use. Requested explicitly rather than left to whichever npm a
+      # Node release happens to carry.
+      - name: Use an npm that can publish over OIDC
+        run: |
+          npm install -g npm@^11.5.1
+          npm --version
+
       - name: Install dependencies
         run: npm ci
 
@@ -131,10 +140,12 @@ jobs:
       - name: Build distribution
         run: npm run build:prod
 
+      # No token: the trusted publisher registered on npm authenticates this
+      # workflow over OIDC, using a short-lived credential nothing has to store
+      # or rotate. The id-token permission above is what makes that possible.
       - name: Publish to npm with provenance
         id: publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ steps.version.outputs.VERSION }}
           DIST_TAG: ${{ steps.disttag.outputs.TAG }}
           PKG_NAME: n8n-nodes-duckduckgo-search
