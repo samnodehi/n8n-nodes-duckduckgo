@@ -321,6 +321,17 @@ export async function directImageSearch(query: string, options: {
       }
     }
 
+    // `i.js` is the request that actually carries results, and it is the one a
+    // block lands on: DuckDuckGo answers it with the challenge page as HTML
+    // instead of JSON, which has no `results` property and so parses to an
+    // empty set. Checking only the VQD bootstrap above missed that entirely,
+    // and missed it completely when a caller supplied `vqdHint` and skipped the
+    // bootstrap. A genuine empty answer is parsed JSON, which
+    // `isChallengePage` never matches.
+    if (results.length === 0) {
+      assertNotChallenged(imageResponse.data, imageResponse.status, 'image search');
+    }
+
     return { results, vqd };
   } catch (error) {
     console.error('Direct image search error:', error.message);

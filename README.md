@@ -8,6 +8,20 @@
 
 An n8n community node for DuckDuckGo search. Search the web, find images, discover news, and explore videos — no API key required, no outbound telemetry.
 
+> ### If a search comes back with a rate-limit error, that is the node working
+>
+> DuckDuckGo rate-limits by IP address and answers a client it considers automated
+> with a human-verification page — served as **HTTP 202**, which ordinary HTTP clients
+> read as success. Nodes that do not check for it parse that page, find nothing, and
+> hand back an empty array, so a block looks exactly like a query with no results.
+>
+> This node recognises that page and says so, then **backs off locally for about a
+> minute** instead of sending requests that would only extend the block. Datacenter and
+> shared IPs — n8n Cloud, most VPS hosts, CI — hit it soonest. An empty array from this
+> node means no results, and nothing else.
+>
+> Details, and how to stay under the limit: [Bot-detection challenge](#bot-detection-challenge-rate-limiting).
+
 ## ✨ Features
 
 - **Four search types**: Web, Image, News, Video

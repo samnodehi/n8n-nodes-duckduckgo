@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Image Search now reports a bot-detection challenge instead of returning nothing.** The challenge check ran only on the page fetched to obtain the VQD token, not on the `i.js` request that actually carries the results — and it was skipped entirely when a caller supplied a token, as pagination does. A challenge arriving there is HTML in place of JSON, which has no `results` property and so parsed to an empty set: the exact silent failure 32.10.0 was written to end, still live on one path. It now raises the challenge error and starts the local back-off like every other search path.
+
+### Changed
+
+- **The README leads with the rate-limit behaviour** rather than explaining it 500 lines in, so the first thing a reader learns is what an empty result set does and does not mean.
+
 ---
 
 ## [32.12.2] - 2026-09-07

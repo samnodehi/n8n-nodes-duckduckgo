@@ -185,6 +185,42 @@ describe('directImageSearch challenge handling', () => {
       errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
     });
   });
+
+  it('reports a challenge served by i.js after the VQD page succeeded', async () => {
+    // The bootstrap page answers normally and yields a token; the block lands
+    // on the request that would have carried results.
+    mockedAxios.get
+      .mockResolvedValueOnce({ status: 200, data: '<script>vqd="3-123456789012345"</script>' })
+      .mockResolvedValueOnce({ status: 202, data: CHALLENGE_HTML });
+
+    await expect(directImageSearch('cats')).rejects.toMatchObject({
+      errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
+    });
+  });
+
+  it('reports a challenge on i.js even when the VQD page was skipped', async () => {
+    // With a supplied token there is no bootstrap request at all, so this was
+    // the path with no challenge check whatsoever.
+    mockedAxios.get.mockResolvedValueOnce({ status: 202, data: CHALLENGE_HTML });
+
+    await expect(
+      directImageSearch('cats', {}, '3-supplied-token'),
+    ).rejects.toMatchObject({
+      errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
+    });
+  });
+
+  it('leaves a genuine empty image response reported as no results', async () => {
+    // Parsed JSON is never a challenge page, so an honest empty answer must
+    // still come back as an empty set rather than an error.
+    mockedAxios.get
+      .mockResolvedValueOnce({ status: 200, data: '<script>vqd="3-123456789012345"</script>' })
+      .mockResolvedValueOnce({ status: 200, data: { results: [] } });
+
+    const output = await directImageSearch('xzqwerty99zz');
+
+    expect(output.results).toHaveLength(0);
+  });
 });
 
 describe('fallbackWebSearch challenge handling', () => {
