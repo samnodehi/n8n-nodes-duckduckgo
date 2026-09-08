@@ -7,22 +7,24 @@ expired between sessions often enough to be a nuisance.
 
 ## One-time setup
 
-Provenance needs npm to trust this repository. Do this once, on npmjs.com:
+**One step, and no token anywhere.** Register the trusted publisher on npmjs.com:
+package page → **Settings** → **Trusted publisher** → GitHub Actions, and enter:
 
-1. **Register the trusted publisher.**
-   Go to the package page → **Settings** → **Trusted publisher** → GitHub Actions, and enter:
-   - Organization / user: `samnodehi`
-   - Repository: `n8n-nodes-duckduckgo`
-   - Workflow filename: `release.yml`
+- Organization / user: `samnodehi`
+- Repository: `n8n-nodes-duckduckgo`
+- Workflow filename: `release.yml`
 
-2. **Add a publish token as a repository secret.**
-   On npmjs.com create an **Automation** granular access token scoped to
-   `n8n-nodes-duckduckgo-search` with read+write. Then in GitHub:
-   **Settings → Secrets and variables → Actions → New repository secret**,
-   named `NPM_TOKEN`.
+That is the whole setup. From then on the workflow authenticates over OIDC with a
+short-lived credential minted per run, so there is no `NPM_TOKEN` secret to
+create, scope, rotate or leak — and nothing to expire between releases.
 
-   > Automation tokens bypass 2FA prompts, which is what makes an unattended
-   > publish possible. Keep it scoped to this one package.
+Two requirements make it work, both already in `release.yml`:
+
+- **`id-token: write`** in the job permissions, which lets GitHub mint the OIDC
+  token npm verifies.
+- **npm 11.5.1 or later.** Node 22 still bundles npm 10, which only knows how to
+  authenticate with a token, so the workflow installs a newer npm before
+  publishing.
 
 ## Cutting a release
 
@@ -114,11 +116,14 @@ back to the workflow run and commit.
 ## If the publish step fails
 
 - **`E404` on `PUT`** — npm returns 404 rather than 401 for an unauthorised
-  publish. It almost always means the token is missing, expired or out of scope,
-  not that the package or version is wrong.
+  publish, so it almost never means the package or version is wrong. Check the
+  trusted publisher entry first: the workflow filename there must be exactly
+  `release.yml`, and the repository must match.
+- **`ENEEDAUTH`, or npm asking for a token** — the npm running the publish is
+  older than 11.5.1 and does not speak OIDC. Look at the version printed by the
+  "Use an npm that can publish over OIDC" step.
 - **Provenance rejected** — check that `id-token: write` is still present in the
-  workflow permissions and that the trusted publisher entry still points at
-  `release.yml`.
+  workflow permissions.
 - The tag is already pushed at that point. Fix the cause and re-run the workflow
   from the Actions tab rather than retagging.
 
