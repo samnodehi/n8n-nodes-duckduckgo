@@ -35,9 +35,9 @@ and its [template submission guidelines](https://n8n.notion.site/p/Template-subm
 
 ## Before submitting
 
-1. Import the template into n8n and take a **screenshot of the canvas** with the
-   sticky notes visible. One image per template; it goes at the top of the
-   description, in place of the `![...]` line below.
+1. Upload the canvas screenshot from `images/` as the first thing in the
+   description. The images below were taken from a self-hosted n8n with the
+   node installed, on the light theme; retake one if a template changes shape.
 2. Run it once so the description matches what actually happens.
 3. Submit through the Creator Dashboard at <https://creators.n8n.io/login>.
 
@@ -52,7 +52,7 @@ use, and query expansion is the most niche of the three.
 
 File: `01-research-assistant.json`
 
-> ![Workflow canvas](REPLACE-WITH-SCREENSHOT)
+> ![Extract full article text from DuckDuckGo web search results](images/01-research-assistant.png)
 >
 > **Self-hosted n8n only.** This template uses the community node
 > `n8n-nodes-duckduckgo-search`, and community nodes cannot be installed on
@@ -99,7 +99,7 @@ keep the searches spaced out.
 
 File: `02-query-expansion.json`
 
-> ![Workflow canvas](REPLACE-WITH-SCREENSHOT)
+> ![Expand one keyword into multiple DuckDuckGo searches](images/02-query-expansion.png)
 >
 > **Self-hosted n8n only.** This template uses the community node
 > `n8n-nodes-duckduckgo-search`, and community nodes cannot be installed on
@@ -144,7 +144,7 @@ or into a Google Sheet to build a keyword map.
 
 File: `03-news-monitor.json`
 
-> ![Workflow canvas](REPLACE-WITH-SCREENSHOT)
+> ![Monitor news from DuckDuckGo on a schedule](images/03-news-monitor.png)
 >
 > **Self-hosted n8n only.** This template uses the community node
 > `n8n-nodes-duckduckgo-search`, and community nodes cannot be installed on
