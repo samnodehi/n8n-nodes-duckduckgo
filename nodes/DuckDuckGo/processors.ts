@@ -8,6 +8,7 @@ import {
 } from 'n8n-workflow';
 
 import { decodeHtmlEntities, formatDate } from './utils';
+import { stripTrackingParameters } from './urlNormalize';
 import {
   IDuckDuckGoSearchResult,
   IDuckDuckGoImageResult,
@@ -42,7 +43,7 @@ export function processWebSearchResults(
         position: index + 1,
         title: decodeHtmlEntities(item.title || '') || '',
         description: decodeHtmlEntities(item.description || '') || '',
-        url: item.url || '',
+        url: stripTrackingParameters(item.url || ''),
         hostname: item.hostname || '',
         sourceType: 'web',
         // Enhanced metadata
@@ -166,6 +167,11 @@ export function processImageSearchResults(
     return [];
   }
 
+  // Image results are left untouched on purpose. Their URLs are asset URLs,
+  // where a query string can be a CDN signature or a resize instruction rather
+  // than tracking, and the two result paths disagree about which field holds
+  // the page and which the image. Stripping anything here risks breaking a
+  // working link for no gain.
   return results
     .filter(item => item && typeof item === 'object' && item.image)
     .map((item) => ({
@@ -201,7 +207,7 @@ export function processNewsSearchResults(
     json: {
       title: decodeHtmlEntities(item.title),
       description: decodeHtmlEntities(item.excerpt),
-      url: item.url,
+      url: stripTrackingParameters(item.url),
       imageUrl: item.image,
       date: formatDate(item.date),
       relativeTime: item.relativeTime,
@@ -231,7 +237,7 @@ export function processVideoSearchResults(
     json: {
       title: decodeHtmlEntities(item.title),
       description: decodeHtmlEntities(item.description),
-      url: item.url,
+      url: stripTrackingParameters(item.url),
       imageUrl: item.image,
       duration: item.duration,
       published: item.published,

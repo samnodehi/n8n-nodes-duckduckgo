@@ -130,6 +130,8 @@ Searches DuckDuckGo and returns organic web results.
 
 > **Note:** Web Search output does not include `snippet` (removed; use `description` instead) or `favicon` (removed; was always empty).
 
+> **Result URLs have advertising click identifiers removed.** `utm_*`, `fbclid`, `gclid`, `msclkid`, `mc_cid` and the rest of that family are stripped from `url` on Web, News and Video results, so the same page compares equal between runs and an AI Agent does not paste a tracking string into whatever it writes. Nothing else is touched: the path, the fragment, the order of the remaining parameters and every unrecognised parameter are left exactly as DuckDuckGo returned them, and a URL with no tracking in it is passed through byte-for-byte. Image results are left alone entirely, because a query string on an asset URL is often a CDN signature. See [Result URL handling](#-result-url-handling).
+
 ---
 
 ### Image Search
@@ -498,6 +500,41 @@ Cache is in-memory only and is not shared across n8n worker processes or restart
 | `viewCount` | string | View count (as string) |
 | `isFallback` | boolean | `true` if result came from fallback path |
 | `sourceType` | string | Always `"video"` |
+
+---
+
+## 🔗 Result URL Handling
+
+Two things happen to a result URL before you see it.
+
+**DuckDuckGo's redirect is unwrapped.** Links come back as
+`duckduckgo.com/l/?uddg=<encoded>`; the node extracts and validates the real
+destination, so `url` is the page itself rather than a redirect through
+DuckDuckGo.
+
+**Advertising click identifiers are removed** from `url` on Web, News and Video
+results:
+
+| Removed | Kept |
+|---|---|
+| `utm_*` (the whole Urchin family) | The path, exactly as returned |
+| `fbclid`, `gclid`, `gbraid`, `wbraid`, `dclid` | The fragment — `…/guide#install` and `…/guide#config` are different results, and a single-page app puts its route there |
+| `msclkid`, `twclid`, `ttclid`, `igshid`, `yclid` | Every parameter not on the list, in its original order |
+| `mc_cid`, `mc_eid`, `_hsenc`, `_hsmi` | `ref`, `source`, `id` and anything else sites use for real |
+
+Why: deduplicating results across runs compares URLs, and the same article
+carrying a different `utm_campaign` each time compares as a different page. It
+also keeps tracking strings out of whatever an AI Agent writes downstream.
+
+The rule is deliberately narrow. Only parameters whose sole purpose is
+attribution are removed, and **a URL with nothing to strip is returned
+byte-for-byte** rather than re-serialised — so a bare origin does not gain a
+trailing slash and a host does not get lowercased. A URL that does not parse, or
+is not `http(s)`, is passed through untouched rather than dropped.
+
+**Image results are not normalised at all.** Their URLs are asset URLs, where a
+query string is often a CDN signature or a resize instruction, and stripping
+anything risks breaking a working link for no gain.
 
 ---
 

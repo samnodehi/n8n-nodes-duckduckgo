@@ -230,4 +230,43 @@ describe('processors', () => {
       expect(out.json.errorDetails).toBeUndefined();
     });
   });
+  describe('tracking parameters in result URLs', () => {
+    const TRACKED = 'https://example.com/a?utm_source=ddg&id=7';
+    const CLEAN = 'https://example.com/a?id=7';
+
+    it('strips them from web results', () => {
+      const out = processWebSearchResults(
+        [{ title: 'T', url: TRACKED, description: 'd', hostname: 'example.com' }] as any,
+        0,
+      );
+      expect(out[0].json.url).toBe(CLEAN);
+    });
+
+    it('strips them from news results', () => {
+      const out = processNewsSearchResults(
+        [{ title: 'T', excerpt: 'e', url: TRACKED, image: '', date: 0 }] as any,
+        0,
+      );
+      expect(out[0].json.url).toBe(CLEAN);
+    });
+
+    it('strips them from video results', () => {
+      const out = processVideoSearchResults(
+        [{ title: 'T', description: 'd', url: TRACKED, image: '' }] as any,
+        0,
+      );
+      expect(out[0].json.url).toBe(CLEAN);
+    });
+
+    it('leaves image results alone, where a query string can be a CDN signature', () => {
+      const signed = 'https://cdn.example.com/i.jpg?utm_source=x&X-Amz-Signature=deadbeef';
+      const out = processImageSearchResults(
+        [{ title: 'T', image: signed, url: TRACKED, thumbnail: signed }] as any,
+        0,
+      );
+      expect(out[0].json.url).toBe(TRACKED);
+      expect(out[0].json.imageUrl).toBe(signed);
+      expect(out[0].json.thumbnailUrl).toBe(signed);
+    });
+  });
 });

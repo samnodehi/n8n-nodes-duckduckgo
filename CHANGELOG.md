@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Result URLs now have advertising click identifiers removed.** `utm_*`, `fbclid`, `gclid`, `msclkid`, `mc_cid` and the rest of that family are stripped from `url` on Web, News and Video results. Deduplicating results across runs compares URLs, and the same article carrying a different `utm_campaign` each time compared as a different page; it also keeps tracking strings out of what an AI Agent writes downstream. The rule is narrow on purpose: the path, the fragment, the order of the surviving parameters and every unrecognised parameter are untouched, names that sites use for real (`ref`, `source`, `id`) are never removed, and a URL with nothing to strip is returned byte-for-byte rather than re-serialised. A URL that does not parse, or is not `http(s)`, is passed through rather than dropped. Image results are not normalised at all, because a query string on an asset URL is often a CDN signature.
+
 ### Fixed
 
 - **Image Search now reports a bot-detection challenge instead of returning nothing.** The challenge check ran only on the page fetched to obtain the VQD token, not on the `i.js` request that actually carries the results — and it was skipped entirely when a caller supplied a token, as pagination does. A challenge arriving there is HTML in place of JSON, which has no `results` property and so parsed to an empty set: the exact silent failure 32.10.0 was written to end, still live on one path. It now raises the challenge error and starts the local back-off like every other search path.
