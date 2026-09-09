@@ -125,5 +125,11 @@ export function stripTrackingParameters(
     return url;
   }
 
-  return kept.length === 0 ? head + tail : `${head}?${kept.join('&')}${tail}`;
+  // A query of nothing but empty segments — what "?utm_source=x&" leaves behind
+  // — is dropped with its "?". Keeping it would leave "https://example.com/?",
+  // which compares as a different URL from "https://example.com/" and so
+  // defeats the deduplication this exists for. Empty segments alongside a real
+  // parameter are still kept, since there the query layout is the site's.
+  const hasParameter = kept.some((segment) => segment !== '');
+  return hasParameter ? `${head}?${kept.join('&')}${tail}` : head + tail;
 }

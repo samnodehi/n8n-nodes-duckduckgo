@@ -131,6 +131,23 @@ describe('stripTrackingParameters', () => {
       );
     });
 
+    it.each([
+      ['a trailing separator', 'https://example.com/?utm_source=x&', 'https://example.com/'],
+      ['a leading separator', 'https://example.com/?&gclid=1', 'https://example.com/'],
+      ['nothing but separators', 'https://example.com/?&&fbclid=1&', 'https://example.com/'],
+      ['with a fragment to keep', 'https://example.com/a?gclid=1&#top', 'https://example.com/a#top'],
+    ])('drops the "?" when only empty segments would remain — %s', (_label, input, expected) => {
+      // "https://example.com/?" compares as a different URL from
+      // "https://example.com/", which would defeat the deduplication.
+      expect(stripTrackingParameters(input)).toBe(expected);
+    });
+
+    it('keeps a parameter whose value is empty, which is not an empty segment', () => {
+      expect(stripTrackingParameters('https://example.com/?a=&utm_source=x')).toBe(
+        'https://example.com/?a=',
+      );
+    });
+
     it('matches a percent-encoded parameter name', () => {
       expect(stripTrackingParameters('https://example.com/?utm%5Fsource=x&a=1')).toBe(
         'https://example.com/?a=1',
