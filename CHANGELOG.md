@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **The in-memory cache no longer grows without bound.** Expiry was only noticed when the same key was read again, and `pruneExpiredEntries()` had no caller, so keys written once and never read back were kept for the life of the process. A write now sweeps out anything expired once the store passes 256 entries.
+- **The in-memory cache no longer grows without bound.** Expiry was only noticed when the same key was read again, and `pruneExpiredEntries()` had no caller, so keys written once and never read back were kept for the life of the process. A write now sweeps out anything expired once the store passes 256 entries, and at most once a minute - size alone would make every write walk a full store of still-live entries.
 
 - **Image Search now reports a bot-detection challenge instead of returning nothing.** The challenge check ran only on the page fetched to obtain the VQD token, not on the `i.js` request that actually carries the results — and it was skipped entirely when a caller supplied a token, as pagination does. A challenge arriving there is HTML in place of JSON, which has no `results` property and so parsed to an empty set: the exact silent failure 32.10.0 was written to end, still live on one path. It now raises the challenge error and starts the local back-off like every other search path.
 

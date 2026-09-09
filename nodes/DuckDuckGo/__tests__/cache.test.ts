@@ -97,6 +97,31 @@ describe('cache', () => {
     }
   });
 
+  it('sweeps at most once per interval, however many writes arrive', () => {
+    // Once the store is full of live entries it stays above the threshold, so
+    // size alone would make every write walk the whole map. The time gate is
+    // what stops n writes becoming O(n^2) work.
+    jest.useFakeTimers();
+    try {
+      for (let i = 0; i < 300; i++) {
+        setCache(`k-${i}`, i, 30);
+      }
+
+      // Everything expires, but the sweep that just ran means the next writes
+      // are inside the interval and must not scan again.
+      jest.advanceTimersByTime(31 * 1000);
+      setCache('inside-interval', 1, 30);
+      expect(getCacheSize()).toBe(301);
+
+      // Past the interval, the next write sweeps.
+      jest.advanceTimersByTime(30 * 1000);
+      setCache('after-interval', 1, 30);
+      expect(getCacheSize()).toBe(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('does not sweep while the store is small', () => {
     jest.useFakeTimers();
     try {

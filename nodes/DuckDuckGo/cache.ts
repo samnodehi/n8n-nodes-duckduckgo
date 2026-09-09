@@ -50,6 +50,17 @@ export function getCached<T>(key: string): T | undefined {
 const PRUNE_THRESHOLD = 256;
 
 /**
+ * Shortest gap between sweeps. Size alone is not enough of a gate: once the
+ * store holds 256 entries that are all still live, it stays above the threshold
+ * and every further write would walk the whole map without removing anything,
+ * turning n writes into O(n²) work. Time bounds it to one pass per interval
+ * however busy the process is.
+ */
+const PRUNE_INTERVAL_MS = 60 * 1000;
+
+let lastPrunedAt = 0;
+
+/**
  * Stores a value in the cache with a specified TTL
  *
  * @param key - Unique identifier for the cached value
@@ -57,11 +68,14 @@ const PRUNE_THRESHOLD = 256;
  * @param ttl - Time-to-live in seconds
  */
 export function setCache<T>(key: string, value: T, ttl: number): void {
-  if (cacheStore.size >= PRUNE_THRESHOLD) {
+  const now = Date.now();
+
+  if (cacheStore.size >= PRUNE_THRESHOLD && now - lastPrunedAt >= PRUNE_INTERVAL_MS) {
+    lastPrunedAt = now;
     pruneExpiredEntries();
   }
-  const expiresAt = Date.now() + ttl * 1000;
-  cacheStore.set(key, { value, expiresAt });
+
+  cacheStore.set(key, { value, expiresAt: now + ttl * 1000 });
 }
 
 /**
@@ -79,6 +93,7 @@ export function deleteCached(key: string): boolean {
  */
 export function clearCache(): void {
   cacheStore.clear();
+  lastPrunedAt = 0;
 }
 
 /**
