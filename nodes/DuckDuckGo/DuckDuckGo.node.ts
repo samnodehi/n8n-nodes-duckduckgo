@@ -25,6 +25,7 @@ import {
 // Import our direct search implementations
 import { directWebSearch, directImageSearch, getSafeSearchString } from './directSearch';
 import { takeStoredVqd, storeVqd } from './vqdStore';
+import { applyRankingRules, rulesFromOptions, rankingRulesProperty } from './resultRanking';
 
 // Use duck-duck-scrape types directly
 
@@ -455,6 +456,7 @@ export class DuckDuckGo implements INodeType {
           },
         },
         options: [
+          rankingRulesProperty,
           {
             displayName: 'Maximum Results',
             name: 'maxResults',
@@ -862,6 +864,7 @@ export class DuckDuckGo implements INodeType {
           },
         },
         options: [
+          rankingRulesProperty,
           {
             displayName: 'Maximum Results',
             name: 'maxResults',
@@ -1057,6 +1060,7 @@ export class DuckDuckGo implements INodeType {
           },
         },
         options: [
+          rankingRulesProperty,
           {
             displayName: 'Maximum Results',
             name: 'maxResults',
@@ -1319,6 +1323,7 @@ export class DuckDuckGo implements INodeType {
           }
 
           const options = this.getNodeParameter('webSearchOptions', itemIndex, {}) as {
+            rankingRules?: unknown;
             maxResults?: number;
             region?: string;
             safeSearch?: number;
@@ -1434,9 +1439,17 @@ export class DuckDuckGo implements INodeType {
               };
 
               // Note: Direct search doesn't support pagination without VQD token
-              // Limit results to what we got from the first request
+              // Limit results to what we got from the first request.
+              //
+              // Ranking rules make this cut premature: a result discarded by a
+              // rule has to be replaced by one further down the list, and one
+              // that was cut here is not there to be promoted. When rules are
+              // configured the list is left whole and the cut happens after
+              // ranking instead, which is the only order in which "give me ten"
+              // and "never from this site" can both hold.
               const maxResults = options.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
-              if (result.results && result.results.length > maxResults) {
+              const hasRankingRules = rulesFromOptions(options.rankingRules).length > 0;
+              if (!hasRankingRules && result.results && result.results.length > maxResults) {
                 result.results = result.results.slice(0, maxResults);
               }
 
@@ -1499,7 +1512,12 @@ export class DuckDuckGo implements INodeType {
               } else {
                 // Process and return the results with enhanced data
                 const maxResults = options.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
-                results = processWebSearchResults(result.results as any, itemIndex, result).slice(0, maxResults);
+                // Ranking runs before the cut to maxResults: discarding afterwards
+                // would hand back fewer results than were asked for.
+                results = applyRankingRules(
+                  processWebSearchResults(result.results as any, itemIndex, result),
+                  rulesFromOptions(options.rankingRules),
+                ).slice(0, maxResults);
 
                 // Optional, opt-in: enrich the top-N results with extracted page text.
                 // Makes extra HTTP requests to the result sites (not DuckDuckGo),
@@ -1757,6 +1775,7 @@ export class DuckDuckGo implements INodeType {
           // Get news search specific parameters
           const newsQuery = this.getNodeParameter('newsQuery', itemIndex) as string;
           const newsSearchOptions = this.getNodeParameter('newsSearchOptions', itemIndex, {}) as {
+            rankingRules?: unknown;
             maxResults?: number;
             safeSearch?: number;
             region?: string;
@@ -1971,7 +1990,10 @@ export class DuckDuckGo implements INodeType {
               } else {
                 // Process and return the results
                 const maxResults = newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
-                results = processNewsSearchResults(result.results as any, itemIndex).slice(0, maxResults);
+                results = applyRankingRules(
+                  processNewsSearchResults(result.results as any, itemIndex),
+                  rulesFromOptions(newsSearchOptions.rankingRules),
+                ).slice(0, maxResults);
 
                 // Optional, opt-in: enrich the top-N results with extracted page text.
                 await enrichWithPageContent(results, newsSearchOptions, debugMode, operation);
@@ -2046,7 +2068,12 @@ export class DuckDuckGo implements INodeType {
                     isFallback: true,
                   }));
 
-                  results = processNewsSearchResults(newsResults, itemIndex).slice(0, newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS);
+                  // Rules apply to fallback results too: which site a result
+                  // came from does not depend on which path fetched it.
+                  results = applyRankingRules(
+                    processNewsSearchResults(newsResults, itemIndex),
+                    rulesFromOptions(newsSearchOptions.rankingRules),
+                  ).slice(0, newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS);
                   // Optional, opt-in: enrich fallback results too.
                   await enrichWithPageContent(results, newsSearchOptions, debugMode, operation);
                 }
@@ -2097,6 +2124,7 @@ export class DuckDuckGo implements INodeType {
           // Get video search specific parameters
           const videoQuery = this.getNodeParameter('videoQuery', itemIndex) as string;
           const videoSearchOptions = this.getNodeParameter('videoSearchOptions', itemIndex, {}) as {
+            rankingRules?: unknown;
             maxResults?: number;
             safeSearch?: number;
             region?: string;
@@ -2300,7 +2328,10 @@ export class DuckDuckGo implements INodeType {
               } else {
                 // Process and return the results
                 const maxResults = videoSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
-                results = processVideoSearchResults(result.results as any, itemIndex).slice(0, maxResults);
+                results = applyRankingRules(
+                  processVideoSearchResults(result.results as any, itemIndex),
+                  rulesFromOptions(videoSearchOptions.rankingRules),
+                ).slice(0, maxResults);
 
                 // Add cache information to the first result if in debug mode
                 if (debugMode && results.length > 0) {
@@ -2346,7 +2377,12 @@ export class DuckDuckGo implements INodeType {
                   isFallback: true,
                 }));
 
-                results = processVideoSearchResults(videoResults, itemIndex).slice(0, videoSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS);
+                // Rules apply to fallback results too: which site a result came
+                // from does not depend on which path fetched it.
+                results = applyRankingRules(
+                  processVideoSearchResults(videoResults, itemIndex),
+                  rulesFromOptions(videoSearchOptions.rankingRules),
+                ).slice(0, videoSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS);
 
                 // Leave fallback results populated; the error item below is only emitted if fallback produced no results.
               }

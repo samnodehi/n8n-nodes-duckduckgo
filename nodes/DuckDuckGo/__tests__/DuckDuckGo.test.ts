@@ -158,6 +158,55 @@ describe('DuckDuckGo Node', () => {
   };
 
   describe('Web Search Operation', () => {
+    describe('ranking rules', () => {
+      it('discards, reorders and renumbers before the cut to maxResults', async () => {
+        // The whole point of doing this inside the node: discarding after the
+        // cut would hand back fewer results than were asked for. Four results
+        // in, one discarded, two asked for, two out.
+        setupNodeParameters('search', 'ranked query', {
+          maxResults: 2,
+          rankingRules: {
+            rule: [
+              { match: 'domain', value: 'spam.com', effect: 'discard' },
+              { match: 'domain', value: 'good.com', effect: 'boost' },
+            ],
+          },
+        });
+
+        (directSearch.directWebSearch as jest.Mock).mockResolvedValue({
+          results: [
+            { title: 'A', url: 'https://mid.com/a', description: 'a' },
+            { title: 'B', url: 'https://spam.com/b', description: 'b' },
+            { title: 'C', url: 'https://good.com/c', description: 'c' },
+            { title: 'D', url: 'https://other.com/d', description: 'd' },
+          ],
+        });
+
+        const output = (await duckDuckGoNode.execute.call(mockExecuteFunction)).flat();
+
+        expect(output.map((i) => i.json.url)).toEqual([
+          'https://good.com/c',
+          'https://mid.com/a',
+        ]);
+        expect(output.map((i) => i.json.position)).toEqual([1, 2]);
+      });
+
+      it('leaves the results alone when no rules are configured', async () => {
+        setupNodeParameters('search', 'plain query', { maxResults: 3 });
+
+        (directSearch.directWebSearch as jest.Mock).mockResolvedValue({
+          results: [
+            { title: 'A', url: 'https://a.com/1', description: 'a' },
+            { title: 'B', url: 'https://b.com/2', description: 'b' },
+          ],
+        });
+
+        const output = (await duckDuckGoNode.execute.call(mockExecuteFunction)).flat();
+
+        expect(output.map((i) => i.json.url)).toEqual(['https://a.com/1', 'https://b.com/2']);
+      });
+    });
+
     const mockWebSearchResults = {
       results: [
         {

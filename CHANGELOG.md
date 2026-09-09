@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **New option: Ranking Rules.** Reorder or drop results by where they came from, applied locally to results the node has already fetched — no extra requests, no service, nothing leaves the process. Available on Web, News and Video Search. Each rule matches a **Domain** (subdomains included) or a **URL Contains** substring, and **Boosts**, **Downranks** or **Discards** what it matches.
+
+  Rules are checked in order and the first match wins, so a boost for `docs.example.com` above a discard for `example.com` keeps the documentation and drops the rest — something no fixed precedence between effects could express. Ordering is three stable buckets rather than a score, so there is no weight to tune and unmatched results stay exactly where DuckDuckGo put them. Rules run **before** the cut to `maxResults`, so asking for ten and discarding a domain still returns ten; `position` is renumbered to match. A result with no URL, or one that does not parse, is never discarded by a rule it had no chance to match.
+
 ---
 
 ## [32.13.0] - 2026-09-09
