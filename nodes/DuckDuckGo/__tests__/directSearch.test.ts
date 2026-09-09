@@ -643,6 +643,29 @@ describe('directImageSearch', () => {
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
     });
 
+    it('names a 403 block that arrives on the retry, not just the first attempt', async () => {
+      // The stale token is rejected, a fresh one is fetched, and the block
+      // lands on the retry. Guarding only the first attempt would let this
+      // through as a generic token error with no back-off.
+      const staleError = Object.assign(new Error('Request failed with status code 403'), {
+        response: { status: 403, data: '{"error":"invalid vqd"}' },
+      });
+      const blockedError = Object.assign(new Error('Request failed with status code 403'), {
+        response: { status: 403, data: CHALLENGE_HTML },
+      });
+      mockedAxios.get = jest
+        .fn()
+        .mockRejectedValueOnce(staleError)
+        .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
+        .mockRejectedValueOnce(blockedError);
+
+      await expect(directImageSearch('cats', {}, 'stale-token')).rejects.toMatchObject({
+        errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
+      });
+
+      expect(mockedAxios.get).toHaveBeenCalledTimes(3);
+    });
+
     it('names a 403 block even when no token was held', async () => {
       // The block is a block however the token was obtained. Before this, only
       // the hinted path checked the body, so a first search for a query
