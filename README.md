@@ -541,6 +541,10 @@ Available on Web, News and Video Search under **Options → Ranking Rules**.
 Nothing here contacts anything. No rule causes a request, and none of this is
 sent anywhere — it is applied to the list already in memory.
 
+> Two things rules do **not** apply to: **Image Search**, which has no ranking
+> option, and **Return Raw Results**, which by definition returns DuckDuckGo's
+> response before the node processes it.
+
 ### Example
 
 Research that should prefer primary sources and never return aggregators:

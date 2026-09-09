@@ -456,7 +456,6 @@ export class DuckDuckGo implements INodeType {
           },
         },
         options: [
-          rankingRulesProperty,
           {
             displayName: 'Maximum Results',
             name: 'maxResults',
@@ -468,6 +467,7 @@ export class DuckDuckGo implements INodeType {
               maxValue: 100,
             },
           },
+          rankingRulesProperty,
           {
             displayName: 'Region',
             name: 'region',
@@ -864,7 +864,6 @@ export class DuckDuckGo implements INodeType {
           },
         },
         options: [
-          rankingRulesProperty,
           {
             displayName: 'Maximum Results',
             name: 'maxResults',
@@ -876,6 +875,7 @@ export class DuckDuckGo implements INodeType {
               maxValue: 100,
             },
           },
+          rankingRulesProperty,
           {
             displayName: 'Region',
             name: 'region',
@@ -1060,7 +1060,6 @@ export class DuckDuckGo implements INodeType {
           },
         },
         options: [
-          rankingRulesProperty,
           {
             displayName: 'Maximum Results',
             name: 'maxResults',
@@ -1072,6 +1071,7 @@ export class DuckDuckGo implements INodeType {
               maxValue: 100,
             },
           },
+          rankingRulesProperty,
           {
             displayName: 'Region',
             name: 'region',
