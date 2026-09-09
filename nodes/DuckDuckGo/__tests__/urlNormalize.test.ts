@@ -148,6 +148,27 @@ describe('stripTrackingParameters', () => {
       );
     });
 
+    it.each([
+      ['AWS SigV4', 'https://s3.example.com/f.pdf?utm_source=x&X-Amz-Signature=deadbeef'],
+      ['Google Cloud Storage', 'https://storage.example.com/f?gclid=1&X-Goog-Signature=abc'],
+      ['whatever the case', 'https://s3.example.com/f?utm_medium=x&x-amz-signature=beef'],
+    ])('leaves a presigned URL completely alone — %s', (_label, input) => {
+      // The signature covers the whole query, so removing any parameter would
+      // leave a link that still looks right and fails to authenticate.
+      expect(stripTrackingParameters(input)).toBe(input);
+    });
+
+    it('still strips when a parameter merely looks signature-ish', () => {
+      // `sig`, `token` and `hash` are ordinary parameter names on plenty of
+      // sites; treating them as signatures would switch this off for them.
+      expect(stripTrackingParameters('https://example.com/?sig=abc&utm_source=x')).toBe(
+        'https://example.com/?sig=abc',
+      );
+      expect(stripTrackingParameters('https://example.com/?token=t&fbclid=1')).toBe(
+        'https://example.com/?token=t',
+      );
+    });
+
     it('matches a percent-encoded parameter name', () => {
       expect(stripTrackingParameters('https://example.com/?utm%5Fsource=x&a=1')).toBe(
         'https://example.com/?a=1',

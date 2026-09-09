@@ -46,6 +46,23 @@ const TRACKING_PARAMETERS: ReadonlySet<string> = new Set([
 /** Prefix covering the Urchin family: utm_source, utm_medium, utm_campaign, … */
 const TRACKING_PREFIX = 'utm_';
 
+/**
+ * Presigned-URL signatures. These cover the whole query, so removing any
+ * parameter from a URL carrying one invalidates it — the link would still look
+ * right and fail to authenticate. When one is present nothing is removed at all.
+ *
+ * Only vendor-namespaced names are listed, because they cannot mean anything
+ * else. Azure's shared access signature is deliberately absent: it is spelled
+ * `sig`, which plenty of ordinary URLs use for their own purposes, and treating
+ * that as a signature would quietly switch this off for them. A signed Azure URL
+ * in a search result therefore remains unhandled — accepted, because such URLs
+ * expire in minutes and do not survive to be indexed.
+ */
+const SIGNATURE_PARAMETERS: ReadonlySet<string> = new Set([
+  'x-amz-signature',   // AWS Signature Version 4
+  'x-goog-signature',  // Google Cloud Storage
+]);
+
 function isTrackingParameter(name: string): boolean {
   const lowered = name.toLowerCase();
   return lowered.startsWith(TRACKING_PREFIX) || TRACKING_PARAMETERS.has(lowered);
@@ -114,11 +131,16 @@ export function stripTrackingParameters(
   const tail = hashAt === -1 ? '' : url.slice(hashAt);
 
   const segments = query.split('&');
-  const kept = segments.filter((segment) => {
+  const names = segments.map((segment) => {
     const equals = segment.indexOf('=');
-    const name = equals === -1 ? segment : segment.slice(0, equals);
-    return !isTrackingParameter(decodeName(name));
+    return decodeName(equals === -1 ? segment : segment.slice(0, equals)).toLowerCase();
   });
+
+  if (names.some((name) => SIGNATURE_PARAMETERS.has(name))) {
+    return url;
+  }
+
+  const kept = segments.filter((_segment, index) => !isTrackingParameter(names[index]));
 
   if (kept.length === segments.length) {
     // Nothing matched, so hand back the original string untouched.
