@@ -89,9 +89,7 @@ jobs:
       # release from v32.7.0 attached an archive carrying compiled tests. This
       # fails the build rather than waiting for someone to compare by hand.
       - name: Check what would be published
-        run: |
-          npm run build:prod
-          npm pack --dry-run --json | node scripts/check-package-contents.mjs | tee -a "$GITHUB_STEP_SUMMARY"
+        run: npm run check-package | tee -a "$GITHUB_STEP_SUMMARY"
 
   # npm publish and the GitHub Release are both handled by release.yml on a v*
   # tag push, publishing from CI with npm provenance. Nothing is published from

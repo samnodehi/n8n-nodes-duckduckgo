@@ -62,11 +62,13 @@ What that order buys, and what it refuses:
   `npm run build` produced a 44-file tarball carrying compiled tests and
   `tsbuildinfo`, against the 25 files npm actually publishes.
 
-  CI now checks this on every push rather than leaving it to be noticed:
-  `npm run check-package` asserts that nothing outside `dist/` ships except the
-  three files npm always includes, that no compiled test, source map or
-  TypeScript file is present, and that the node entry point and icon are. Run it
-  locally before a release if you have touched the build.
+  This is now checked rather than left to be noticed. `npm run check-package`
+  builds and then asserts that nothing outside `dist/` ships except the three
+  files npm always includes, that no compiled test, source map or TypeScript
+  file is present, and that the node entry point and icon are. CI runs it on
+  every push, and **the release workflow runs it again after its own build and
+  before publishing** — a tag can be pushed before CI finishes, or at a commit
+  whose CI failed, and an npm version cannot be taken back.
 - **Publishing is skipped when the version already exists on npm**, so a rerun
   after a failure later in the job can still reach the release step. npm refuses
   to republish a version, which would otherwise make every rerun fail.
