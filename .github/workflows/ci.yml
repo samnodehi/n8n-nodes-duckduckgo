@@ -12,6 +12,9 @@ jobs:
   build:
     name: Build and Test
     runs-on: ubuntu-latest
+    # A run takes under a minute. Without a limit a hung step would sit on a
+    # runner for the six-hour default before anyone found out.
+    timeout-minutes: 15
 
     steps:
       # Checkout the repository code
@@ -29,14 +32,18 @@ jobs:
 
       # Install dependencies
       - name: Install dependencies
+        # The only step that depends on a network it does not control.
+        timeout-minutes: 5
         run: npm ci
 
       # Run ESLint
       - name: Lint code
+        timeout-minutes: 3
         run: npm run lint
 
       # Build the project
       - name: Build
+        timeout-minutes: 5
         run: npm run build
 
       # Verify the build output
@@ -45,8 +52,45 @@ jobs:
 
       # Run tests (if available)
       - name: Run tests
-        run: npm run test:coverage
+        timeout-minutes: 10
+        run: npm run test:coverage -- --json --outputFile=jest-results.json
 
+      # Report what actually ran. A count in a README drifts silently; a count
+      # written by the run that produced it cannot.
+      - name: Summarise the test run
+        if: always()
+        run: |
+          {
+            echo "### Tests"
+            echo
+            if [ -f jest-results.json ]; then
+              node -e '
+                const r = require("./jest-results.json");
+                console.log("**" + r.numPassedTests + " of " + r.numTotalTests + " tests** passed across **" +
+                  r.numTotalTestSuites + " suites**" + (r.numFailedTests ? " — " + r.numFailedTests + " failed" : "") + ".");
+              '
+            else
+              echo "_The test run produced no results file._"
+            fi
+            echo
+            if [ -f coverage/coverage-summary.json ]; then
+              node -e '
+                const total = require("./coverage/coverage-summary.json").total;
+                console.log("| Metric | Coverage |");
+                console.log("|---|---|");
+                for (const k of ["statements", "branches", "functions", "lines"]) {
+                  console.log("| " + k + " | " + total[k].pct + "% (" + total[k].covered + "/" + total[k].total + ") |");
+                }
+              '
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
-  # Release job removed. npm publish is performed manually.
-  # GitHub Releases are created automatically by release.yml on v* tag push.
+      # The package is what users install, and it has been wrong before: every
+      # release from v32.7.0 attached an archive carrying compiled tests. This
+      # fails the build rather than waiting for someone to compare by hand.
+      - name: Check what would be published
+        run: npm run check-package | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # npm publish and the GitHub Release are both handled by release.yml on a v*
+  # tag push, publishing from CI with npm provenance. Nothing is published from
+  # a laptop; docs/RELEASING.md has the procedure.

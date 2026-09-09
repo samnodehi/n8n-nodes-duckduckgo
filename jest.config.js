@@ -5,6 +5,9 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/__tests__/**/*.test.ts'],
   collectCoverageFrom: ['nodes/**/*.ts'],
+  // json-summary is not on by default; CI reads it to put the numbers in
+  // the run summary, so a claim about coverage can be checked against a run.
+  coverageReporters: ['text', 'lcov', 'json-summary'],
   coverageThreshold: {
     global: {
       branches: 30,

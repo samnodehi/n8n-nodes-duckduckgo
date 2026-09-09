@@ -140,6 +140,15 @@ jobs:
       - name: Build distribution
         run: npm run build:prod
 
+      # CI runs this on every push, but a tag can be pushed before CI finishes,
+      # or at a commit whose CI failed, and this workflow does not wait for it.
+      # An npm version cannot be taken back, so the gate is repeated here rather
+      # than trusted to have run somewhere else. The build above is fresh, so
+      # this packs it directly instead of going through `check-package`, which
+      # would rebuild.
+      - name: Check what would be published
+        run: npm pack --dry-run --json | node scripts/check-package-contents.mjs
+
       # No token: the trusted publisher registered on npm authenticates this
       # workflow over OIDC, using a short-lived credential nothing has to store
       # or rotate. The id-token permission above is what makes that possible.

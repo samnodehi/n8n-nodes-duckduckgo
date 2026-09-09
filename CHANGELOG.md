@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **CI now fails on a package that would ship the wrong files.** Every GitHub release from v32.7.0 attached an archive carrying compiled tests, and nothing noticed until the two were compared by hand. `npm run check-package` reads `npm pack --dry-run` and asserts that nothing outside `dist/` ships beyond the three files npm always includes, that no compiled test, source map or TypeScript file is present, and that the node entry point and icon are. The release workflow runs the same check after its production build and before publishing, because a tag can be pushed before CI finishes or at a commit whose CI failed, and an npm version cannot be taken back.
+- **CI reports what actually ran.** The test and suite counts and the coverage table are written to the run summary, so a claim about the suite can be checked against the run that produced it rather than a README that may have drifted.
+- **CI steps have timeouts.** There were none, so a hung step would have held a runner for the six-hour default.
+
 ---
 
 ## [32.14.0] - 2026-09-09
