@@ -526,11 +526,14 @@ Why: deduplicating results across runs compares URLs, and the same article
 carrying a different `utm_campaign` each time compares as a different page. It
 also keeps tracking strings out of whatever an AI Agent writes downstream.
 
-The rule is deliberately narrow. Only parameters whose sole purpose is
-attribution are removed, and **a URL with nothing to strip is returned
-byte-for-byte** rather than re-serialised — so a bare origin does not gain a
-trailing slash and a host does not get lowercased. A URL that does not parse, or
-is not `http(s)`, is passed through untouched rather than dropped.
+The rule is deliberately narrow, and **every byte that survives is the byte
+DuckDuckGo returned**. Only the matching `name=value` segments are cut out of
+the query; the rest is not rebuilt. Rebuilding would re-encode what remains —
+`?q=a%20b` would come back as `?q=a+b`, and `~` as `%7E` — which is a different
+URL to a server that signs its query. A URL with nothing to strip is likewise
+returned unchanged, so a bare origin does not gain a trailing slash and a host
+does not get lowercased. A URL that does not parse, or is not `http(s)`, is
+passed through untouched rather than dropped.
 
 **Image results are not normalised at all.** Their URLs are asset URLs, where a
 query string is often a CDN signature or a resize instruction, and stripping

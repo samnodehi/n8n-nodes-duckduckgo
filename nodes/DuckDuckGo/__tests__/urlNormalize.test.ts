@@ -106,6 +106,43 @@ describe('stripTrackingParameters', () => {
       );
     });
 
+    it('leaves the surviving parameters byte-for-byte', () => {
+      // Rebuilding through URLSearchParams would turn %20 into + and ~ into
+      // %7E, which is a different URL to a server that signs its query.
+      expect(
+        stripTrackingParameters('https://example.com/?q=a%20b&utm_source=x'),
+      ).toBe('https://example.com/?q=a%20b');
+      expect(stripTrackingParameters('https://example.com/?t=~tilde&gclid=1')).toBe(
+        'https://example.com/?t=~tilde',
+      );
+      expect(
+        stripTrackingParameters('https://example.com/?sig=A%2FB%2BC&fbclid=1'),
+      ).toBe('https://example.com/?sig=A%2FB%2BC');
+    });
+
+    it('does not treat a "?" inside the fragment as a query', () => {
+      const spa = 'https://example.com/#/docs?utm_source=x';
+      expect(stripTrackingParameters(spa)).toBe(spa);
+    });
+
+    it('keeps an empty segment rather than tidying the query', () => {
+      expect(stripTrackingParameters('https://example.com/?&a=1&utm_source=x')).toBe(
+        'https://example.com/?&a=1',
+      );
+    });
+
+    it('matches a percent-encoded parameter name', () => {
+      expect(stripTrackingParameters('https://example.com/?utm%5Fsource=x&a=1')).toBe(
+        'https://example.com/?a=1',
+      );
+    });
+
+    it('removes a valueless tracking parameter', () => {
+      expect(stripTrackingParameters('https://example.com/?gclid&a=1')).toBe(
+        'https://example.com/?a=1',
+      );
+    });
+
     it('removes every occurrence of a repeated tracking parameter', () => {
       expect(
         stripTrackingParameters('https://example.com/?utm_source=a&utm_source=b&q=1'),

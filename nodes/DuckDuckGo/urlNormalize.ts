@@ -52,7 +52,26 @@ function isTrackingParameter(name: string): boolean {
 }
 
 /**
+ * Decode a raw parameter name for comparison only. The result is never written
+ * back, so a name that will not decode is compared as it was written.
+ */
+function decodeName(raw: string): string {
+  try {
+    return decodeURIComponent(raw.replace(/\+/g, ' '));
+  } catch {
+    return raw;
+  }
+}
+
+/**
  * Return the URL without advertising click identifiers.
+ *
+ * The removal is string surgery on the original query rather than a rebuild
+ * through `URLSearchParams`. Rebuilding re-encodes the parameters that survive
+ * — `?q=a%20b` comes back as `?q=a+b`, `~` as `%7E` — which is a different URL
+ * to a server that signs its query or distinguishes the two spellings.
+ * Only the matching `name=value` segments are cut; every surviving byte is the
+ * byte DuckDuckGo returned.
  *
  * Never throws and never returns an empty result for a non-empty input: a value
  * that does not parse, or is not http(s), is passed through untouched. Dropping
@@ -81,20 +100,30 @@ export function stripTrackingParameters(
     return url;
   }
 
-  const names = [...parsed.searchParams.keys()];
-  const tracking = names.filter(isTrackingParameter);
-  if (tracking.length === 0) {
-    // Nothing to do, so hand back the original string rather than a
-    // re-serialised equivalent.
+  // A "?" after the "#" belongs to the fragment — a single-page app route, for
+  // instance — and is not a query at all.
+  const hashAt = url.indexOf('#');
+  const limit = hashAt === -1 ? url.length : hashAt;
+  const queryAt = url.slice(0, limit).indexOf('?');
+  if (queryAt === -1) {
     return url;
   }
 
-  for (const name of tracking) {
-    parsed.searchParams.delete(name);
+  const head = url.slice(0, queryAt);
+  const query = url.slice(queryAt + 1, limit);
+  const tail = hashAt === -1 ? '' : url.slice(hashAt);
+
+  const segments = query.split('&');
+  const kept = segments.filter((segment) => {
+    const equals = segment.indexOf('=');
+    const name = equals === -1 ? segment : segment.slice(0, equals);
+    return !isTrackingParameter(decodeName(name));
+  });
+
+  if (kept.length === segments.length) {
+    // Nothing matched, so hand back the original string untouched.
+    return url;
   }
 
-  // URL keeps a bare "?" when the last parameter is removed.
-  return parsed.searchParams.toString() === ''
-    ? parsed.toString().replace(/\?(?=#|$)/, '')
-    : parsed.toString();
+  return kept.length === 0 ? head + tail : `${head}?${kept.join('&')}${tail}`;
 }
