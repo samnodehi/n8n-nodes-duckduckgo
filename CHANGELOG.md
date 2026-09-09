@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [32.13.0] - 2026-09-09
+
 ### Added
 
 - **Image search now sends one request instead of two.** The VQD token DuckDuckGo requires is only handed out in a search page, so each image search fetched that page purely to read the token before making the request that returns results. The token is reusable, so it is now kept for up to an hour, per query and per client, and the page fetch is skipped while one is held — the rate limit that gets an IP blocked counts requests rather than searches, so halving them is the cheapest protection available. Previously a token was reused only between input items of a single execution and discarded when the execution ended.

@@ -1,3 +1,75 @@
+# v32.13.0 — Fewer requests, cleaner URLs, one more silent failure gone
+
+**Release Date:** 2026-09-09
+
+Three changes, all pulling in the same direction: send DuckDuckGo fewer requests,
+and never let a block look like an empty result.
+
+---
+
+## Image search now sends one request instead of two
+
+DuckDuckGo will only hand out the token image search needs (a **VQD**) inside a
+search page, so every image search fetched that page purely to read the token,
+then made the request that actually returns results.
+
+The token is reusable, so the node now keeps it for **up to an hour**, per query
+and per client, and skips the page fetch while it holds one. The rate limit that
+gets an instance's IP blocked counts *requests*, not searches — so halving them
+is the cheapest protection this node has to offer. Previously a token was reused
+only between input items of a single execution and thrown away when the execution
+ended, which meant a scheduled workflow paid the extra request on every run.
+
+A token DuckDuckGo has since stopped accepting is not an error you will see: a
+fresh one is fetched and the request retried once. Nothing is configurable,
+nothing is written to disk, and the token lives in memory for the life of the
+n8n process.
+
+## A bot-detection block on the image result request is no longer silent
+
+The challenge check ran on the page fetched for the token, but not on the request
+that carries the results — and it was skipped altogether when a token was already
+held, as pagination does. A block arriving there is HTML where JSON was expected,
+which has no results in it, so it parsed to an empty list and returned success.
+
+That is the exact silent failure 32.10.0 was written to end, still alive on one
+path. It now reports the block and starts the local back-off like every other
+search path. The same applies to a block that arrives as HTTP 403 rather than
+202, which was previously reported as a plain token error and, worse, retried.
+
+## Result URLs arrive without advertising click identifiers
+
+`utm_*`, `fbclid`, `gclid`, `msclkid`, `mc_cid` and the rest of that family are
+removed from `url` on Web, News and Video results. Deduplicating results across
+runs compares URLs, and the same article carrying a different `utm_campaign` each
+time compared as a different page. It also keeps tracking strings out of whatever
+an AI Agent writes downstream.
+
+The rule is narrow on purpose. The path, the fragment, the order of the surviving
+parameters and every unrecognised parameter are left alone; names that sites use
+for real — `ref`, `source`, `id` — are never removed; signed URLs are returned
+whole; and **every byte that survives is the byte DuckDuckGo returned**, because
+the matching segments are cut out of the query rather than the query being
+rebuilt. Image results are not touched at all, since a query string on an asset
+URL is often a CDN signature.
+
+## Also fixed
+
+The in-memory cache never evicted anything: expiry was only noticed when the same
+key was read again, so entries written once and never read back were held for the
+life of the process. Writes now sweep out what has expired.
+
+## Upgrading
+
+No configuration changes, and no changes to any field name. The only difference
+you may notice in output is that result URLs are shorter.
+
+```bash
+npm install n8n-nodes-duckduckgo-search@32.13.0
+```
+
+---
+
 # v32.12.2 — Signed releases, and example workflows worth importing
 
 **Release Date:** 2026-09-07
