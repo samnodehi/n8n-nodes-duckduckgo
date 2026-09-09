@@ -300,29 +300,39 @@ export async function directImageSearch(query: string, options: {
       });
     };
 
+    // A block is turned away with 403 as well as with the 202 challenge page.
+    // Every attempt goes through here so that is named wherever it happens,
+    // rather than only on the attempt someone remembered to guard: naming it
+    // reports it as a block and starts the back-off, instead of letting it
+    // surface as a token error that tells the user to try again.
+    const requestImagesChecked = async (token: string) => {
+      try {
+        return await requestImages(token);
+      } catch (error) {
+        if (error?.response?.status === 403) {
+          assertNotChallenged(error.response?.data, 403, 'image search');
+        }
+        throw error;
+      }
+    };
+
     let vqd = vqdHint ?? (await fetchVqd());
     let imageResponse;
 
     try {
-      imageResponse = await requestImages(vqd);
+      imageResponse = await requestImagesChecked(vqd);
     } catch (error) {
-      // DuckDuckGo answers a token it no longer accepts with 403. A supplied
-      // hint can have expired since it was issued, so that is recoverable
-      // rather than a failure: fetch a fresh token and try once more. Without a
-      // hint the token was minted moments ago, so a 403 means something else
-      // and is left to the handler below.
+      // Not a block, so a 403 means DuckDuckGo did not accept the token. A
+      // supplied hint can have expired since it was issued, so that is
+      // recoverable: fetch a fresh token and try once more. Without a hint the
+      // token was minted moments ago, so a 403 means something else again and
+      // retrying would only add a request.
       if (!vqdHint || error?.response?.status !== 403) {
         throw error;
       }
 
-      // 403 is also how a blocked IP is turned away, and retrying that would
-      // send two more requests to a service that has just said stop — the exact
-      // amplification the back-off exists to prevent. The body tells the two
-      // apart, and naming it here starts the back-off as well.
-      assertNotChallenged(error.response?.data, 403, 'image search');
-
       vqd = await fetchVqd();
-      imageResponse = await requestImages(vqd);
+      imageResponse = await requestImagesChecked(vqd);
     }
 
     const imageData = imageResponse.data;
