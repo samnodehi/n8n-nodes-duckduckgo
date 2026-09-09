@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [32.14.0] - 2026-09-09
+
 ### Added
 
 - **New option: Ranking Rules.** Reorder or drop results by where they came from, applied locally to results the node has already fetched — no extra requests, no service, nothing leaves the process. Available on Web, News and Video Search. Each rule matches a **Domain** (subdomains included) or a **URL Contains** substring, and **Boosts**, **Downranks** or **Discards** what it matches.
