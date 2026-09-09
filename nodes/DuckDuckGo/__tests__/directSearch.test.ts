@@ -643,6 +643,25 @@ describe('directImageSearch', () => {
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
     });
 
+    it('names a 403 block even when no token was held', async () => {
+      // The block is a block however the token was obtained. Before this, only
+      // the hinted path checked the body, so a first search for a query
+      // reported a generic token error and never started the back-off.
+      const blockedError = Object.assign(new Error('Request failed with status code 403'), {
+        response: { status: 403, data: CHALLENGE_HTML },
+      });
+      mockedAxios.get = jest
+        .fn()
+        .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
+        .mockRejectedValueOnce(blockedError);
+
+      await expect(directImageSearch('cats')).rejects.toMatchObject({
+        errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
+      });
+
+      expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+    });
+
     it('does not retry a 403 when the token was just fetched', async () => {
       // Without a hint the token is moments old, so a 403 means something other
       // than staleness and refetching would only add a request to a blocked IP.

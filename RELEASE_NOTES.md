@@ -47,8 +47,10 @@ an AI Agent writes downstream.
 
 The rule is narrow on purpose. The path, the fragment, the order of the surviving
 parameters and every unrecognised parameter are left alone; names that sites use
-for real — `ref`, `source`, `id` — are never removed; signed URLs are returned
-whole; and **every byte that survives is the byte DuckDuckGo returned**, because
+for real — `ref`, `source`, `id` — are never removed; a URL carrying an AWS,
+Google Cloud Storage or CloudFront signature is returned whole, since removing
+any parameter would invalidate it; and **every byte that survives is the byte
+DuckDuckGo returned**, because
 the matching segments are cut out of the query rather than the query being
 rebuilt. Image results are not touched at all, since a query string on an asset
 URL is often a CDN signature.
@@ -61,8 +63,18 @@ life of the process. Writes now sweep out what has expired.
 
 ## Upgrading
 
-No configuration changes, and no changes to any field name. The only difference
-you may notice in output is that result URLs are shorter.
+No configuration changes, and no changes to any field name. Two differences are
+worth knowing about before you upgrade:
+
+- **Result URLs are shorter**, since tracking parameters are gone. Anything
+  comparing a stored URL against a freshly fetched one will now match more
+  often, which is the point, but it is a change in value.
+- **An image search that hits a bot-detection block now reports an error** where
+  it previously returned success with an empty result list. That is the fix
+  described above, and it is the behaviour every other search path already had —
+  but a workflow branching on `success` or on an empty list will take a
+  different branch than it used to. The example news monitor in `docs/examples/`
+  shows the shape to use.
 
 ```bash
 npm install n8n-nodes-duckduckgo-search@32.13.0
