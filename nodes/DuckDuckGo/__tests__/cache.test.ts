@@ -9,6 +9,7 @@ import {
   getCached,
   setCache,
   clearCache,
+  deleteCached,
   getCacheSize,
   pruneExpiredEntries,
 } from '../cache';
@@ -62,6 +63,16 @@ describe('cache', () => {
     jest.setSystemTime(2000); // +2s, past the 1s TTL
     expect(getCached('k')).toBeUndefined();
     expect(getCacheSize()).toBe(0);
+  });
+
+  it('deleteCached removes one entry and reports whether it was there', () => {
+    setCache('a', 1, 60);
+    setCache('b', 2, 60);
+
+    expect(deleteCached('a')).toBe(true);
+    expect(getCached('a')).toBeUndefined();
+    expect(getCached('b')).toBe(2);
+    expect(deleteCached('a')).toBe(false);
   });
 
   it('clearCache empties the store', () => {

@@ -583,19 +583,58 @@ describe('directImageSearch', () => {
       expect(output.vqd).toBe(VALID_VQD);
     });
 
-    it('should throw 403 error when reused vqdHint is rejected by i.js', async () => {
+    it('recovers from a stale vqdHint by refetching the token once', async () => {
+      // A stored token can expire between executions. That is recoverable, and
+      // recovering is what makes it safe to keep tokens beyond a single run.
       const forbiddenError = Object.assign(new Error('Request failed with status code 403'), {
         response: { status: 403 },
       });
-      mockedAxios.get = jest.fn().mockRejectedValue(forbiddenError);
+      mockedAxios.get = jest
+        .fn()
+        .mockRejectedValueOnce(forbiddenError)                                    // i.js with the stale token
+        .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })  // fresh token
+        .mockResolvedValueOnce({ status: 200, data: IMAGE_JS_RESPONSE });         // retry succeeds
 
-      // Providing a stale/expired VQD hint — i.js rejects with 403
+      const output = await directImageSearch('cats', {}, 'stale-vqd-token');
+
+      expect(output.results).toHaveLength(2);
+      // The token handed back is the fresh one, so a caller that stores it
+      // stores a working token rather than the stale one it passed in.
+      expect(output.vqd).toBe(VALID_VQD);
+      expect(mockedAxios.get).toHaveBeenCalledTimes(3);
+    });
+
+    it('gives up after one retry when the fresh token is rejected too', async () => {
+      const forbiddenError = Object.assign(new Error('Request failed with status code 403'), {
+        response: { status: 403 },
+      });
+      mockedAxios.get = jest
+        .fn()
+        .mockRejectedValueOnce(forbiddenError)
+        .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
+        .mockRejectedValueOnce(forbiddenError);
+
       await expect(directImageSearch('cats', {}, 'stale-vqd-token')).rejects.toThrow(
         '403 Forbidden'
       );
 
-      // Only one GET attempt (no page GET was made first)
-      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+      expect(mockedAxios.get).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not retry a 403 when the token was just fetched', async () => {
+      // Without a hint the token is moments old, so a 403 means something other
+      // than staleness and refetching would only add a request to a blocked IP.
+      const forbiddenError = Object.assign(new Error('Request failed with status code 403'), {
+        response: { status: 403 },
+      });
+      mockedAxios.get = jest
+        .fn()
+        .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
+        .mockRejectedValueOnce(forbiddenError);
+
+      await expect(directImageSearch('cats')).rejects.toThrow('403 Forbidden');
+
+      expect(mockedAxios.get).toHaveBeenCalledTimes(2);
     });
 
     it('should NOT reuse a vqdHint from a different query (caller responsibility, verified by key isolation)', async () => {

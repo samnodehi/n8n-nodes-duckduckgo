@@ -51,6 +51,16 @@ export function setCache<T>(key: string, value: T, ttl: number): void {
 }
 
 /**
+ * Removes a single entry from the cache
+ *
+ * @param key - Unique identifier for the cached value
+ * @returns True when an entry was present and removed
+ */
+export function deleteCached(key: string): boolean {
+  return cacheStore.delete(key);
+}
+
+/**
  * Clears all entries from the cache
  */
 export function clearCache(): void {

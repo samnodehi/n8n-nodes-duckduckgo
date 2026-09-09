@@ -856,6 +856,24 @@ To get **more text**, enable **Fetch Page Content** (available on **Web Search**
 
 There is no user-configurable backend selector. Each operation type uses the most reliable path available. Every path — primary and fallback — talks only to DuckDuckGo; no third-party search API is used.
 
+### Image search sends one request instead of two
+
+Image search needs a short-lived token (a **VQD**) that DuckDuckGo only hands out
+in a search page, so a naive implementation fetches that page purely to read the
+token and then makes the request that actually returns results.
+
+The token is reusable, so the node keeps it for **up to an hour**, per query and
+per client, and skips the page fetch while it holds one. Since the rate limit
+that gets an IP blocked counts requests rather than searches, halving them is
+the cheapest protection available.
+
+A token DuckDuckGo has since stopped accepting is not an error you see: the node
+fetches a fresh one and retries once. It is also taken out of storage as it is
+used and only put back after the request it served succeeded, so a failed run
+cannot leave a bad token behind for the next one. Nothing about this is
+configurable and nothing is written to disk — the token lives in memory for the
+life of the n8n process.
+
 ---
 
 ## 💡 Use Cases

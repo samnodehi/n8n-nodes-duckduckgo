@@ -222,9 +222,12 @@ export async function directWebSearch(query: string, options: {
  * Direct image search using DuckDuckGo
  *
  * @param vqdHint - Optional VQD token from a previous call for the same query.
- *   When provided, the initial DuckDuckGo page GET is skipped and this token
- *   is used directly for the i.js request. Only reuse VQDs from the same
- *   query within a single execution run; do not persist across executions.
+ *   When provided, the initial DuckDuckGo page GET is skipped and this token is
+ *   used directly for the i.js request. A hint that DuckDuckGo has since
+ *   invalidated is recovered from rather than surfaced: the token is refetched
+ *   once and the request retried, and the token actually used is returned, so a
+ *   caller storing it always stores a working one. That recovery is what makes
+ *   it safe to reuse a token across executions rather than only within one.
  */
 export async function directImageSearch(query: string, options: {
   locale?: string;
@@ -244,13 +247,8 @@ export async function directImageSearch(query: string, options: {
     });
     const searchUrl = `https://duckduckgo.com/?${searchParams.toString()}`;
 
-    let vqd: string;
-
-    if (vqdHint) {
-      // Caller already has a valid VQD for this query — skip the page GET.
-      vqd = vqdHint;
-    } else {
-      // Fetch the search page to extract the VQD token.
+    // Fetch the search page and read the VQD token out of it.
+    const fetchVqd = async (): Promise<string> => {
       const response = await axios.get(searchUrl, {
         headers: {
           'User-Agent': BROWSER_USER_AGENT,
@@ -276,30 +274,49 @@ export async function directImageSearch(query: string, options: {
           'Image search may be temporarily unavailable. Please try again later.'
         );
       }
-      vqd = extracted;
+      return extracted;
+    };
+
+    const requestImages = async (token: string) => {
+      const imageParams = new URLSearchParams({
+        l: options.locale || 'us-en',
+        o: 'json',
+        q: query,
+        vqd: token,
+        f: ',,,,,',
+        p: options.safeSearch === 'strict' ? '1' : options.safeSearch === 'moderate' ? '-1' : '-2',
+      });
+
+      return axios.get(`https://duckduckgo.com/i.js?${imageParams.toString()}`, {
+        headers: {
+          'User-Agent': BROWSER_USER_AGENT,
+          'Accept': 'application/json, text/javascript, */*; q=0.01',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Referer': searchUrl,
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        timeout: 15000,
+      });
+    };
+
+    let vqd = vqdHint ?? (await fetchVqd());
+    let imageResponse;
+
+    try {
+      imageResponse = await requestImages(vqd);
+    } catch (error) {
+      // DuckDuckGo answers a token it no longer accepts with 403. A supplied
+      // hint can have expired since it was issued, so that is recoverable
+      // rather than a failure: fetch a fresh token and try once more. Without a
+      // hint the token was minted moments ago, so a 403 means something else
+      // and is left to the handler below.
+      if (!vqdHint || error?.response?.status !== 403) {
+        throw error;
+      }
+      vqd = await fetchVqd();
+      imageResponse = await requestImages(vqd);
     }
-
-    // Make image API request
-    const imageParams = new URLSearchParams({
-      l: options.locale || 'us-en',
-      o: 'json',
-      q: query,
-      vqd: vqd,
-      f: ',,,,,',
-      p: options.safeSearch === 'strict' ? '1' : options.safeSearch === 'moderate' ? '-1' : '-2',
-    });
-
-    const imageResponse = await axios.get(`https://duckduckgo.com/i.js?${imageParams.toString()}`, {
-      headers: {
-        'User-Agent': BROWSER_USER_AGENT,
-        'Accept': 'application/json, text/javascript, */*; q=0.01',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Referer': searchUrl,
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      timeout: 15000,
-    });
 
     const imageData = imageResponse.data;
     const results: DirectImageResult[] = [];
