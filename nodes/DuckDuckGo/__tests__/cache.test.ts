@@ -75,6 +75,45 @@ describe('cache', () => {
     expect(deleteCached('a')).toBe(false);
   });
 
+  it('sweeps expired entries out on write once the store is large', () => {
+    // Expiry is otherwise only noticed on a read of the same key, so keys that
+    // are written once and never read back would accumulate for the life of the
+    // process. 300 comfortably clears the 256-entry threshold.
+    jest.useFakeTimers();
+    try {
+      for (let i = 0; i < 300; i++) {
+        setCache(`short-${i}`, i, 60);
+      }
+      expect(getCacheSize()).toBe(300);
+
+      jest.advanceTimersByTime(61 * 1000);
+
+      // One write is enough to trigger the sweep; only it survives.
+      setCache('fresh', 1, 60);
+      expect(getCacheSize()).toBe(1);
+      expect(getCached('fresh')).toBe(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not sweep while the store is small', () => {
+    jest.useFakeTimers();
+    try {
+      setCache('a', 1, 60);
+      jest.advanceTimersByTime(61 * 1000);
+      setCache('b', 2, 60);
+
+      // 'a' has expired but is still held, because a small store is not worth
+      // a pass over. It is dropped on read, as it always was.
+      expect(getCacheSize()).toBe(2);
+      expect(getCached('a')).toBeUndefined();
+      expect(getCacheSize()).toBe(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('clearCache empties the store', () => {
     setCache('a', 1, 300);
     setCache('b', 2, 300);

@@ -868,7 +868,10 @@ that gets an IP blocked counts requests rather than searches, halving them is
 the cheapest protection available.
 
 A token DuckDuckGo has since stopped accepting is not an error you see: the node
-fetches a fresh one and retries once. It is also taken out of storage as it is
+fetches a fresh one and retries once. It does not retry when the refusal turns
+out to be a bot-detection block rather than a stale token — that is reported and
+starts the back-off, because retrying it would send more requests to an IP that
+has just been told to stop. It is also taken out of storage as it is
 used and only put back after the request it served succeeded, so a failed run
 cannot leave a bad token behind for the next one. Nothing about this is
 configurable and nothing is written to disk — the token lives in memory for the

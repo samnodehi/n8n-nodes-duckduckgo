@@ -10,8 +10,13 @@ import axios from 'axios';
 
 // Import after mocking
 import { directWebSearch, directImageSearch } from '../directSearch';
+import { DuckDuckGoErrorType } from '../errors';
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+/** DuckDuckGo's anti-bot page, reduced to the markers that identify it. */
+const CHALLENGE_HTML =
+  '<div id="anomaly-modal">Please complete the following challenge</div>';
 
 // ---------------------------------------------------------------------------
 // Minimal HTML fixtures
@@ -619,6 +624,23 @@ describe('directImageSearch', () => {
       );
 
       expect(mockedAxios.get).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not retry a 403 that is really an IP block', async () => {
+      // 403 is also how a blocked IP is turned away. Retrying that would send
+      // two more requests to a service that has just said stop, which is the
+      // amplification the back-off exists to prevent.
+      const blockedError = Object.assign(new Error('Request failed with status code 403'), {
+        response: { status: 403, data: CHALLENGE_HTML },
+      });
+      mockedAxios.get = jest.fn().mockRejectedValueOnce(blockedError);
+
+      await expect(directImageSearch('cats', {}, 'some-token')).rejects.toMatchObject({
+        errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
+      });
+
+      // One request, and no refetch: the block is named rather than retried.
+      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
     });
 
     it('does not retry a 403 when the token was just fetched', async () => {

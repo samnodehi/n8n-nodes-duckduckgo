@@ -314,6 +314,13 @@ export async function directImageSearch(query: string, options: {
       if (!vqdHint || error?.response?.status !== 403) {
         throw error;
       }
+
+      // 403 is also how a blocked IP is turned away, and retrying that would
+      // send two more requests to a service that has just said stop — the exact
+      // amplification the back-off exists to prevent. The body tells the two
+      // apart, and naming it here starts the back-off as well.
+      assertNotChallenged(error.response?.data, 403, 'image search');
+
       vqd = await fetchVqd();
       imageResponse = await requestImages(vqd);
     }

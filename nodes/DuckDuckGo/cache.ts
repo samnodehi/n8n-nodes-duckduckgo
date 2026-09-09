@@ -39,6 +39,17 @@ export function getCached<T>(key: string): T | undefined {
 }
 
 /**
+ * Entry count at which a write first sweeps out anything expired.
+ *
+ * Expiry is otherwise only noticed when that exact key is read again, so a
+ * stream of keys that are each written once and never read back — one VQD token
+ * per distinct image query, for instance — would keep every entry it ever
+ * created for the life of the process. Sweeping on write bounds the store to
+ * what is actually still live, at the cost of an occasional pass over it.
+ */
+const PRUNE_THRESHOLD = 256;
+
+/**
  * Stores a value in the cache with a specified TTL
  *
  * @param key - Unique identifier for the cached value
@@ -46,6 +57,9 @@ export function getCached<T>(key: string): T | undefined {
  * @param ttl - Time-to-live in seconds
  */
 export function setCache<T>(key: string, value: T, ttl: number): void {
+  if (cacheStore.size >= PRUNE_THRESHOLD) {
+    pruneExpiredEntries();
+  }
   const expiresAt = Date.now() + ttl * 1000;
   cacheStore.set(key, { value, expiresAt });
 }
