@@ -47,6 +47,7 @@ jest.mock('duck-duck-scrape', () => ({
 jest.mock('../cache', () => ({
   getCached: jest.fn(),
   setCache: jest.fn(),
+  deleteCached: jest.fn(),
   clearCache: jest.fn(),
   getCacheSize: jest.fn(),
   pruneExpiredEntries: jest.fn(),
@@ -838,6 +839,27 @@ describe('DuckDuckGo Node', () => {
     });
 
     describe('VQD reuse across multiple input items', () => {
+      // These two tests are about a token surviving from one item to the next,
+      // which it does through the cache. The suite mocks the cache as a stub
+      // that stores nothing — right for the tests written against a cache that
+      // never hits, wrong here, where a cache that forgets would silently make
+      // the behaviour under test untestable. The store is scoped to this block
+      // and rebuilt per test so nothing leaks either way.
+      beforeEach(() => {
+        const store = new Map<string, unknown>();
+        (cache.getCached as jest.Mock).mockImplementation((key: string) => store.get(key));
+        (cache.setCache as jest.Mock).mockImplementation((key: string, value: unknown) => {
+          store.set(key, value);
+        });
+        (cache.deleteCached as jest.Mock).mockImplementation((key: string) => store.delete(key));
+      });
+
+      afterEach(() => {
+        (cache.getCached as jest.Mock).mockReset();
+        (cache.setCache as jest.Mock).mockReset();
+        (cache.deleteCached as jest.Mock).mockReset();
+      });
+
       it('first item calls directImageSearch without vqdHint; subsequent same-query items receive the vqd returned by the first call', async () => {
         // Two input items, both with imageQuery = 'cats'
         mockExecuteFunction.getInputData = jest.fn().mockReturnValue([

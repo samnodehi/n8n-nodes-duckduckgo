@@ -9,6 +9,7 @@ import {
   getCached,
   setCache,
   clearCache,
+  deleteCached,
   getCacheSize,
   pruneExpiredEntries,
 } from '../cache';
@@ -62,6 +63,80 @@ describe('cache', () => {
     jest.setSystemTime(2000); // +2s, past the 1s TTL
     expect(getCached('k')).toBeUndefined();
     expect(getCacheSize()).toBe(0);
+  });
+
+  it('deleteCached removes one entry and reports whether it was there', () => {
+    setCache('a', 1, 60);
+    setCache('b', 2, 60);
+
+    expect(deleteCached('a')).toBe(true);
+    expect(getCached('a')).toBeUndefined();
+    expect(getCached('b')).toBe(2);
+    expect(deleteCached('a')).toBe(false);
+  });
+
+  it('sweeps expired entries out on write once the store is large', () => {
+    // Expiry is otherwise only noticed on a read of the same key, so keys that
+    // are written once and never read back would accumulate for the life of the
+    // process. 300 comfortably clears the 256-entry threshold.
+    jest.useFakeTimers();
+    try {
+      for (let i = 0; i < 300; i++) {
+        setCache(`short-${i}`, i, 60);
+      }
+      expect(getCacheSize()).toBe(300);
+
+      jest.advanceTimersByTime(61 * 1000);
+
+      // One write is enough to trigger the sweep; only it survives.
+      setCache('fresh', 1, 60);
+      expect(getCacheSize()).toBe(1);
+      expect(getCached('fresh')).toBe(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('sweeps at most once per interval, however many writes arrive', () => {
+    // Once the store is full of live entries it stays above the threshold, so
+    // size alone would make every write walk the whole map. The time gate is
+    // what stops n writes becoming O(n^2) work.
+    jest.useFakeTimers();
+    try {
+      for (let i = 0; i < 300; i++) {
+        setCache(`k-${i}`, i, 30);
+      }
+
+      // Everything expires, but the sweep that just ran means the next writes
+      // are inside the interval and must not scan again.
+      jest.advanceTimersByTime(31 * 1000);
+      setCache('inside-interval', 1, 30);
+      expect(getCacheSize()).toBe(301);
+
+      // Past the interval, the next write sweeps.
+      jest.advanceTimersByTime(30 * 1000);
+      setCache('after-interval', 1, 30);
+      expect(getCacheSize()).toBe(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not sweep while the store is small', () => {
+    jest.useFakeTimers();
+    try {
+      setCache('a', 1, 60);
+      jest.advanceTimersByTime(61 * 1000);
+      setCache('b', 2, 60);
+
+      // 'a' has expired but is still held, because a small store is not worth
+      // a pass over. It is dropped on read, as it always was.
+      expect(getCacheSize()).toBe(2);
+      expect(getCached('a')).toBeUndefined();
+      expect(getCacheSize()).toBe(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('clearCache empties the store', () => {

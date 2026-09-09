@@ -39,6 +39,28 @@ export function getCached<T>(key: string): T | undefined {
 }
 
 /**
+ * Entry count at which a write first sweeps out anything expired.
+ *
+ * Expiry is otherwise only noticed when that exact key is read again, so a
+ * stream of keys that are each written once and never read back — one VQD token
+ * per distinct image query, for instance — would keep every entry it ever
+ * created for the life of the process. Sweeping on write bounds the store to
+ * what is actually still live, at the cost of an occasional pass over it.
+ */
+const PRUNE_THRESHOLD = 256;
+
+/**
+ * Shortest gap between sweeps. Size alone is not enough of a gate: once the
+ * store holds 256 entries that are all still live, it stays above the threshold
+ * and every further write would walk the whole map without removing anything,
+ * turning n writes into O(n²) work. Time bounds it to one pass per interval
+ * however busy the process is.
+ */
+const PRUNE_INTERVAL_MS = 60 * 1000;
+
+let lastPrunedAt = 0;
+
+/**
  * Stores a value in the cache with a specified TTL
  *
  * @param key - Unique identifier for the cached value
@@ -46,8 +68,24 @@ export function getCached<T>(key: string): T | undefined {
  * @param ttl - Time-to-live in seconds
  */
 export function setCache<T>(key: string, value: T, ttl: number): void {
-  const expiresAt = Date.now() + ttl * 1000;
-  cacheStore.set(key, { value, expiresAt });
+  const now = Date.now();
+
+  if (cacheStore.size >= PRUNE_THRESHOLD && now - lastPrunedAt >= PRUNE_INTERVAL_MS) {
+    lastPrunedAt = now;
+    pruneExpiredEntries();
+  }
+
+  cacheStore.set(key, { value, expiresAt: now + ttl * 1000 });
+}
+
+/**
+ * Removes a single entry from the cache
+ *
+ * @param key - Unique identifier for the cached value
+ * @returns True when an entry was present and removed
+ */
+export function deleteCached(key: string): boolean {
+  return cacheStore.delete(key);
 }
 
 /**
@@ -55,6 +93,7 @@ export function setCache<T>(key: string, value: T, ttl: number): void {
  */
 export function clearCache(): void {
   cacheStore.clear();
+  lastPrunedAt = 0;
 }
 
 /**

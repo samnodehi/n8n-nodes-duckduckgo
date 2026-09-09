@@ -24,6 +24,7 @@ import {
 
 // Import our direct search implementations
 import { directWebSearch, directImageSearch, getSafeSearchString } from './directSearch';
+import { takeStoredVqd, storeVqd } from './vqdStore';
 
 // Use duck-duck-scrape types directly
 
@@ -1296,13 +1297,6 @@ export class DuckDuckGo implements INodeType {
 
     // Get the global locale setting
 
-    // Per-execution VQD cache for image search.
-    // Keyed by normalised query (trim + lowercase). Avoids a redundant page GET
-    // when multiple input items carry the same imageQuery in one execute() run.
-    // This Map is strictly local: it is not exported, not stored in cache.ts,
-    // and is garbage-collected when execute() returns.
-    const vqdCache = new Map<string, string>();
-
     // Loop through input items
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
       try {
@@ -1612,10 +1606,14 @@ export class DuckDuckGo implements INodeType {
                 console.log(JSON.stringify(logEntry));
               }
 
-              // Execute image search, reusing VQD for the same query within
-              // this execution run to avoid a redundant page GET.
-              const vqdKey = imageQuery.trim().toLowerCase();
-              const cachedVqd = vqdCache.get(vqdKey);
+              // Image search costs a page GET purely to obtain a VQD, then the
+              // request that returns the results. The token is reusable, so a
+              // stored one skips the first of those - and a request not sent is
+              // a request that cannot count towards the rate limit that gets an
+              // IP blocked. The token is taken rather than read, so a run that
+              // fails cannot leave a bad token behind for the next one; it is
+              // written back below only after the request it served worked.
+              const storedVqd = takeStoredVqd(imageQuery, BROWSER_USER_AGENT);
 
               const directImageResults = await directImageSearch(
                 imageQuery,
@@ -1624,14 +1622,12 @@ export class DuckDuckGo implements INodeType {
                   safeSearch: getSafeSearchString(imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
                   maxResults: undefined, // Let it fetch all available results
                 },
-                cachedVqd, // undefined on first call for this query; reused on subsequent calls
+                storedVqd, // undefined when none is held; directImageSearch refetches on a stale one
               );
 
-              // Store the VQD returned by this call so later items with the
-              // same query can skip the page GET.
-              if (directImageResults.vqd) {
-                vqdCache.set(vqdKey, directImageResults.vqd);
-              }
+              // Whatever token the call ended up using is the one worth keeping:
+              // if the stored one had gone stale, this is the fresh replacement.
+              storeVqd(imageQuery, BROWSER_USER_AGENT, directImageResults.vqd);
 
               // Format results to match duck-duck-scrape structure.
               // source is populated from the page URL (r.source) so that
