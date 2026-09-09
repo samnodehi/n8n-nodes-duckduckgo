@@ -38,6 +38,7 @@ An n8n community node for DuckDuckGo search. Search the web, find images, discov
 - **Extract Page Content operation**: Give any URL → clean main text + metadata (a "read any page" tool for AI Agents)
 - **Instant Answer operation**: Direct answers, abstracts, and definitions from DuckDuckGo's free Instant Answer API
 - **Search Suggestions operation**: Query autocomplete from DuckDuckGo's suggestion endpoint — the surface least affected by rate limiting
+- **Ranking rules**: Boost, downrank or discard results by domain or URL, applied locally before the result limit — no extra requests
 
 ---
 
@@ -500,6 +501,60 @@ Cache is in-memory only and is not shared across n8n worker processes or restart
 | `viewCount` | string | View count (as string) |
 | `isFallback` | boolean | `true` if result came from fallback path |
 | `sourceType` | string | Always `"video"` |
+
+---
+
+## 🎯 Ranking Rules
+
+Search engines rank for everybody. A workflow usually wants something narrower —
+only documentation sites, never the content farms that copy them, this vendor's
+own pages before the aggregators.
+
+**Ranking Rules** does that locally, on results the node has already fetched.
+Available on Web, News and Video Search under **Options → Ranking Rules**.
+
+| Field | Meaning |
+|---|---|
+| **Match** | `Domain` (the site, subdomains included) or `URL Contains` (any text in the URL) |
+| **Value** | `example.com` — which also matches `www.example.com` and `docs.example.com`. For URL Contains, a substring such as `/amp/`. |
+| **Effect** | **Boost** (move above the others), **Downrank** (move below), **Discard** (remove) |
+
+### How it behaves
+
+- **Rules are checked in order and the first match wins.** Put specific rules
+  above broad ones: a *Boost* on `docs.example.com` written above a *Discard* on
+  `example.com` keeps the documentation and drops the rest of the site. No fixed
+  precedence between effects could express that.
+- **Ordering is three buckets, not a score.** Boosted results keep their order
+  among themselves and move above everything else, downranked ones likewise
+  below, and anything unmatched stays exactly where DuckDuckGo put it. There is
+  no weight to tune.
+- **Rules run before Maximum Results.** Ask for 10 with a rule that discards a
+  domain and you still get 10, filled from further down the list — not 7. This
+  is the reason to do it here rather than in a Filter node afterwards.
+- **`position` is renumbered** to match the order you actually receive.
+- **A result the rules cannot judge is kept.** A result with no URL, or one that
+  does not parse, is never discarded by a rule it had no chance to match.
+- Rules apply to fallback results too, since which site a result came from does
+  not depend on which path fetched it.
+
+Nothing here contacts anything. No rule causes a request, and none of this is
+sent anywhere — it is applied to the list already in memory.
+
+> Two things rules do **not** apply to: **Image Search**, which has no ranking
+> option, and **Return Raw Results**, which by definition returns DuckDuckGo's
+> response before the node processes it.
+
+### Example
+
+Research that should prefer primary sources and never return aggregators:
+
+| Match | Value | Effect |
+|---|---|---|
+| Domain | `arxiv.org` | Boost |
+| Domain | `pinterest.com` | Discard |
+| Domain | `quora.com` | Discard |
+| URL Contains | `/amp/` | Downrank |
 
 ---
 
