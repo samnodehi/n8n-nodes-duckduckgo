@@ -158,6 +158,33 @@ describe('stripTrackingParameters', () => {
       expect(stripTrackingParameters(input)).toBe(input);
     });
 
+    it.each([
+      [
+        'canned policy',
+        'https://d1.cloudfront.net/f.pdf?utm_source=x&Expires=1&Signature=abc&Key-Pair-Id=K123',
+      ],
+      [
+        'custom policy',
+        'https://d1.cloudfront.net/f?gclid=1&Policy=eyJ&Signature=abc&Key-Pair-Id=K123',
+      ],
+      [
+        'whatever the case',
+        'https://d1.cloudfront.net/f?utm_medium=x&signature=abc&KEY-PAIR-ID=K123',
+      ],
+    ])('leaves a CloudFront signed URL alone — %s', (_label, input) => {
+      // CloudFront signs a policy naming the resource URL, query string
+      // included, so removing a segment breaks authorization.
+      expect(stripTrackingParameters(input)).toBe(input);
+    });
+
+    it('does not treat a lone "Signature" as a signed URL', () => {
+      // Without Key-Pair-Id there is nothing CloudFront-specific about it, and
+      // `signature` on its own is a name ordinary sites use.
+      expect(stripTrackingParameters('https://example.com/?Signature=abc&utm_source=x')).toBe(
+        'https://example.com/?Signature=abc',
+      );
+    });
+
     it('still strips when a parameter merely looks signature-ish', () => {
       // `sig`, `token` and `hash` are ordinary parameter names on plenty of
       // sites; treating them as signatures would switch this off for them.

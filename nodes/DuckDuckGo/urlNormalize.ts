@@ -63,6 +63,14 @@ const SIGNATURE_PARAMETERS: ReadonlySet<string> = new Set([
   'x-goog-signature',  // Google Cloud Storage
 ]);
 
+/**
+ * CloudFront signs a policy naming the resource URL, query string included, so
+ * the same reasoning applies. Its signature is spelled with a bare `Signature`,
+ * which is far too generic to key on alone — but it is always accompanied by
+ * `Key-Pair-Id`, which nothing else uses. The pair is what identifies it.
+ */
+const CLOUDFRONT_SIGNATURE_PAIR: readonly string[] = ['signature', 'key-pair-id'];
+
 function isTrackingParameter(name: string): boolean {
   const lowered = name.toLowerCase();
   return lowered.startsWith(TRACKING_PREFIX) || TRACKING_PARAMETERS.has(lowered);
@@ -136,7 +144,10 @@ export function stripTrackingParameters(
     return decodeName(equals === -1 ? segment : segment.slice(0, equals)).toLowerCase();
   });
 
-  if (names.some((name) => SIGNATURE_PARAMETERS.has(name))) {
+  const isSigned =
+    names.some((name) => SIGNATURE_PARAMETERS.has(name)) ||
+    CLOUDFRONT_SIGNATURE_PAIR.every((name) => names.includes(name));
+  if (isSigned) {
     return url;
   }
 
