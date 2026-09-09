@@ -38,7 +38,7 @@ An n8n community node for DuckDuckGo search. Search the web, find images, discov
 - **Extract Page Content operation**: Give any URL → clean main text + metadata (a "read any page" tool for AI Agents)
 - **Instant Answer operation**: Direct answers, abstracts, and definitions from DuckDuckGo's free Instant Answer API
 - **Search Suggestions operation**: Query autocomplete from DuckDuckGo's suggestion endpoint — the surface least affected by rate limiting
-- **Ranking rules**: Boost, downrank or discard results by domain or URL, applied locally before the result limit — no extra requests
+- **Ranking rules**: Boost, downrank or discard results by domain or URL, applied locally to results already fetched — no extra requests, no service
 
 ---
 
@@ -529,10 +529,14 @@ Available on Web, News and Video Search under **Options → Ranking Rules**.
   among themselves and move above everything else, downranked ones likewise
   below, and anything unmatched stays exactly where DuckDuckGo put it. There is
   no weight to tune.
-- **Rules run before Maximum Results.** Ask for 10 with a rule that discards a
-  domain and you still get 10, filled from further down the list — not 7. This
-  is the reason to do it here rather than in a Filter node afterwards.
-- **`position` is renumbered** to match the order you actually receive.
+- **Rules run before Maximum Results**, which is the reason to do this here
+  rather than in a Filter node afterwards — there, discarding two of ten leaves
+  you with eight. How much that buys depends on the operation: **Web Search**
+  fetches everything the request returned and cuts afterwards, so a discard is
+  backfilled from further down and you still get the number you asked for.
+  **News and Video** fetch about as many results as you asked for, so a discard
+  can leave you short; raise **Maximum Results** to compensate.
+- **`position` is renumbered** to match the order you actually receive, on the operations that carry one (Web Search).
 - **A result the rules cannot judge is kept.** A result with no URL, or one that
   does not parse, is never discarded by a rule it had no chance to match.
 - Rules apply to fallback results too, since which site a result came from does

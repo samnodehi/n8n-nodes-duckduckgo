@@ -40,10 +40,19 @@ among themselves and move above everything else, downranked ones likewise below,
 and anything unmatched stays exactly where DuckDuckGo put it. There is no weight
 to tune.
 
-**Rules run before Maximum Results.** Ask for ten with a rule that discards a
-domain and you still get ten, filled from further down the list — not seven.
-That is the reason to do this in the node rather than in a Filter node
-afterwards. `position` is renumbered to match the order you actually receive.
+**Rules run before Maximum Results**, not after. That is the reason to do this
+in the node rather than in a Filter node afterwards, where discarding two of ten
+results leaves you with eight.
+
+How much that buys depends on the operation. **Web Search** fetches everything
+the request returned and cuts afterwards, so a discard is backfilled from further
+down that list and you still get the number you asked for. **News and Video**
+fetch about as many results as you asked for, so there is nothing held back to
+backfill with — a discard there can leave you short. Raise **Maximum Results** to
+compensate.
+
+`position` is renumbered to match the order you actually receive, on the
+operations that carry one.
 
 **A result the rules cannot judge is kept.** One with no URL, or a URL that does
 not parse, is never discarded by a rule it had no chance to match.
