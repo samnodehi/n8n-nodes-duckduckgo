@@ -68,9 +68,9 @@ text re-keyed to the new names.
 ## Before submitting
 
 1. If a description field accepts an image, use the canvas screenshot from
-   `images/`. **Templates 1 and 4 have no current screenshot** — both changed
-   shape after those images were taken, and a stale canvas is worse than none.
-   Retake from a self-hosted n8n with the node installed, on the light theme.
+   `images/`. All four are current, taken from a self-hosted n8n with the node
+   installed, on the light theme. Retake one whenever a template changes shape —
+   a stale canvas is worse than none.
 2. Run it once so the description matches what actually happens.
 3. Submit through the Creator Dashboard at <https://creators.n8n.io/login>.
 
@@ -87,6 +87,8 @@ broadest recurring use after that, and query expansion is the most niche.
 File: `01-research-assistant.json` — **rebuilt 2026-09-11** after the rejection
 above. Seven nodes, and still no credential of any kind.
 
+> ![Build a research brief from DuckDuckGo results](images/01-research-assistant.png)
+>
 > **Self-hosted n8n only.** This template uses the community node
 > `n8n-nodes-duckduckgo-search`, and community nodes cannot be installed on
 > n8n Cloud.
@@ -223,6 +225,8 @@ silently is worse than no monitor.
 File: `04-ai-news-writer.json` — ten nodes. The strongest of the set, and the
 only one that has been run end to end against the real services.
 
+> ![Write a daily AI news story to Telegram](images/04-ai-news-writer.png)
+>
 > **Self-hosted n8n only.** This template uses the community node
 > `n8n-nodes-duckduckgo-search`, and community nodes cannot be installed on
 > n8n Cloud.
