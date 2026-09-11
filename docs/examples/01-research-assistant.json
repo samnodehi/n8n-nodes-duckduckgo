@@ -1,23 +1,26 @@
 {
-  "name": "Extract full article text from DuckDuckGo web search results",
+  "name": "Build a research brief from DuckDuckGo results with no API key",
   "nodes": [
     {
       "parameters": {
-        "content": "## Extract full article text from DuckDuckGo web search results\n\nSearch results give you a title, a link and a two-line snippet. That is rarely enough to answer a question or to feed a language model. This template runs a DuckDuckGo web search and then fetches and extracts the readable body of the top results, so every item arrives with the article itself attached.\n\nNo HTTP Request or HTML node is needed — the fetching and extraction happen inside the search node.\n\n### How it works\n1. **Search and extract article text** runs one web search with **Fetch Page Content** enabled.\n2. For the first few results the node downloads the page and extracts the main article text with Mozilla Readability, dropping navigation, ads and boilerplate.\n3. **Include Page Metadata** adds site name, author, published date and language, so you can filter or cite before sending anything downstream.\n4. The node continues on error, so one unreachable page never stops the run.\n\n### Setup\n1. Self-hosted n8n only. Install the community node `n8n-nodes-duckduckgo-search` under **Settings → Community nodes**.\n2. No account, API key or credential is needed — DuckDuckGo is queried directly.\n3. Change the **Query** field and run.\n\n### Customization tips\n- Raise **Max Results** for breadth, **Page Content Max Results** for depth.\n- Put an AI Agent after the node: the extracted text is already clean enough to summarise or answer from.",
-        "height": 640,
-        "width": 560,
+        "content": "## Build a research brief from DuckDuckGo results\n\nSearch results give you a title, a link and a two-line snippet. This workflow turns a question into a **readable brief with the sources' own words in it** — and it needs no account, no API key and no credential of any kind.\n\nNo HTTP Request or HTML node is involved: the DuckDuckGo node fetches and extracts the article text itself.\n\n### How it works\n1. **Search and extract article text** runs one web search with **Fetch Page Content** on, so each result arrives with the readable body of its page and with site, author and date attached.\n2. **Keep results with real article text** drops the ones where extraction returned little or nothing — a paywall, a timeout, a page that is all navigation. Those would pad the brief without adding to it.\n3. **Longest articles first** and **Keep the top 5** put the most substantial sources at the front and stop the brief growing without limit.\n4. **Collect the sources** merges them into one item and **Write the brief** formats it as Markdown.\n\n### Setup\n1. Self-hosted n8n only. Install `n8n-nodes-duckduckgo-search` under **Settings → Community nodes**.\n2. There is nothing to authenticate — no account, no API key, no credential.\n3. Change the **Query** in the search node and run.\n\n### Customization tips\n- Raise **Max Results** and **Page Content Max Results** for a wider brief. Both cost extra page fetches, so keep them modest on a schedule.\n- Swap the manual trigger for a Schedule Trigger and send `brief` to Slack, email or a document.\n- Add **Ranking Rules** in the search node to drop domains you never want cited.",
+        "height": 760,
+        "width": 600,
         "color": 1
       },
       "id": "a1b2c3d4-0001-4000-8000-0000000000s1",
       "name": "Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-620, -180]
+      "position": [
+        -660,
+        -200
+      ]
     },
     {
       "parameters": {
-        "content": "## Search, fetch and extract\nOne node does all three. Its output already carries the article text and the page metadata.",
-        "height": 320,
+        "content": "## Search, fetch and extract\nOne node does all three. Each result comes back with the article text and the page metadata already attached.",
+        "height": 300,
         "width": 420,
         "color": 7
       },
@@ -25,26 +28,64 @@
       "name": "Section - search",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-60, -160]
+      "position": [
+        -20,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Keep what is worth citing\nExtraction fails on paywalls and timeouts. Those results would pad the brief without adding anything, so they are dropped before the strongest five are chosen.",
+        "height": 300,
+        "width": 640,
+        "color": 7
+      },
+      "id": "a1b2c3d4-0001-4000-8000-0000000000s3",
+      "name": "Section - filter",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        420,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Turn the sources into one document\nThe brief is plain Markdown, so it can go to Slack, an email, a document or a file without further shaping.",
+        "height": 300,
+        "width": 440,
+        "color": 7
+      },
+      "id": "a1b2c3d4-0001-4000-8000-0000000000s4",
+      "name": "Section - brief",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        -160
+      ]
     },
     {
       "parameters": {},
       "id": "a1b2c3d4-0001-4000-8000-000000000001",
-      "name": "Manual Test Trigger",
+      "name": "Run to build the brief",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [0, 0]
+      "position": [
+        40,
+        0
+      ]
     },
     {
       "parameters": {
         "operation": "search",
         "query": "retrieval augmented generation best practices",
         "webSearchOptions": {
-          "maxResults": 5,
+          "maxResults": 10,
           "region": "wt-wt",
           "fetchPageContent": true,
-          "pageContentMaxResults": 3,
-          "pageContentMaxLength": 3000,
+          "pageContentMaxResults": 8,
+          "pageContentMaxLength": 4000,
           "includePageMetadata": true
         }
       },
@@ -52,15 +93,177 @@
       "name": "Search and extract article text",
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
-      "position": [220, 0],
+      "position": [
+        260,
+        0
+      ],
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a1b2c3d4-0001-4000-8000-0000000000c1",
+              "leftValue": "={{ ($json.pageContent || '').length }}",
+              "rightValue": 500,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000003",
+      "name": "Keep results with real article text",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sortFieldsUi": {
+          "sortField": [
+            {
+              "fieldName": "pageContent.length",
+              "order": "descending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000004",
+      "name": "Longest articles first",
+      "type": "n8n-nodes-base.sort",
+      "typeVersion": 1,
+      "position": [
+        740,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000005",
+      "name": "Keep the top 5",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        940,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000006",
+      "name": "Collect the sources",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1140,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build a Markdown brief from the sources that survived the filter.\n// Everything here is plain string work - no credential, no request.\n//\n// Field names come from the DuckDuckGo node's page-metadata output, which\n// prefixes them: pageContent, pageSiteName, pagePublished.\n\nconst sources = $input.first().json.data || [];\nconst query = $('Search and extract article text').params.query || 'the search query';\n\nconst lines = [\n  '# Research brief',\n  '',\n  `**Question:** ${query}`,\n  `**Sources:** ${sources.length}`,\n  `**Built:** ${new Date().toISOString().slice(0, 10)}`,\n  '',\n];\n\nsources.forEach((s, i) => {\n  const site = s.pageSiteName || s.hostname || '';\n  const date = s.pagePublished ? ` · ${String(s.pagePublished).slice(0, 10)}` : '';\n  const full = String(s.pageContent || '').replace(/\\s+/g, ' ').trim();\n  const extract = full.slice(0, 700);\n\n  lines.push(`## ${i + 1}. ${s.title || 'Untitled'}`);\n  lines.push(`${site}${date}`);\n  lines.push('');\n  lines.push(`> ${extract}${full.length > 700 ? '…' : ''}`);\n  lines.push('');\n  lines.push(`[Read in full](${s.url})`);\n  lines.push('');\n});\n\nreturn [{ json: { query, sourceCount: sources.length, brief: lines.join('\\n') } }];"
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000007",
+      "name": "Write the brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        0
+      ]
     }
   ],
   "connections": {
-    "Manual Test Trigger": {
-      "main": [[{ "node": "Search and extract article text", "type": "main", "index": 0 }]]
+    "Run to build the brief": {
+      "main": [
+        [
+          {
+            "node": "Search and extract article text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search and extract article text": {
+      "main": [
+        [
+          {
+            "node": "Keep results with real article text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep results with real article text": {
+      "main": [
+        [
+          {
+            "node": "Longest articles first",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Longest articles first": {
+      "main": [
+        [
+          {
+            "node": "Keep the top 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep the top 5": {
+      "main": [
+        [
+          {
+            "node": "Collect the sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect the sources": {
+      "main": [
+        [
+          {
+            "node": "Write the brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

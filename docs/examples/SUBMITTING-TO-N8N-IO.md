@@ -24,7 +24,7 @@ and its [template submission guidelines](https://n8n.notion.site/p/Template-subm
   exactly one yellow overview sticky in the top-left corner, 100–300 words,
   containing `### How it works` and `### Setup`; white section stickies (under
   50 words) grouping the nodes of any workflow with four or more of them.
-  All three templates in this folder already satisfy this.
+  All four templates in this folder already satisfy this.
 - **Title format**: `Action verb` + the thing being manipulated +
   `to/on/in/from where`, sentence-style capitalisation, no emoji, no hype. The
   `name` field of each JSON is already written in that form.
@@ -33,26 +33,61 @@ and its [template submission guidelines](https://n8n.notion.site/p/Template-subm
   *How to customize*.
 - No hardcoded credentials, no personal identifiers.
 
+## What the first rejection taught us
+
+Template 1 was submitted on 2026-09-08 and **not published**: *"It is currently
+too basic to meet our publishing criteria."* It was two nodes — a trigger and
+one DuckDuckGo node — with everything interesting happening inside that node's
+options. As a *workflow* that is a configuration sample.
+
+Measured against the live library on 2026-09-11 (`api.n8n.io` template search,
+then each workflow's detail): published "research assistant" templates carry
+**4–21 real nodes, median about 8**. Two was never going to clear it.
+
+So a template here has to **do a job end to end**, not demonstrate one option.
+Both templates below were rebuilt or written to that bar.
+
+Two more things worth knowing, both measured rather than assumed:
+
+- **Requiring credentials is normal.** Published Telegram + AI agent templates
+  commonly need 2–5 (`telegramApi` + an LLM, often plus Sheets or Postgres).
+  The only credential rule in the guidelines is not to *hardcode* keys.
+- **The portal has no image upload field** at any step seen so far, despite the
+  guidelines asking for a canvas image. The AI review derives the title from the
+  workflow's `name` and pre-fills the description form from the sticky notes.
+
+**Diff the AI's rewritten JSON; do not upload it unread.** It has now been seen
+twice. On template 1 it was a regression. On template 4 (2026-09-11) it changed
+nothing functional at all — identical parameters, identical wiring, same node
+ids — and only renamed the nodes, moved them, and rewrote the stickies. Its
+stickies dropped the community-node install step and the self-hosted-only line,
+which is exactly what a community-node template must carry. What is in the repo
+takes its node names, positions and four-section layout, and keeps our overview
+text re-keyed to the new names.
+
 ## Before submitting
 
-1. Upload the canvas screenshot from `images/` as the first thing in the
-   description. The images below were taken from a self-hosted n8n with the
-   node installed, on the light theme; retake one if a template changes shape.
+1. If a description field accepts an image, use the canvas screenshot from
+   `images/`. All four are current, taken from a self-hosted n8n with the node
+   installed, on the light theme. Retake one whenever a template changes shape —
+   a stale canvas is worse than none.
 2. Run it once so the description matches what actually happens.
 3. Submit through the Creator Dashboard at <https://creators.n8n.io/login>.
 
-Suggested order, given the one-at-a-time limit: **1 → 3 → 2**. The first shows
-the capability nothing else in the library offers (search results with the
-article body already extracted), the news monitor has the broadest recurring
-use, and query expansion is the most niche of the three.
+Suggested order, given the one-at-a-time limit: **4 → 1 → 3 → 2**. Template 4
+goes first because it is the strongest of the set and the only one run end to
+end against the real services; the rebuilt template 1 then goes into the
+“Implement changes” slot left by the rejection. The news monitor has the
+broadest recurring use after that, and query expansion is the most niche.
 
 ---
 
-## Template 1 — Extract full article text from DuckDuckGo web search results
+## Template 1 — Build a research brief from DuckDuckGo results with no API key
 
-File: `01-research-assistant.json`
+File: `01-research-assistant.json` — **rebuilt 2026-09-11** after the rejection
+above. Seven nodes, and still no credential of any kind.
 
-> ![Extract full article text from DuckDuckGo web search results](images/01-research-assistant.png)
+> ![Build a research brief from DuckDuckGo results](images/01-research-assistant.png)
 >
 > **Self-hosted n8n only.** This template uses the community node
 > `n8n-nodes-duckduckgo-search`, and community nodes cannot be installed on
@@ -60,38 +95,36 @@ File: `01-research-assistant.json`
 
 ### Who's it for
 
-Anyone who needs the *content* of search results rather than the results
-themselves: research assistants, RAG pipelines, content and SEO teams, and
-anyone feeding a language model something better than a two-line snippet.
+Anyone who needs the *content* of search results rather than a list of links:
+research assistants, analysts, anyone assembling a reading pack on a question.
 
 ### How it works
 
-A single DuckDuckGo node runs a web search with **Fetch Page Content** enabled.
-For the top results it downloads each page and extracts the main article text
-with Mozilla Readability, so navigation, ads and boilerplate are dropped and
-what is left is the piece itself. **Include Page Metadata** adds site name,
-author, published date and language to every item, which is enough to filter by
-source or to cite properly before anything goes downstream. The node is set to
-continue on error, so a single unreachable page cannot end the run.
+A DuckDuckGo web search runs with **Fetch Page Content** enabled, so each result
+arrives with the readable body of its page and with site, author and date
+attached — no HTTP Request or HTML node involved. Results whose extraction
+returned little or nothing are dropped: a paywall or a timeout would pad the
+brief without adding to it. The remainder are ordered by how substantial they
+are, capped at five, merged into one item and written out as a Markdown brief
+with a quote and a link for each source.
 
 ### How to set up
 
 1. Install `n8n-nodes-duckduckgo-search` under **Settings → Community nodes**.
-2. There is nothing to authenticate. DuckDuckGo needs no account and no API key,
-   and the node sends no telemetry.
-3. Edit the **Query** field and run.
+2. Nothing to authenticate — no account, no API key, no credential.
+3. Change the **Query** in the search node and run.
 
 ### Requirements
 
-Self-hosted n8n, and the `n8n-nodes-duckduckgo-search` community node. No
-credentials, no paid service.
+Self-hosted n8n and the community node. **No credentials at all**, which is
+unusual for a research workflow in this library and is the point of this one.
 
 ### How to customize
 
-Raise **Max Results** for breadth and **Page Content Max Results** for depth.
-Add an AI Agent or Summarize node after the search — the extracted text is clean
-enough to answer from directly. DuckDuckGo rate-limits per IP, so on a schedule
-keep the searches spaced out.
+Raise **Max Results** and **Page Content Max Results** for a wider brief; both
+cost extra page fetches, so keep them modest on a schedule. Swap the manual
+trigger for a Schedule Trigger and send `brief` to Slack, email or a document.
+Add **Ranking Rules** in the search node to drop domains you never want cited.
 
 ---
 
@@ -184,3 +217,53 @@ credentials, no paid service.
 the news node, or deduplicate against a datastore so a story is only reported
 once. Send the error branch somewhere you actually read — a monitor that fails
 silently is worse than no monitor.
+
+---
+
+## Template 4 — Write a daily AI news story to Telegram with DuckDuckGo and an AI agent
+
+File: `04-ai-news-writer.json` — ten nodes. The strongest of the set, and the
+only one that has been run end to end against the real services.
+
+> ![Write a daily AI news story to Telegram](images/04-ai-news-writer.png)
+>
+> **Self-hosted n8n only.** This template uses the community node
+> `n8n-nodes-duckduckgo-search`, and community nodes cannot be installed on
+> n8n Cloud.
+
+### Who's it for
+
+Anyone who wants a written briefing rather than a feed: a team channel that
+should get one considered story a day instead of ten headlines nobody opens.
+
+### How it works
+
+A schedule trigger sweeps DuckDuckGo News for the last day. The result passes an
+If node that checks for an `error` field first — DuckDuckGo rate-limits per IP
+and this runs unattended, so a block is a matter of when; that branch warns you
+instead of letting the agent write about nothing. The headlines are then merged
+into a single item, which matters: an AI Agent runs **once per input item**, so
+without it ten headlines become ten model calls and ten messages.
+
+The agent picks the single most significant story, calls the DuckDuckGo node
+**as a tool** for background, and returns JSON. A Code node parses that
+defensively — models wrap JSON in code fences, add a preamble, or ignore the
+format — escapes it for Telegram and caps the length before it is sent.
+
+### How to set up
+
+1. Install `n8n-nodes-duckduckgo-search` under **Settings → Community nodes**.
+2. Add credentials for **OpenRouter** and **Telegram**. DuckDuckGo needs none.
+3. Put your chat ID in **both** Telegram nodes and change the query.
+
+### Requirements
+
+Self-hosted n8n, the community node, an OpenRouter account and a Telegram bot.
+The search side needs no key.
+
+### How to customize
+
+Change the query to any beat — one topic per copy of the workflow. The agent
+searches from the same IP as the sweep, so keep **Max Results** low on the tool
+and the schedule no tighter than a few hours. Swap Telegram for Slack or email;
+the Code node hands on plain fields.

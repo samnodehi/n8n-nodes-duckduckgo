@@ -953,9 +953,10 @@ Copy the JSON and paste it straight onto an n8n canvas (**Ctrl/Cmd+V**), or use 
 
 | Workflow | What it shows |
 |---|---|
-| [Extract full article text from search results](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/01-research-assistant.json) | Web Search with **Fetch Page Content** + metadata — full article text instead of snippets, ready to hand to an LLM |
+| [Build a research brief, with no API key](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/01-research-assistant.json) | Web Search with **Fetch Page Content** + metadata, filtered down to the sources that actually extracted, written out as a Markdown brief. No credential of any kind |
 | [Expand one keyword into multiple searches](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/02-query-expansion.json) | **Search Suggestions** with `splitIntoItems`, looped into one Web Search per suggestion, with a **Wait** node so you stay under the rate limit |
 | [Monitor news on a schedule](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/03-news-monitor.json) | Scheduled **News Search** with `timePeriod: d`, branching on whether DuckDuckGo reported an `error` so a rate-limited run is handled rather than silently skipped |
+| [Write a daily AI news story to Telegram](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/04-ai-news-writer.json) | Scheduled News sweep → error branch → an **AI Agent** that picks one story and researches it with this node **as a tool** → Telegram. Needs OpenRouter and Telegram credentials; the search side needs none |
 
 Each one uses **On Error → Continue** on the search node, which is the recommended setting: a rate-limited search raises an error rather than returning an empty list, and continuing lets the rest of the run proceed.
 
