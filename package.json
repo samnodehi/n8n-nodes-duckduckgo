@@ -81,13 +81,13 @@
     "duck-duck-scrape": "^2.2.7",
     "linkedom": "^0.18.0"
   },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  },
   "engines": {
     "node": ">=18.0.0"
   },
   "publishConfig": {
     "access": "public"
-  },
-  "resolutions": {
-    "@n8n/client-oauth2/axios": "^1.13.0"
   }
 }

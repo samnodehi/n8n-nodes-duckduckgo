@@ -54,7 +54,6 @@ describe('VQD Pagination', () => {
         pageSize: 10,
         maxPages: 3,
         delayBetweenRequests: 10,
-        debugMode: false,
       };
 
       const result = await paginateWithVqd('test query', {}, options);
@@ -88,7 +87,6 @@ describe('VQD Pagination', () => {
         pageSize: 10,
         maxPages: 3,
         delayBetweenRequests: 10, // Short delay for tests
-        debugMode: false,
       };
 
       const result = await paginateWithVqd('test query', {}, options);
@@ -131,7 +129,6 @@ describe('VQD Pagination', () => {
         pageSize: 10,
         maxPages: 5,
         delayBetweenRequests: 10,
-        debugMode: false,
       };
 
       const result = await paginateWithVqd('test query', {}, options);
