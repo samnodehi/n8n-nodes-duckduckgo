@@ -2,6 +2,8 @@
  * Utilities and helper functions for the DuckDuckGo node
  */
 
+import type { Logger, LogMetadata } from 'n8n-workflow';
+
 /**
  * HTML entity mapping for decoding
  */
@@ -113,6 +115,43 @@ export function createLogEntry(
   }
 
   return logEntry;
+}
+
+/**
+ * Sink for the node's debug entries.
+ *
+ * Present only while Debug Mode is on, so a call site can emit unconditionally
+ * with `debugLog?.(...)` rather than guarding on the flag itself.
+ */
+export type DebugLogger = (entry: ILogEntry) => void;
+
+/**
+ * Builds the debug sink for one execution.
+ *
+ * Entries go to n8n's own logger rather than to stdout: the instance log then
+ * carries them with the execution's context, a user who has not asked for
+ * debugging sees nothing, and n8n Cloud does not permit console output at all.
+ *
+ * @param logger - `this.logger` from the execution context
+ * @param enabled - the node's Debug Mode parameter
+ * @returns a sink, or undefined when debugging is off
+ */
+export function makeDebugLogger(logger: Logger, enabled: boolean): DebugLogger | undefined {
+  if (!enabled) return undefined;
+
+  return ({ message, ...meta }) => {
+    const metadata = meta as LogMetadata;
+    switch (meta.level) {
+      case LogLevel.ERROR:
+        logger.error(message, metadata);
+        break;
+      case LogLevel.WARN:
+        logger.warn(message, metadata);
+        break;
+      default:
+        logger.debug(message, metadata);
+    }
+  };
 }
 
 /**

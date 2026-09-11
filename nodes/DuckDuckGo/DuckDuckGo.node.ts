@@ -7,7 +7,9 @@ import {
   INodeType,
   INodeTypeDescription,
   IDataObject,
+  NodeConnectionTypes,
   NodeOperationError,
+  sleep,
 } from 'n8n-workflow';
 
 // Import types from duck-duck-scrape for compatibility, but use fallback functions
@@ -47,6 +49,8 @@ import { DEFAULT_PARAMETERS, NODE_INFO, REGIONS, BROWSER_USER_AGENT } from './co
 import {
   parseApiError,
   createLogEntry,
+  makeDebugLogger,
+  DebugLogger,
   LogLevel,
 } from './utils';
 
@@ -63,11 +67,6 @@ import { fetchPageContent, fetchPageContents } from './pageContent';
 import { getInstantAnswer } from './instantAnswer';
 import { getAutocomplete } from './autocomplete';
 import { getCooldownReason } from './challengeCooldown';
-
-// Sleep for a fixed amount of time
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 
 /**
@@ -140,7 +139,7 @@ async function enrichWithPageContent(
     pageContentTimeout?: number;
     includePageMetadata?: boolean;
   },
-  debugMode: boolean,
+  debugLog: DebugLogger | undefined,
   operation: string,
 ): Promise<void> {
   if (!pageOpts.fetchPageContent || results.length === 0) {
@@ -180,14 +179,12 @@ async function enrichWithPageContent(
     }
   });
 
-  if (debugMode) {
-    console.log(JSON.stringify(createLogEntry(
+  debugLog?.(createLogEntry(
       LogLevel.INFO,
       `Fetched page content for ${count} of ${results.length} ${operation} results`,
       operation,
-      { count, pageContentOptions: pcOptions },
-    )));
-  }
+    { count, pageContentOptions: pcOptions },
+  ));
 }
 
 
@@ -206,8 +203,8 @@ export class DuckDuckGo implements INodeType {
     defaults: {
       name: NODE_INFO.DISPLAY_NAME,
     },
-    inputs: ['main'],
-    outputs: ['main'],
+    inputs: [NodeConnectionTypes.Main],
+    outputs: [NodeConnectionTypes.Main],
     // @ts-ignore - Enable this node to be used as an AI Agent tool
     usableAsTool: true,
     credentials: [],
@@ -1195,6 +1192,7 @@ export class DuckDuckGo implements INodeType {
     },
   ): Promise<Array<any>> {
     const debugMode = this.getNodeParameter('debugMode', 0, false) as boolean;
+    const debugLog = makeDebugLogger(this.logger, debugMode);
 
     // Use the enhanced VQD pagination with corrected SearchOptions
     const paginationResult = await paginateWithVqd(
@@ -1209,7 +1207,7 @@ export class DuckDuckGo implements INodeType {
         pageSize: DEFAULT_PAGINATION_CONFIG.pageSize,
         maxPages: Math.min(DEFAULT_PAGINATION_CONFIG.maxPages, Math.ceil(options.maxResults / DEFAULT_PAGINATION_CONFIG.pageSize)),
         delayBetweenRequests: DEFAULT_PAGINATION_CONFIG.delayBetweenRequests,
-        debugMode,
+        debugLog,
       }
     );
 
@@ -1265,7 +1263,7 @@ export class DuckDuckGo implements INodeType {
               'webSearchWithSuperPagination',
               { query, error: error.message }
             );
-            console.error(JSON.stringify(logEntry));
+            debugLog?.(logEntry);
           }
           break;
         }
@@ -1284,6 +1282,7 @@ export class DuckDuckGo implements INodeType {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
     const debugMode = this.getNodeParameter('debugMode', 0, false) as boolean;
+    const debugLog = makeDebugLogger(this.logger, debugMode);
 
 
     // Get cache settings
@@ -1367,7 +1366,7 @@ export class DuckDuckGo implements INodeType {
               operation,
               { originalQuery: query, enhancedQuery, operators: options.searchOperators }
             );
-            console.log(JSON.stringify(logEntry));
+            debugLog?.(logEntry);
           }
 
           // Set up search options with correct API according to duck-duck-scrape documentation
@@ -1399,7 +1398,7 @@ export class DuckDuckGo implements INodeType {
                   operation,
                   { query: enhancedQuery, options: searchOptions, cacheKey }
                 );
-                console.log(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               result = cachedResult;
@@ -1417,7 +1416,7 @@ export class DuckDuckGo implements INodeType {
                   operation,
                   { query: enhancedQuery, options: searchOptions, cacheEnabled: enableCache }
                 );
-                console.log(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               // SIMPLIFIED: Execute search directly using our direct implementation
@@ -1465,7 +1464,7 @@ export class DuckDuckGo implements INodeType {
                     operation,
                     { query: enhancedQuery, options: searchOptions, cacheTTL, cacheKey }
                   );
-                  console.log(JSON.stringify(logEntry));
+                  debugLog?.(logEntry);
                 }
               }
             }
@@ -1479,7 +1478,7 @@ export class DuckDuckGo implements INodeType {
                   operation,
                   { query: enhancedQuery, options: searchOptions }
                 );
-                console.log(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               results = [{
@@ -1522,7 +1521,7 @@ export class DuckDuckGo implements INodeType {
                 // Optional, opt-in: enrich the top-N results with extracted page text.
                 // Makes extra HTTP requests to the result sites (not DuckDuckGo),
                 // so it only runs when the user enables "Fetch Page Content".
-                await enrichWithPageContent(results, options, debugMode, operation);
+                await enrichWithPageContent(results, options, debugLog, operation);
 
                 // Add cache information to the first result if in debug mode
                 if (debugMode && results.length > 0) {
@@ -1544,7 +1543,7 @@ export class DuckDuckGo implements INodeType {
                 { query: enhancedQuery, options: searchOptions },
                 error instanceof Error ? error : new Error(String(error))
               );
-              console.error(JSON.stringify(logEntry));
+              debugLog?.(logEntry);
             }
 
             results = [{
@@ -1603,7 +1602,7 @@ export class DuckDuckGo implements INodeType {
                   operation,
                   { query: imageQuery, options: searchOptions, cacheKey }
                 );
-                console.log(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               result = cachedResult;
@@ -1621,7 +1620,7 @@ export class DuckDuckGo implements INodeType {
                   operation,
                   { query: imageQuery, options: searchOptions, cacheEnabled: enableCache }
                 );
-                console.log(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               // Image search costs a page GET purely to obtain a VQD, then the
@@ -1682,7 +1681,7 @@ export class DuckDuckGo implements INodeType {
                     operation,
                     { query: imageQuery, options: searchOptions, cacheTTL, cacheKey }
                   );
-                  console.log(JSON.stringify(logEntry));
+                  debugLog?.(logEntry);
                 }
               }
             }
@@ -1696,7 +1695,7 @@ export class DuckDuckGo implements INodeType {
                   operation,
                   { query: imageQuery, options: searchOptions }
                 );
-                console.log(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               results = [{
@@ -1751,7 +1750,7 @@ export class DuckDuckGo implements INodeType {
                 { query: imageQuery, options: searchOptions },
                 error instanceof Error ? error : new Error(String(error))
               );
-              console.error(JSON.stringify(logEntry));
+              debugLog?.(logEntry);
             }
 
             results = [{
@@ -1826,7 +1825,7 @@ export class DuckDuckGo implements INodeType {
                   operation,
                   { query: newsQuery, options: searchOptions, cacheKey }
                 );
-                console.log(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               result = cachedResult;
@@ -1844,7 +1843,7 @@ export class DuckDuckGo implements INodeType {
                   operation,
                   { query: newsQuery, options: searchOptions, cacheEnabled: enableCache }
                 );
-                console.log(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               // The back-off must gate the primary call too, not just the
@@ -1882,7 +1881,7 @@ export class DuckDuckGo implements INodeType {
                       operation,
                       { query: newsQuery, options: searchOptions, page }
                     );
-                    console.log(JSON.stringify(logEntry));
+                    debugLog?.(logEntry);
                   }
 
                   try {
@@ -1919,7 +1918,7 @@ export class DuckDuckGo implements INodeType {
                         operation,
                         { query: newsQuery, options: searchOptions, page }
                       );
-                      console.error(JSON.stringify(logEntry));
+                      debugLog?.(logEntry);
                     }
                     break;
                   }
@@ -1943,7 +1942,7 @@ export class DuckDuckGo implements INodeType {
                     operation,
                     { query: newsQuery, options: searchOptions, cacheTTL, cacheKey }
                   );
-                  console.log(JSON.stringify(logEntry));
+                  debugLog?.(logEntry);
                 }
               }
             }
@@ -1957,7 +1956,7 @@ export class DuckDuckGo implements INodeType {
                   operation,
                   { query: newsQuery, options: searchOptions }
                 );
-                console.log(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               results = [{
@@ -1996,7 +1995,7 @@ export class DuckDuckGo implements INodeType {
                 ).slice(0, maxResults);
 
                 // Optional, opt-in: enrich the top-N results with extracted page text.
-                await enrichWithPageContent(results, newsSearchOptions, debugMode, operation);
+                await enrichWithPageContent(results, newsSearchOptions, debugLog, operation);
 
                 // Add cache information to the first result if in debug mode
                 if (debugMode && results.length > 0) {
@@ -2007,10 +2006,13 @@ export class DuckDuckGo implements INodeType {
             }
           } catch (error) {
             // Log the primary failure reason before attempting fallback.
-            // Always emitted (not gated by debugMode) so the cause is visible
-            // in the n8n server log even when fallback succeeds and no error
-            // item is returned to the workflow.
-            console.warn(`[DuckDuckGo] Primary news search failed (query: "${newsQuery}"): ${(error instanceof Error ? error.message : String(error))}`);
+            // Always emitted (not gated by Debug Mode) so the cause is visible
+            // in the n8n log even when fallback succeeds and no error item is
+            // returned to the workflow.
+            this.logger.warn(
+              `Primary news search failed: ${error instanceof Error ? error.message : String(error)}`,
+              { query: newsQuery },
+            );
 
             // Try fallback search if duck-duck-scrape fails
             try {
@@ -2075,13 +2077,15 @@ export class DuckDuckGo implements INodeType {
                     rulesFromOptions(newsSearchOptions.rankingRules),
                   ).slice(0, newsSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS);
                   // Optional, opt-in: enrich fallback results too.
-                  await enrichWithPageContent(results, newsSearchOptions, debugMode, operation);
+                  await enrichWithPageContent(results, newsSearchOptions, debugLog, operation);
                 }
                 // If relevantResults is empty, fall through to the error-item path below
                 // so the caller gets a meaningful signal instead of silence.
               }
             } catch (fallbackError) {
-              console.error('Fallback news search also failed:', fallbackError);
+              this.logger.warn(
+                `Fallback news search also failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
+              );
             }
 
             // Only emit the error item when the fallback also produced nothing
@@ -2099,7 +2103,7 @@ export class DuckDuckGo implements INodeType {
                   { query: newsQuery, options: searchOptions },
                   error instanceof Error ? error : new Error(String(error))
                 );
-                console.error(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               results = [{
@@ -2163,7 +2167,7 @@ export class DuckDuckGo implements INodeType {
                   operation,
                   { query: videoQuery, options: searchOptions, cacheKey }
                 );
-                console.log(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               result = cachedResult;
@@ -2185,7 +2189,7 @@ export class DuckDuckGo implements INodeType {
                   operation,
                   { query: videoQuery, options: searchOptions, cacheEnabled: enableCache }
                 );
-                console.log(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               const videoCooling = getCooldownReason();
@@ -2220,7 +2224,7 @@ export class DuckDuckGo implements INodeType {
                       operation,
                       { query: videoQuery, options: searchOptions, page }
                     );
-                    console.log(JSON.stringify(logEntry));
+                    debugLog?.(logEntry);
                   }
 
                   try {
@@ -2257,7 +2261,7 @@ export class DuckDuckGo implements INodeType {
                         operation,
                         { query: videoQuery, options: searchOptions, page }
                       );
-                      console.error(JSON.stringify(logEntry));
+                      debugLog?.(logEntry);
                     }
                     break;
                   }
@@ -2281,7 +2285,7 @@ export class DuckDuckGo implements INodeType {
                     operation,
                     { query: videoQuery, options: searchOptions, cacheTTL, cacheKey }
                   );
-                  console.log(JSON.stringify(logEntry));
+                  debugLog?.(logEntry);
                 }
               }
             }
@@ -2295,7 +2299,7 @@ export class DuckDuckGo implements INodeType {
                   operation,
                   { query: videoQuery, options: searchOptions }
                 );
-                console.log(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               results = [{
@@ -2387,7 +2391,9 @@ export class DuckDuckGo implements INodeType {
                 // Leave fallback results populated; the error item below is only emitted if fallback produced no results.
               }
             } catch (fallbackError) {
-              console.error('Fallback video search also failed:', fallbackError);
+              this.logger.warn(
+                `Fallback video search also failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
+              );
             }
 
             // Only emit the error item when the fallback also produced nothing
@@ -2405,7 +2411,7 @@ export class DuckDuckGo implements INodeType {
                   { query: videoQuery, options: searchOptions },
                   error instanceof Error ? error : new Error(String(error))
                 );
-                console.error(JSON.stringify(logEntry));
+                debugLog?.(logEntry);
               }
 
               results = [{
@@ -2578,7 +2584,7 @@ export class DuckDuckGo implements INodeType {
               {},
               error instanceof Error ? error : new Error(String(error))
             );
-            console.error(JSON.stringify(logEntry));
+            debugLog?.(logEntry);
           }
 
           returnData.push({
@@ -2607,7 +2613,7 @@ export class DuckDuckGo implements INodeType {
             {},
             error instanceof Error ? error : new Error(String(error))
           );
-          console.error(JSON.stringify(logEntry));
+          debugLog?.(logEntry);
         }
 
 

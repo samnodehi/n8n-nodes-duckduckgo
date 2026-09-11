@@ -195,8 +195,6 @@ export async function directWebSearch(query: string, options: {
 
     return { results };
   } catch (error) {
-    console.error('Direct web search error:', error.message);
-
     // Re-throw errors that already carry specific, user-readable messages
     // (e.g. the parser-failure error thrown above — no .code, no .response)
     if (!error.code && !error.response) {
@@ -368,8 +366,6 @@ export async function directImageSearch(query: string, options: {
 
     return { results, vqd };
   } catch (error) {
-    console.error('Direct image search error:', error.message);
-
     // Preserve typed errors (e.g. the bot-challenge error) rather than
     // flattening them into a generic message and losing their guidance.
     if (error instanceof DuckDuckGoError) {

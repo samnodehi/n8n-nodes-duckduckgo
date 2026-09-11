@@ -204,7 +204,6 @@ export async function fallbackWebSearch(
     };
 
   } catch (error) {
-    console.error('Fallback search error:', error);
     return {
       success: false,
       noResults: true,
@@ -229,7 +228,6 @@ export async function fallbackNewsSearch(
     return await fallbackWebSearch(newsQuery, options);
 
   } catch (error) {
-    console.error('Fallback news search error:', error);
     return {
       success: false,
       noResults: true,
@@ -252,7 +250,6 @@ export async function fallbackVideoSearch(
     return await fallbackWebSearch(videoQuery, options);
 
   } catch (error) {
-    console.error('Fallback video search error:', error);
     return {
       success: false,
       noResults: true,

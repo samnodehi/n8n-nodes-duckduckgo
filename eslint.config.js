@@ -70,6 +70,12 @@ module.exports = [
 					// options are kept together) rather than alphabetically. Consistent
 					// with node-param-fixed-collection-type-unsorted-items being off above.
 					'n8n-nodes-base/node-param-collection-type-unsorted-items': 'off',
+					// These two want the string literals `['main']`, while
+					// @n8n/community-nodes/node-connection-type-literal wants
+					// `NodeConnectionTypes.Main`. n8n's own community-node scanner
+					// resolves the conflict by turning these off, so we match it.
+					'n8n-nodes-base/node-class-description-inputs-wrong-regular-node': 'off',
+					'n8n-nodes-base/node-class-description-outputs-wrong': 'off',
 				},
 			},
 		],

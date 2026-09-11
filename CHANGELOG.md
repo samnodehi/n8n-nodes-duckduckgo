@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CI now fails on a package that would ship the wrong files.** Every GitHub release from v32.7.0 attached an archive carrying compiled tests, and nothing noticed until the two were compared by hand. `npm run check-package` reads `npm pack --dry-run` and asserts that nothing outside `dist/` ships beyond the three files npm always includes, that no compiled test, source map or TypeScript file is present, and that the node entry point and icon are. The release workflow runs the same check after its production build and before publishing, because a tag can be pushed before CI finishes or at a commit whose CI failed, and an npm version cannot be taken back.
 - **CI reports what actually ran.** The test and suite counts and the coverage table are written to the run summary, so a claim about the suite can be checked against the run that produced it rather than a README that may have drifted.
 - **CI steps have timeouts.** There were none, so a hung step would have held a runner for the six-hour default.
+- **Debug output goes to the n8n log instead of the server console.** Debug Mode used to print JSON lines to standard output, which put them in the host's log with no execution context attached, and n8n Cloud does not permit console output from a community node at all. The same entries now go through n8n's own logger: errors as errors, warnings as warnings, everything else as debug. Turning Debug Mode on and off behaves exactly as before.
+
+  Three diagnostics that were **not** gated by Debug Mode — a primary news search failing before a fallback, and either fallback failing after it — were deliberately always-on so the cause stays visible when the fallback succeeds and no error reaches the workflow. They still are, now as warnings on the n8n logger rather than console lines.
+
+  Console calls in the fallback and direct-search modules were removed outright rather than rerouted: each one duplicated a message the function was already returning or throwing, so nothing is lost.
+- **Timers use n8n's `sleep` helper.** `setTimeout` is unavailable to community nodes on n8n Cloud. Behaviour is unchanged.
+- **`inputs`/`outputs` use `NodeConnectionTypes.Main`** rather than the `'main'` string literal.
+- **`package.json` declares `peerDependencies: { "n8n-workflow": "*" }`** and no longer carries a `resolutions` field. The field was yarn-only boilerplate; npm never applied it, and the lockfile records no override from it.
+
+  Taken together these cut the violations reported by `@n8n/scan-community-package` against the published package from 57 to 10 — and all 10 that remain are the runtime dependencies, which is a separate piece of work.
 
 ---
 

@@ -3,8 +3,9 @@
  * Provides improved pagination capabilities for DuckDuckGo searches with 2025 API compatibility
  */
 
+import { sleep } from 'n8n-workflow';
 import { search, SearchOptions } from 'duck-duck-scrape';
-import { createLogEntry, LogLevel } from './utils';
+import { createLogEntry, LogLevel, DebugLogger } from './utils';
 import { DuckDuckGoError, DuckDuckGoErrorType } from './errors';
 
 /**
@@ -26,7 +27,7 @@ export interface IPaginationOptions {
   pageSize: number;
   maxPages: number;
   delayBetweenRequests: number;
-  debugMode?: boolean;
+  debugLog?: DebugLogger;
   useBackupStrategy?: boolean;
 }
 
@@ -106,8 +107,7 @@ function updateVqdTokenCache(query: string, token: string | undefined, increment
  */
 async function sleepWithJitter(baseDelay: number): Promise<void> {
   const jitter = Math.random() * 0.5 * baseDelay;
-  const totalDelay = baseDelay + jitter;
-  return new Promise(resolve => setTimeout(resolve, totalDelay));
+  await sleep(baseDelay + jitter);
 }
 
 /**
@@ -131,14 +131,14 @@ export async function paginateWithVqd(
     pageSize,
     maxPages,
     delayBetweenRequests,
-    debugMode,
+    debugLog,
     useBackupStrategy = true
   } = paginationOptions;
 
   try {
     // First, try to get initial results and VQD token if not cached
     if (!vqdManager?.token) {
-      const initialResult = await getInitialResults(query, baseOptions, debugMode);
+      const initialResult = await getInitialResults(query, baseOptions, debugLog);
 
       if (initialResult.success && initialResult.data) {
         results.push(...initialResult.data.results);
@@ -171,7 +171,7 @@ export async function paginateWithVqd(
       // Strategy 1: Try with VQD token if available
       if (vqdManager?.token) {
         try {
-          pageResult = await getPageWithVqd(query, baseOptions, vqdManager, currentPage, pageSize, debugMode);
+          pageResult = await getPageWithVqd(query, baseOptions, vqdManager, currentPage, pageSize, debugLog);
           if (pageResult?.results?.length > 0) {
             results.push(...pageResult.results);
             pageSuccess = true;
@@ -188,14 +188,12 @@ export async function paginateWithVqd(
           }
         } catch (vqdError) {
           errors.push(`VQD pagination error on page ${currentPage + 1}: ${vqdError.message}`);
-      if (debugMode) {
-            console.error(JSON.stringify(createLogEntry(
-              LogLevel.ERROR,
-              `VQD pagination failed: ${vqdError.message}`,
-          'paginateWithVqd',
-              { query, page: currentPage + 1, error: vqdError.message }
-            )));
-          }
+          debugLog?.(createLogEntry(
+            LogLevel.ERROR,
+            `VQD pagination failed: ${vqdError.message}`,
+            'paginateWithVqd',
+            { query, page: currentPage + 1, error: vqdError.message }
+          ));
 
           // Invalidate the VQD token if it's clearly expired
           if (vqdError.message.includes('VQD') || vqdError.message.includes('token')) {
@@ -209,7 +207,7 @@ export async function paginateWithVqd(
       if (!pageSuccess && useBackupStrategy) {
         try {
           strategy = vqdManager ? 'hybrid' : 'fallback';
-          pageResult = await getFallbackResults(query, baseOptions, currentPage, pageSize, debugMode);
+          pageResult = await getFallbackResults(query, baseOptions, currentPage, pageSize, debugLog);
 
           if (pageResult?.results?.length > 0) {
         results.push(...pageResult.results);
@@ -218,14 +216,12 @@ export async function paginateWithVqd(
           }
         } catch (fallbackError) {
           errors.push(`Fallback strategy failed on page ${currentPage + 1}: ${fallbackError.message}`);
-          if (debugMode) {
-            console.error(JSON.stringify(createLogEntry(
-              LogLevel.ERROR,
-              `Fallback pagination failed: ${fallbackError.message}`,
-              'paginateWithVqd',
-              { query, page: currentPage + 1, error: fallbackError.message }
-            )));
-          }
+          debugLog?.(createLogEntry(
+            LogLevel.ERROR,
+            `Fallback pagination failed: ${fallbackError.message}`,
+            'paginateWithVqd',
+            { query, page: currentPage + 1, error: fallbackError.message }
+          ));
         }
       }
 
@@ -240,20 +236,18 @@ export async function paginateWithVqd(
         // Check if we should continue (less results than expected might mean end of results)
         const expectedMinResults = Math.min(pageSize * 0.5, 3); // At least 50% of page size or 3 results
         if (pageResult?.results?.length < expectedMinResults) {
-        hasMore = false;
-      if (debugMode) {
-            console.log(JSON.stringify(createLogEntry(
-              LogLevel.INFO,
-              `Received fewer results than expected, assuming end of results`,
-          'paginateWithVqd',
-          {
-            query,
-            page: currentPage + 1,
-                received: pageResult?.results?.length,
-                expected: pageSize
-          }
-        )));
-      }
+          hasMore = false;
+          debugLog?.(createLogEntry(
+            LogLevel.INFO,
+            'Received fewer results than expected, assuming end of results',
+            'paginateWithVqd',
+            {
+              query,
+              page: currentPage + 1,
+              received: pageResult?.results?.length,
+              expected: pageSize,
+            }
+          ));
         }
       }
 
@@ -292,17 +286,15 @@ export async function paginateWithVqd(
 async function getInitialResults(
   query: string,
   baseOptions: SearchOptions,
-  debugMode?: boolean
+  debugLog?: DebugLogger
 ): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    if (debugMode) {
-      console.log(JSON.stringify(createLogEntry(
-        LogLevel.INFO,
-        `Fetching initial results for: ${query}`,
-        'getInitialResults',
-        { query, options: baseOptions }
-      )));
-    }
+    debugLog?.(createLogEntry(
+      LogLevel.INFO,
+      `Fetching initial results for: ${query}`,
+      'getInitialResults',
+      { query, options: baseOptions }
+    ));
 
     const result = await search(query, baseOptions);
 
@@ -325,7 +317,7 @@ async function getPageWithVqd(
   vqdManager: IVqdTokenManager,
   currentPage: number,
   pageSize: number,
-  debugMode?: boolean
+  debugLog?: DebugLogger
 ): Promise<any> {
   const offset = currentPage * pageSize;
 
@@ -335,20 +327,18 @@ async function getPageWithVqd(
     offset: offset,
   };
 
-  if (debugMode) {
-    console.log(JSON.stringify(createLogEntry(
-      LogLevel.INFO,
-      `Fetching page ${currentPage + 1} with VQD token`,
-      'getPageWithVqd',
-      {
-        query,
-        page: currentPage + 1,
-        offset,
-        vqdUsage: vqdManager.usageCount,
-        vqdToken: vqdManager.token ? vqdManager.token.substring(0, 10) + '...' : 'undefined'
-      }
-    )));
-  }
+  debugLog?.(createLogEntry(
+    LogLevel.INFO,
+    `Fetching page ${currentPage + 1} with VQD token`,
+    'getPageWithVqd',
+    {
+      query,
+      page: currentPage + 1,
+      offset,
+      vqdUsage: vqdManager.usageCount,
+      vqdToken: vqdManager.token ? vqdManager.token.substring(0, 10) + '...' : 'undefined'
+    }
+  ));
 
   return await search(query, paginationOptions);
 }
@@ -361,16 +351,14 @@ async function getFallbackResults(
   baseOptions: SearchOptions,
   currentPage: number,
   pageSize: number,
-  debugMode?: boolean
+  debugLog?: DebugLogger
 ): Promise<any> {
-  if (debugMode) {
-    console.log(JSON.stringify(createLogEntry(
-      LogLevel.INFO,
-      `Using fallback strategy for page ${currentPage + 1}`,
-      'getFallbackResults',
-      { query, page: currentPage + 1 }
-    )));
-  }
+  debugLog?.(createLogEntry(
+    LogLevel.INFO,
+    `Using fallback strategy for page ${currentPage + 1}`,
+    'getFallbackResults',
+    { query, page: currentPage + 1 }
+  ));
 
   // Try basic search without VQD for this page
   const basicOptions = { ...baseOptions };
