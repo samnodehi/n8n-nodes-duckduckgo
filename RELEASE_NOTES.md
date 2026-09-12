@@ -1,3 +1,80 @@
+# v32.15.0 — Errors that say what happened
+
+**Release Date:** 2026-09-12
+
+No new options, and nothing about searching changes. This release is about what
+the node tells you when something goes wrong, and where it says it.
+
+---
+
+## A failed search now carries the status code
+
+When DuckDuckGo turned a request away, the node caught the failure and threw a
+plain error carrying one sentence. The status code and the response body were
+discarded on that line, before anything could show them. A rate-limited run told
+you **"Too many requests"** and gave you nothing to check it against — no 429, no
+body, nothing to tell it apart from a different failure with a similar message.
+
+Those failures are now `NodeApiError`, the class n8n renders with the HTTP detail
+attached. The wording you already know is unchanged; the status code and the
+response now travel with it.
+
+| What happened | Before | Now |
+|---|---|---|
+| DuckDuckGo answered 429 / 5xx / 403 | message only | message **+ status code + response** |
+| Timeout, unknown host, refused connection | message only | message only |
+
+The second row is deliberate. A request that never got an answer has no HTTP
+context to keep — and routing it through `NodeApiError` anyway would have
+replaced the node's own wording with n8n's generic text for those codes, turning
+*"Web search request timed out. Please try again."* into *"The connection was
+aborted, perhaps the server is offline"*. Those failures use
+`NodeOperationError`, which leaves the message alone.
+
+Four places still re-throw the original error untouched, and that is the right
+answer in each: two carry a message whose guidance is the whole point of it — a
+parser failure, or a bot-challenge explanation — and two are the image-search
+retry, which reads the original error's status to decide whether to fetch a
+fresh token.
+
+## Debug Mode writes to the n8n log, not the server console
+
+Debug Mode used to print JSON lines to standard output. They landed in the
+host's log with no execution attached, so finding the ones belonging to a
+particular run meant guessing from timestamps. They now go through n8n's own
+logger — errors as errors, warnings as warnings, the rest as debug — so they
+arrive with the context n8n already tracks. Turning Debug Mode on and off
+behaves exactly as before.
+
+Three diagnostics were deliberately **not** gated by Debug Mode: a news search
+failing before the fallback runs, and either fallback failing after it. They stay
+always-on, because when the fallback then succeeds no error reaches the workflow
+at all and the log is the only place the cause appears.
+
+## Under the hood
+
+`setTimeout` is replaced by n8n's `sleep` helper, `inputs`/`outputs` use
+`NodeConnectionTypes.Main`, `package.json` declares
+`peerDependencies: { "n8n-workflow": "*" }`, and a `resolutions` field that never
+did anything — it is a yarn field, and this project builds with npm — is gone.
+Behaviour is unchanged by all four.
+
+Together with the logging change, these take the violations that
+`@n8n/scan-community-package` reports against the published package from **57 to
+10**. Every one of the ten that remain is a runtime dependency, which is a
+separate and much larger piece of work.
+
+## Maintenance
+
+CI steps have timeouts, which they did not before. The release archive is
+checked against what npm actually publishes, on every push and again inside the
+release itself — a tag can be pushed before CI finishes, and an npm version
+cannot be taken back. Dev dependencies updated.
+
+476 tests across 22 suites.
+
+---
+
 # v32.14.0 — Ranking rules
 
 **Release Date:** 2026-09-09
