@@ -3,10 +3,13 @@
  * Provides improved pagination capabilities for DuckDuckGo searches with 2025 API compatibility
  */
 
-import { sleep } from 'n8n-workflow';
+import { INode, NodeOperationError, sleep } from 'n8n-workflow';
 import { search, SearchOptions } from 'duck-duck-scrape';
 import { createLogEntry, LogLevel, DebugLogger } from './utils';
-import { DuckDuckGoError, DuckDuckGoErrorType } from './errors';
+
+/** Joins the per-page failures into the error's description. */
+const ERROR_SEPARATOR = '\n';
+
 
 /**
  * VQD token manager interface
@@ -29,6 +32,8 @@ export interface IPaginationOptions {
   delayBetweenRequests: number;
   debugLog?: DebugLogger;
   useBackupStrategy?: boolean;
+  /** The node this runs for, so a failure surfaces against it in the UI. */
+  node: INode;
 }
 
 /**
@@ -132,6 +137,7 @@ export async function paginateWithVqd(
     maxPages,
     delayBetweenRequests,
     debugLog,
+    node,
     useBackupStrategy = true
   } = paginationOptions;
 
@@ -260,13 +266,10 @@ export async function paginateWithVqd(
 
   } catch (error) {
     errors.push(`Pagination error: ${error.message}`);
-    throw new DuckDuckGoError(
-      `Pagination failed: ${error.message}`,
-      DuckDuckGoErrorType.PAGINATION_ERROR,
-      {
-        technicalDetails: { query, currentPage, errors },
-      }
-    );
+    throw new NodeOperationError(node, error as Error, {
+      message: `Pagination failed: ${error.message}`,
+      description: errors.join(ERROR_SEPARATOR),
+    });
   }
 
   return {

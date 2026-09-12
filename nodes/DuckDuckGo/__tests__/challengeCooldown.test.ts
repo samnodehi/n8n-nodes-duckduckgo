@@ -21,6 +21,7 @@ import { createChallengeError } from '../challengeDetection';
 import { DuckDuckGoErrorType } from '../errors';
 import { directWebSearch, directImageSearch } from '../directSearch';
 import { fallbackWebSearch } from '../fallbackSearch';
+import { TEST_NODE } from './testNode';
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
@@ -78,7 +79,7 @@ describe('request paths during the back-off', () => {
   it('web search fails fast without sending a request', async () => {
     noteChallenge();
 
-    await expect(directWebSearch('anything')).rejects.toMatchObject({
+    await expect(directWebSearch(TEST_NODE, 'anything')).rejects.toMatchObject({
       errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
     });
     expect(mockedAxios.post).not.toHaveBeenCalled();
@@ -87,7 +88,7 @@ describe('request paths during the back-off', () => {
   it('image search fails fast without sending a request', async () => {
     noteChallenge();
 
-    await expect(directImageSearch('cats')).rejects.toMatchObject({
+    await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toMatchObject({
       errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
     });
     expect(mockedAxios.get).not.toHaveBeenCalled();
@@ -109,7 +110,7 @@ describe('request paths during the back-off', () => {
     // hold back the fallback path — this is what stopped the amplification.
     mockedAxios.post.mockResolvedValueOnce({ status: 202, data: CHALLENGE_HTML });
 
-    await expect(directWebSearch('anything')).rejects.toMatchObject({
+    await expect(directWebSearch(TEST_NODE, 'anything')).rejects.toMatchObject({
       errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
     });
 
@@ -127,7 +128,7 @@ describe('request paths during the back-off', () => {
         <a class="result__snippet" href="https://example.com/a">Snippet.</a></div>`,
     });
 
-    const output = await directWebSearch('anything');
+    const output = await directWebSearch(TEST_NODE, 'anything');
 
     expect(output.results).toHaveLength(1);
     expect(mockedAxios.post).toHaveBeenCalledTimes(1);

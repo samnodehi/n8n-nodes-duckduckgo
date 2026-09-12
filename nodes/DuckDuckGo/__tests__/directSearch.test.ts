@@ -11,6 +11,7 @@ import axios from 'axios';
 // Import after mocking
 import { directWebSearch, directImageSearch } from '../directSearch';
 import { DuckDuckGoErrorType } from '../errors';
+import { TEST_NODE } from './testNode';
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
@@ -121,7 +122,7 @@ describe('directWebSearch', () => {
         data: VALID_HTML_ONE_RESULT,
       });
 
-      const output = await directWebSearch('test query');
+      const output = await directWebSearch(TEST_NODE, 'test query');
 
       expect(output.results).toHaveLength(2);
       expect(output.results[0]).toMatchObject({
@@ -141,7 +142,7 @@ describe('directWebSearch', () => {
         data: VALID_HTML_ONE_RESULT,
       });
 
-      const output = await directWebSearch('test query', { maxResults: 1 });
+      const output = await directWebSearch(TEST_NODE, 'test query', { maxResults: 1 });
 
       expect(output.results).toHaveLength(1);
       expect(output.results[0].title).toBe('Example Result Title');
@@ -153,7 +154,7 @@ describe('directWebSearch', () => {
         data: VALID_HTML_ONE_RESULT,
       });
 
-      await directWebSearch('test query', { locale: 'uk-en', safeSearch: 'strict' });
+      await directWebSearch(TEST_NODE, 'test query', { locale: 'uk-en', safeSearch: 'strict' });
 
       const postCall = (mockedAxios.post as jest.Mock).mock.calls[0];
       // Second argument is the URLSearchParams body
@@ -169,7 +170,7 @@ describe('directWebSearch', () => {
         data: VALID_HTML_ONE_RESULT,
       });
 
-      await directWebSearch('test', { safeSearch: 'moderate' });
+      await directWebSearch(TEST_NODE, 'test', { safeSearch: 'moderate' });
 
       const body = (mockedAxios.post as jest.Mock).mock.calls[0][1] as URLSearchParams;
       expect(body.get('kp')).toBe('-1');
@@ -184,7 +185,7 @@ describe('directWebSearch', () => {
         data: NO_RESULTS_HTML,
       });
 
-      const output = await directWebSearch('xzqwerty99zz totally made up query');
+      const output = await directWebSearch(TEST_NODE, 'xzqwerty99zz totally made up query');
 
       expect(output.results).toHaveLength(0);
       expect(Array.isArray(output.results)).toBe(true);
@@ -199,7 +200,7 @@ describe('directWebSearch', () => {
         data: paddedNoResults,
       });
 
-      await expect(directWebSearch('no results query')).resolves.toMatchObject({
+      await expect(directWebSearch(TEST_NODE, 'no results query')).resolves.toMatchObject({
         results: [],
       });
     });
@@ -213,7 +214,7 @@ describe('directWebSearch', () => {
         data: CHANGED_STRUCTURE_HTML,
       });
 
-      await expect(directWebSearch('something')).rejects.toThrow(
+      await expect(directWebSearch(TEST_NODE, 'something')).rejects.toThrow(
         'DuckDuckGo web search response could not be parsed'
       );
     });
@@ -226,7 +227,7 @@ describe('directWebSearch', () => {
 
       let caughtMessage = '';
       try {
-        await directWebSearch('something');
+        await directWebSearch(TEST_NODE, 'something');
       } catch (e) {
         caughtMessage = (e as Error).message;
       }
@@ -241,7 +242,7 @@ describe('directWebSearch', () => {
         data: '<html><body>tiny</body></html>',
       });
 
-      const output = await directWebSearch('query');
+      const output = await directWebSearch(TEST_NODE, 'query');
       expect(output.results).toHaveLength(0);
     });
   });
@@ -251,7 +252,7 @@ describe('directWebSearch', () => {
       const timeoutError = Object.assign(new Error('timeout'), { code: 'ECONNABORTED' });
       mockedAxios.post = jest.fn().mockRejectedValue(timeoutError);
 
-      await expect(directWebSearch('query')).rejects.toThrow(
+      await expect(directWebSearch(TEST_NODE, 'query')).rejects.toThrow(
         'Web search request timed out'
       );
     });
@@ -260,7 +261,7 @@ describe('directWebSearch', () => {
       const dnsError = Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' });
       mockedAxios.post = jest.fn().mockRejectedValue(dnsError);
 
-      await expect(directWebSearch('query')).rejects.toThrow(
+      await expect(directWebSearch(TEST_NODE, 'query')).rejects.toThrow(
         'Unable to connect to DuckDuckGo'
       );
     });
@@ -271,7 +272,7 @@ describe('directWebSearch', () => {
       });
       mockedAxios.post = jest.fn().mockRejectedValue(rateLimitError);
 
-      await expect(directWebSearch('query')).rejects.toThrow(
+      await expect(directWebSearch(TEST_NODE, 'query')).rejects.toThrow(
         'Too many requests'
       );
     });
@@ -282,7 +283,7 @@ describe('directWebSearch', () => {
       });
       mockedAxios.post = jest.fn().mockRejectedValue(serverError);
 
-      await expect(directWebSearch('query')).rejects.toThrow(
+      await expect(directWebSearch(TEST_NODE, 'query')).rejects.toThrow(
         'DuckDuckGo server error'
       );
     });
@@ -345,7 +346,7 @@ describe('directImageSearch', () => {
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
         .mockResolvedValueOnce({ status: 200, data: IMAGE_JS_RESPONSE });
 
-      const output = await directImageSearch('cats');
+      const output = await directImageSearch(TEST_NODE, 'cats');
 
       expect(output.results).toHaveLength(2);
       expect(output.results[0]).toMatchObject({
@@ -370,7 +371,7 @@ describe('directImageSearch', () => {
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
         .mockResolvedValueOnce({ status: 200, data: IMAGE_JS_RESPONSE });
 
-      await directImageSearch('cats');
+      await directImageSearch(TEST_NODE, 'cats');
 
       expect(mockedAxios.get).toHaveBeenCalledTimes(2);
       // Second call must be to i.js
@@ -384,7 +385,7 @@ describe('directImageSearch', () => {
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
         .mockResolvedValueOnce({ status: 200, data: IMAGE_JS_RESPONSE });
 
-      await directImageSearch('cats', { locale: 'uk-en', safeSearch: 'strict' });
+      await directImageSearch(TEST_NODE, 'cats', { locale: 'uk-en', safeSearch: 'strict' });
 
       const secondCallUrl = (mockedAxios.get as jest.Mock).mock.calls[1][0] as string;
       expect(secondCallUrl).toContain('l=uk-en');
@@ -397,7 +398,7 @@ describe('directImageSearch', () => {
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
         .mockResolvedValueOnce({ status: 200, data: IMAGE_JS_RESPONSE });
 
-      const output = await directImageSearch('cats', { maxResults: 1 });
+      const output = await directImageSearch(TEST_NODE, 'cats', { maxResults: 1 });
 
       expect(output.results).toHaveLength(1);
       expect(output.results[0].title).toBe('Cat on a mat');
@@ -409,7 +410,7 @@ describe('directImageSearch', () => {
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
         .mockResolvedValueOnce({ status: 200, data: { results: [] } });
 
-      const output = await directImageSearch('obscure query with no images');
+      const output = await directImageSearch(TEST_NODE, 'obscure query with no images');
 
       expect(output.results).toHaveLength(0);
       expect(Array.isArray(output.results)).toBe(true);
@@ -422,7 +423,7 @@ describe('directImageSearch', () => {
         .fn()
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_NO_VQD });
 
-      await expect(directImageSearch('cats')).rejects.toThrow(
+      await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toThrow(
         'DuckDuckGo image search token (VQD) could not be extracted'
       );
     });
@@ -434,7 +435,7 @@ describe('directImageSearch', () => {
 
       let caughtMessage = '';
       try {
-        await directImageSearch('cats');
+        await directImageSearch(TEST_NODE, 'cats');
       } catch (e) {
         caughtMessage = (e as Error).message;
       }
@@ -447,7 +448,7 @@ describe('directImageSearch', () => {
         .fn()
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_NO_VQD });
 
-      await expect(directImageSearch('cats')).rejects.toThrow();
+      await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toThrow();
 
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
     });
@@ -460,7 +461,7 @@ describe('directImageSearch', () => {
       });
       mockedAxios.get = jest.fn().mockRejectedValue(timeoutError);
 
-      await expect(directImageSearch('cats')).rejects.toThrow(
+      await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toThrow(
         'Image search request timed out'
       );
     });
@@ -471,7 +472,7 @@ describe('directImageSearch', () => {
       });
       mockedAxios.get = jest.fn().mockRejectedValue(dnsError);
 
-      await expect(directImageSearch('cats')).rejects.toThrow(
+      await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toThrow(
         'Unable to connect to DuckDuckGo for image search'
       );
     });
@@ -482,7 +483,7 @@ describe('directImageSearch', () => {
       });
       mockedAxios.get = jest.fn().mockRejectedValue(connRefusedError);
 
-      await expect(directImageSearch('cats')).rejects.toThrow(
+      await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toThrow(
         'Unable to connect to DuckDuckGo for image search'
       );
     });
@@ -493,7 +494,7 @@ describe('directImageSearch', () => {
       });
       mockedAxios.get = jest.fn().mockRejectedValue(rateLimitError);
 
-      await expect(directImageSearch('cats')).rejects.toThrow(
+      await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toThrow(
         'Too many image search requests'
       );
     });
@@ -504,7 +505,7 @@ describe('directImageSearch', () => {
       });
       mockedAxios.get = jest.fn().mockRejectedValue(forbiddenError);
 
-      await expect(directImageSearch('cats')).rejects.toThrow(
+      await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toThrow(
         '403 Forbidden'
       );
     });
@@ -517,7 +518,7 @@ describe('directImageSearch', () => {
 
       let caughtMessage = '';
       try {
-        await directImageSearch('cats');
+        await directImageSearch(TEST_NODE, 'cats');
       } catch (e) {
         caughtMessage = (e as Error).message;
       }
@@ -536,7 +537,7 @@ describe('directImageSearch', () => {
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
         .mockRejectedValueOnce(forbiddenError);
 
-      await expect(directImageSearch('cats')).rejects.toThrow('403 Forbidden');
+      await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toThrow('403 Forbidden');
     });
   });
 
@@ -546,7 +547,7 @@ describe('directImageSearch', () => {
         .fn()
         .mockResolvedValueOnce({ status: 200, data: IMAGE_JS_RESPONSE });
 
-      await directImageSearch('cats', {}, VALID_VQD);
+      await directImageSearch(TEST_NODE, 'cats', {}, VALID_VQD);
 
       // Only one GET: the i.js call. No page GET.
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
@@ -560,7 +561,7 @@ describe('directImageSearch', () => {
         .fn()
         .mockResolvedValueOnce({ status: 200, data: IMAGE_JS_RESPONSE });
 
-      await directImageSearch('cats', {}, hint);
+      await directImageSearch(TEST_NODE, 'cats', {}, hint);
 
       const callUrl = (mockedAxios.get as jest.Mock).mock.calls[0][0] as string;
       expect(callUrl).toContain(`vqd=${hint}`);
@@ -571,7 +572,7 @@ describe('directImageSearch', () => {
         .fn()
         .mockResolvedValueOnce({ status: 200, data: IMAGE_JS_RESPONSE });
 
-      const output = await directImageSearch('cats', {}, VALID_VQD);
+      const output = await directImageSearch(TEST_NODE, 'cats', {}, VALID_VQD);
 
       expect(output.results).toHaveLength(2);
       expect(output.results[0].title).toBe('Cat on a mat');
@@ -582,7 +583,7 @@ describe('directImageSearch', () => {
         .fn()
         .mockResolvedValueOnce({ status: 200, data: IMAGE_JS_RESPONSE });
 
-      const output = await directImageSearch('cats', {}, VALID_VQD);
+      const output = await directImageSearch(TEST_NODE, 'cats', {}, VALID_VQD);
 
       // The caller needs the VQD back to store it in the cache Map
       expect(output.vqd).toBe(VALID_VQD);
@@ -600,7 +601,7 @@ describe('directImageSearch', () => {
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })  // fresh token
         .mockResolvedValueOnce({ status: 200, data: IMAGE_JS_RESPONSE });         // retry succeeds
 
-      const output = await directImageSearch('cats', {}, 'stale-vqd-token');
+      const output = await directImageSearch(TEST_NODE, 'cats', {}, 'stale-vqd-token');
 
       expect(output.results).toHaveLength(2);
       // The token handed back is the fresh one, so a caller that stores it
@@ -619,7 +620,7 @@ describe('directImageSearch', () => {
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
         .mockRejectedValueOnce(forbiddenError);
 
-      await expect(directImageSearch('cats', {}, 'stale-vqd-token')).rejects.toThrow(
+      await expect(directImageSearch(TEST_NODE, 'cats', {}, 'stale-vqd-token')).rejects.toThrow(
         '403 Forbidden'
       );
 
@@ -635,7 +636,7 @@ describe('directImageSearch', () => {
       });
       mockedAxios.get = jest.fn().mockRejectedValueOnce(blockedError);
 
-      await expect(directImageSearch('cats', {}, 'some-token')).rejects.toMatchObject({
+      await expect(directImageSearch(TEST_NODE, 'cats', {}, 'some-token')).rejects.toMatchObject({
         errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
       });
 
@@ -659,7 +660,7 @@ describe('directImageSearch', () => {
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
         .mockRejectedValueOnce(blockedError);
 
-      await expect(directImageSearch('cats', {}, 'stale-token')).rejects.toMatchObject({
+      await expect(directImageSearch(TEST_NODE, 'cats', {}, 'stale-token')).rejects.toMatchObject({
         errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
       });
 
@@ -678,7 +679,7 @@ describe('directImageSearch', () => {
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
         .mockRejectedValueOnce(blockedError);
 
-      await expect(directImageSearch('cats')).rejects.toMatchObject({
+      await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toMatchObject({
         errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
       });
 
@@ -696,7 +697,7 @@ describe('directImageSearch', () => {
         .mockResolvedValueOnce({ status: 200, data: IMAGE_PAGE_HTML_REGEX_VQD })
         .mockRejectedValueOnce(forbiddenError);
 
-      await expect(directImageSearch('cats')).rejects.toThrow('403 Forbidden');
+      await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toThrow('403 Forbidden');
 
       expect(mockedAxios.get).toHaveBeenCalledTimes(2);
     });
@@ -714,9 +715,9 @@ describe('directImageSearch', () => {
         .mockResolvedValueOnce({ status: 200, data: IMAGE_JS_RESPONSE });
 
       // First call — no hint
-      await directImageSearch('cats');
+      await directImageSearch(TEST_NODE, 'cats');
       // Second call — different query, no hint passed → page GET happens again
-      await directImageSearch('dogs');
+      await directImageSearch(TEST_NODE, 'dogs');
 
       // Total: 4 GETs (page + i.js for each query)
       expect(mockedAxios.get).toHaveBeenCalledTimes(4);
@@ -763,7 +764,7 @@ describe('directWebSearch — ad filtering and URL normalisation (normaliseDdgUr
 
     mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
 
-    const output = await directWebSearch('AI');
+    const output = await directWebSearch(TEST_NODE, 'AI');
 
     // The y.js result must be dropped; only the organic result survives.
     expect(output.results).toHaveLength(1);
@@ -783,7 +784,7 @@ describe('directWebSearch — ad filtering and URL normalisation (normaliseDdgUr
 
     mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
 
-    const output = await directWebSearch('AI');
+    const output = await directWebSearch(TEST_NODE, 'AI');
 
     expect(output.results).toHaveLength(1);
     expect(output.results[0].url).toBe('https://real.example.com/');
@@ -800,7 +801,7 @@ describe('directWebSearch — ad filtering and URL normalisation (normaliseDdgUr
 
     mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
 
-    const output = await directWebSearch('AI');
+    const output = await directWebSearch(TEST_NODE, 'AI');
 
     expect(output.results).toHaveLength(0);
   });
@@ -818,7 +819,7 @@ describe('directWebSearch — ad filtering and URL normalisation (normaliseDdgUr
 
     mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
 
-    const output = await directWebSearch('AI');
+    const output = await directWebSearch(TEST_NODE, 'AI');
 
     expect(output.results).toHaveLength(1);
     // URL must be the decoded destination, not the DDG redirect wrapper.
@@ -836,7 +837,7 @@ describe('directWebSearch — ad filtering and URL normalisation (normaliseDdgUr
 
     mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
 
-    const output = await directWebSearch('AI');
+    const output = await directWebSearch(TEST_NODE, 'AI');
 
     expect(output.results).toHaveLength(0);
   });
@@ -848,7 +849,7 @@ describe('directWebSearch — ad filtering and URL normalisation (normaliseDdgUr
 
     mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
 
-    const output = await directWebSearch('AI');
+    const output = await directWebSearch(TEST_NODE, 'AI');
 
     expect(output.results).toHaveLength(1);
     expect(output.results[0].url).toBe('https://wikipedia.org/wiki/AI');
@@ -872,7 +873,7 @@ describe('directWebSearch — ad filtering and URL normalisation (normaliseDdgUr
 
     mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
 
-    const output = await directWebSearch('AI');
+    const output = await directWebSearch(TEST_NODE, 'AI');
 
     expect(output.results).toHaveLength(2);
     expect(output.results[0].url).toBe('https://first-organic.example.com/');
@@ -898,7 +899,7 @@ describe('directWebSearch — ad filtering and URL normalisation (normaliseDdgUr
 
     mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
 
-    const output = await directWebSearch('AI');
+    const output = await directWebSearch(TEST_NODE, 'AI');
 
     expect(output.results).toHaveLength(1);
     expect(output.results[0].url).toBe('https://organic.example.com/');
@@ -916,7 +917,7 @@ describe('directWebSearch — ad filtering and URL normalisation (normaliseDdgUr
 
     mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
 
-    const output = await directWebSearch('AI');
+    const output = await directWebSearch(TEST_NODE, 'AI');
 
     expect(output.results).toHaveLength(0);
   });
@@ -937,7 +938,7 @@ describe('directWebSearch — ad filtering and URL normalisation (normaliseDdgUr
 
     mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: html });
 
-    const output = await directWebSearch('AI');
+    const output = await directWebSearch(TEST_NODE, 'AI');
 
     expect(output.results).toHaveLength(1);
     // Must be the once-decoded value from URLSearchParams.get() — not double-decoded.
