@@ -15,6 +15,7 @@ import { isChallengePage, createChallengeError, assertNotChallenged } from '../c
 import { DuckDuckGoError, DuckDuckGoErrorType, ErrorSeverity } from '../errors';
 import { directWebSearch, directImageSearch } from '../directSearch';
 import { fallbackWebSearch } from '../fallbackSearch';
+import { TEST_NODE } from './testNode';
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
@@ -142,7 +143,7 @@ describe('directWebSearch challenge handling', () => {
   it('throws instead of returning an empty result set when challenged (HTTP 202)', async () => {
     mockedAxios.post.mockResolvedValueOnce({ status: 202, data: CHALLENGE_HTML });
 
-    await expect(directWebSearch('anything')).rejects.toMatchObject({
+    await expect(directWebSearch(TEST_NODE, 'anything')).rejects.toMatchObject({
       errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
     });
   });
@@ -150,7 +151,7 @@ describe('directWebSearch challenge handling', () => {
   it('detects a challenge served with HTTP 200 as well', async () => {
     mockedAxios.post.mockResolvedValueOnce({ status: 200, data: CHALLENGE_HTML });
 
-    await expect(directWebSearch('anything')).rejects.toMatchObject({
+    await expect(directWebSearch(TEST_NODE, 'anything')).rejects.toMatchObject({
       errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
     });
   });
@@ -163,7 +164,7 @@ describe('directWebSearch challenge handling', () => {
       data: NO_RESULTS_HTML + ' '.repeat(5000),
     });
 
-    const output = await directWebSearch('xzqwerty99zz totally made up query');
+    const output = await directWebSearch(TEST_NODE, 'xzqwerty99zz totally made up query');
 
     expect(output.results).toHaveLength(0);
   });
@@ -171,7 +172,7 @@ describe('directWebSearch challenge handling', () => {
   it('does not misclassify a page that returns real results', async () => {
     mockedAxios.post.mockResolvedValueOnce({ status: 200, data: RESULTS_HTML });
 
-    const output = await directWebSearch('example');
+    const output = await directWebSearch(TEST_NODE, 'example');
 
     expect(output.results).toHaveLength(1);
   });
@@ -181,7 +182,7 @@ describe('directImageSearch challenge handling', () => {
   it('names the challenge rather than reporting a missing VQD token', async () => {
     mockedAxios.get.mockResolvedValueOnce({ status: 202, data: CHALLENGE_HTML });
 
-    await expect(directImageSearch('cats')).rejects.toMatchObject({
+    await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toMatchObject({
       errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
     });
   });
@@ -193,7 +194,7 @@ describe('directImageSearch challenge handling', () => {
       .mockResolvedValueOnce({ status: 200, data: '<script>vqd="3-123456789012345"</script>' })
       .mockResolvedValueOnce({ status: 202, data: CHALLENGE_HTML });
 
-    await expect(directImageSearch('cats')).rejects.toMatchObject({
+    await expect(directImageSearch(TEST_NODE, 'cats')).rejects.toMatchObject({
       errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
     });
   });
@@ -204,7 +205,7 @@ describe('directImageSearch challenge handling', () => {
     mockedAxios.get.mockResolvedValueOnce({ status: 202, data: CHALLENGE_HTML });
 
     await expect(
-      directImageSearch('cats', {}, '3-supplied-token'),
+      directImageSearch(TEST_NODE, 'cats', {}, '3-supplied-token'),
     ).rejects.toMatchObject({
       errorType: DuckDuckGoErrorType.BOT_CHALLENGE,
     });
@@ -217,7 +218,7 @@ describe('directImageSearch challenge handling', () => {
       .mockResolvedValueOnce({ status: 200, data: '<script>vqd="3-123456789012345"</script>' })
       .mockResolvedValueOnce({ status: 200, data: { results: [] } });
 
-    const output = await directImageSearch('xzqwerty99zz');
+    const output = await directImageSearch(TEST_NODE, 'xzqwerty99zz');
 
     expect(output.results).toHaveLength(0);
   });

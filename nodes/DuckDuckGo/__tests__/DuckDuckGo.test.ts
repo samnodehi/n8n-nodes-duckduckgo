@@ -74,6 +74,16 @@ jest.mock('../fallbackSearch', () => ({
 }));
 
 
+/** Reads one recorded call to a direct-search helper by argument name. */
+const webSearchCall = (n: number) => {
+  const [node, query, options] = (directSearch.directWebSearch as jest.Mock).mock.calls[n];
+  return { node, query, options };
+};
+const imageSearchCall = (n: number) => {
+  const [node, query, options, vqdHint] = (directSearch.directImageSearch as jest.Mock).mock.calls[n];
+  return { node, query, options, vqdHint };
+};
+
 describe('DuckDuckGo Node', () => {
   let duckDuckGoNode: DuckDuckGo;
   let mockExecuteFunction: IExecuteFunctions;
@@ -244,7 +254,7 @@ describe('DuckDuckGo Node', () => {
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Assertions
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('test query', expect.objectContaining({
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 'test query', expect.objectContaining({
         locale: 'us-en',
         safeSearch: 'moderate',
       }));
@@ -346,7 +356,7 @@ describe('DuckDuckGo Node', () => {
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Assertions
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('error query', expect.any(Object));
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 'error query', expect.any(Object));
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveLength(1);
       expect(result[0][0].json).toHaveProperty('success', false);
@@ -366,7 +376,7 @@ describe('DuckDuckGo Node', () => {
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Assertions
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('no results query', expect.any(Object));
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 'no results query', expect.any(Object));
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveLength(1);
       expect(result[0][0].json).toHaveProperty('success', true);
@@ -415,9 +425,9 @@ describe('DuckDuckGo Node', () => {
 
           await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-          expect(directSearch.directWebSearch).toHaveBeenCalledWith(query, expect.any(Object));
+          expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), query, expect.any(Object));
           // The query passed to directWebSearch must NOT have ' 2025' or ' 2024' appended
-          const calledWith = (directSearch.directWebSearch as jest.Mock).mock.calls[0][0] as string;
+          const calledWith = webSearchCall(0).query as string;
         expect(calledWith).not.toMatch(/\s202[45]$/);
         });
       });
@@ -446,7 +456,7 @@ describe('DuckDuckGo Node', () => {
         await duckDuckGoNode.execute.call(mockExecuteFunction);
 
         // directWebSearch must still be called — stale searchBackend must not throw or reroute
-        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
           'test query with stale backend',
           expect.any(Object)
         );
@@ -466,7 +476,7 @@ describe('DuckDuckGo Node', () => {
 
         await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
           'search api query',
           expect.any(Object)
         );
@@ -494,7 +504,7 @@ describe('DuckDuckGo Node', () => {
         await duckDuckGoNode.execute.call(mockExecuteFunction);
 
         // directWebSearch is still called with the plain query — proxy data has no effect
-        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
           'proxy test query',
           expect.any(Object)
         );
@@ -522,7 +532,7 @@ describe('DuckDuckGo Node', () => {
 
         await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
           'socks proxy query',
           expect.any(Object)
         );
@@ -552,7 +562,7 @@ describe('DuckDuckGo Node', () => {
         await duckDuckGoNode.execute.call(mockExecuteFunction);
 
         // directWebSearch must still be called with the plain query — searchFilters data is ignored
-        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
           'filter test query',
           expect.any(Object)
         );
@@ -577,7 +587,7 @@ describe('DuckDuckGo Node', () => {
 
         await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
           'custom date query',
           expect.any(Object)
         );
@@ -607,7 +617,7 @@ describe('DuckDuckGo Node', () => {
         await duckDuckGoNode.execute.call(mockExecuteFunction);
 
         // directWebSearch must still be called — stale reliabilitySettings has no effect
-        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
           'reliability test query',
           expect.any(Object)
         );
@@ -637,7 +647,7 @@ describe('DuckDuckGo Node', () => {
 
         await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
           'full reliability config query',
           expect.any(Object)
         );
@@ -664,13 +674,13 @@ describe('DuckDuckGo Node', () => {
         await duckDuckGoNode.execute.call(mockExecuteFunction);
 
         // directWebSearch must still be called with the plain query
-        expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+        expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
           'time period test query',
           expect.any(Object)
         );
 
         // directWebSearch must NOT receive any time/period parameter — it never supported date filtering
-        const calledOptions = (directSearch.directWebSearch as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
+        const calledOptions = webSearchCall(0).options as Record<string, unknown>;
         expect(calledOptions).not.toHaveProperty('time');
         expect(calledOptions).not.toHaveProperty('timePeriod');
         expect(calledOptions).not.toHaveProperty('df');
@@ -696,7 +706,7 @@ describe('DuckDuckGo Node', () => {
           await duckDuckGoNode.execute.call(mockExecuteFunction);
 
           expect(directSearch.directWebSearch).toHaveBeenCalledTimes(1);
-          expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+          expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
             'stable query',
             expect.any(Object)
           );
@@ -754,7 +764,7 @@ describe('DuckDuckGo Node', () => {
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Assertions
-      expect(directSearch.directImageSearch).toHaveBeenCalledWith(
+      expect(directSearch.directImageSearch).toHaveBeenCalledWith(expect.any(Object), 
         'cat pictures',
         expect.objectContaining({
           locale: 'us-en',
@@ -943,12 +953,10 @@ describe('DuckDuckGo Node', () => {
         expect(directSearch.directImageSearch).toHaveBeenCalledTimes(2);
 
         // First call: no vqdHint (third argument absent or undefined)
-        const firstCallArgs = (directSearch.directImageSearch as jest.Mock).mock.calls[0];
-        expect(firstCallArgs[2]).toBeUndefined();
+        expect(imageSearchCall(0).vqdHint).toBeUndefined();
 
         // Second call: vqdHint = the VQD returned by the first call
-        const secondCallArgs = (directSearch.directImageSearch as jest.Mock).mock.calls[1];
-        expect(secondCallArgs[2]).toBe(REUSE_VQD);
+        expect(imageSearchCall(1).vqdHint).toBe(REUSE_VQD);
       });
 
       it('different image queries must not share VQD hints', async () => {
@@ -984,14 +992,12 @@ describe('DuckDuckGo Node', () => {
         expect(directSearch.directImageSearch).toHaveBeenCalledTimes(2);
 
         // 'cats' call — no hint
-        const catsCallArgs = (directSearch.directImageSearch as jest.Mock).mock.calls[0];
-        expect(catsCallArgs[0]).toBe('cats');
-        expect(catsCallArgs[2]).toBeUndefined();
+        expect(imageSearchCall(0).query).toBe('cats');
+        expect(imageSearchCall(0).vqdHint).toBeUndefined();
 
         // 'dogs' call — no hint (different query, VQD must not be shared)
-        const dogsCallArgs = (directSearch.directImageSearch as jest.Mock).mock.calls[1];
-        expect(dogsCallArgs[0]).toBe('dogs');
-        expect(dogsCallArgs[2]).toBeUndefined();
+        expect(imageSearchCall(1).query).toBe('dogs');
+        expect(imageSearchCall(1).vqdHint).toBeUndefined();
       });
 
       it('processed image output does not expose the VQD token', async () => {
@@ -1797,7 +1803,7 @@ describe('DuckDuckGo Node', () => {
       expect(mockExecuteFunction.getCredentials).not.toHaveBeenCalled();
 
       // directWebSearch must still be called normally — stale useApiKey has no effect on search
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
         'api auth query',
         expect.any(Object)
       );
@@ -1908,7 +1914,7 @@ describe('DuckDuckGo Node', () => {
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Verify search was called with correct parameters (should not include maxResults in search options)
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith('test query', expect.not.objectContaining({
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 'test query', expect.not.objectContaining({
         maxResults: expect.any(Number),
       }));
     });
@@ -1924,7 +1930,7 @@ describe('DuckDuckGo Node', () => {
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Verify that a default or corrected time period was used
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
         'time period test',
         expect.not.objectContaining({
           timePeriod: 'invalidValue'
@@ -1959,8 +1965,8 @@ describe('DuckDuckGo Node', () => {
 
       // Assertions
       expect(directSearch.directWebSearch).toHaveBeenCalledTimes(2);
-      expect(directSearch.directWebSearch).toHaveBeenNthCalledWith(1, 'query 1', expect.any(Object));
-      expect(directSearch.directWebSearch).toHaveBeenNthCalledWith(2, 'query 2', expect.any(Object));
+      expect(directSearch.directWebSearch).toHaveBeenNthCalledWith(1, expect.any(Object), 'query 1', expect.any(Object));
+      expect(directSearch.directWebSearch).toHaveBeenNthCalledWith(2, expect.any(Object), 'query 2', expect.any(Object));
 
       // Verify correct structure of results - all results are in one array with proper pairedItems
       expect(result).toHaveLength(1); // One array with all results

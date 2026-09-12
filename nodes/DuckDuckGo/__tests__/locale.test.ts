@@ -91,7 +91,7 @@ describe('DuckDuckGo Node - Locale Support', () => {
 
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
         'test query',
         expect.objectContaining({ locale: 'fr-fr', safeSearch: 'moderate' }),
       );
@@ -133,7 +133,7 @@ describe('DuckDuckGo Node - Locale Support', () => {
 
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-      expect(directSearch.directImageSearch).toHaveBeenCalledWith(
+      expect(directSearch.directImageSearch).toHaveBeenCalledWith(expect.any(Object), 
         'test image query',
         expect.objectContaining({ locale: 'es-es' }),
         undefined, // no vqdHint on the first (and only) call
@@ -168,7 +168,7 @@ describe('DuckDuckGo Node - Locale Support', () => {
 
       await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-      expect(directSearch.directWebSearch).toHaveBeenCalledWith(
+      expect(directSearch.directWebSearch).toHaveBeenCalledWith(expect.any(Object), 
         'test query',
         expect.objectContaining({ locale: 'wt-wt', safeSearch: 'moderate' }),
       );

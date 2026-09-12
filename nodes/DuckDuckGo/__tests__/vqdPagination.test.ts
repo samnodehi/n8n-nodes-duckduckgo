@@ -11,6 +11,7 @@ jest.mock('duck-duck-scrape', () => ({
 }));
 
 import { search } from 'duck-duck-scrape';
+import { TEST_NODE } from './testNode';
 const mockSearch = search as jest.Mock;
 
 describe('VQD Pagination', () => {
@@ -27,6 +28,7 @@ describe('VQD Pagination', () => {
       });
 
       await paginateWithVqd('cache test', {}, {
+        node: TEST_NODE,
         maxResults: 1,
         pageSize: 10,
         maxPages: 1,
@@ -50,6 +52,7 @@ describe('VQD Pagination', () => {
       });
 
       const options: IPaginationOptions = {
+        node: TEST_NODE,
         maxResults: 5,
         pageSize: 10,
         maxPages: 3,

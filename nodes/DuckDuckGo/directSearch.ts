@@ -4,11 +4,27 @@
  */
 
 import axios from 'axios';
+import { INode, JsonObject, NodeApiError, NodeOperationError } from 'n8n-workflow';
 import { BROWSER_USER_AGENT } from './constants';
 import { assertNotChallenged } from './challengeDetection';
 import { getCooldownReason } from './challengeCooldown';
 import { extractVqd } from './vqdExtraction';
 import { DuckDuckGoError, DuckDuckGoErrorType } from './errors';
+
+/**
+ * Wraps a failed request in the error class n8n renders best.
+ *
+ * `NodeApiError` is the right one only when DuckDuckGo actually answered: it
+ * records the status code and the response body alongside the message. A
+ * transport failure has neither, and `NodeApiError` would additionally replace
+ * the message with its own generic text for codes like `ECONNABORTED` — so
+ * those take `NodeOperationError`, which leaves the message alone.
+ */
+function wrapRequestFailure(node: INode, error: any, message: string): Error {
+  return error?.response
+    ? new NodeApiError(node, error as JsonObject, { message })
+    : new NodeOperationError(node, error as Error, { message });
+}
 
 /**
  * Clean text by removing HTML entities and normalizing whitespace
@@ -103,7 +119,7 @@ export interface DirectImageResult {
 /**
  * Direct web search using DuckDuckGo HTML API
  */
-export async function directWebSearch(query: string, options: {
+export async function directWebSearch(node: INode, query: string, options: {
   locale?: string;
   safeSearch?: string;
   maxResults?: number;
@@ -195,24 +211,28 @@ export async function directWebSearch(query: string, options: {
 
     return { results };
   } catch (error) {
-    // Re-throw errors that already carry specific, user-readable messages
-    // (e.g. the parser-failure error thrown above — no .code, no .response)
+    // Errors that already carry a specific, user-readable message — the
+    // parser-failure error thrown above, or a bot-challenge error — have no
+    // HTTP shape to preserve and their own guidance is the point of them.
     if (!error.code && !error.response) {
       throw error;
     }
 
-    // Provide more specific error messages based on error type
+    const status = error.response?.status;
+    let message: string;
     if (error.code === 'ECONNABORTED') {
-      throw new Error('Web search request timed out. Please try again.');
+      message = 'Web search request timed out. Please try again.';
     } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-      throw new Error('Unable to connect to DuckDuckGo. Please check your internet connection.');
-    } else if (error.response && error.response.status === 429) {
-      throw new Error('Too many requests. Please wait a moment before trying again.');
-    } else if (error.response && error.response.status >= 500) {
-      throw new Error('DuckDuckGo server error. Please try again later.');
+      message = 'Unable to connect to DuckDuckGo. Please check your internet connection.';
+    } else if (status === 429) {
+      message = 'Too many requests. Please wait a moment before trying again.';
+    } else if (status >= 500) {
+      message = 'DuckDuckGo server error. Please try again later.';
     } else {
-      throw new Error(`Web search failed: ${error.message}`);
+      message = `Web search failed: ${error.message}`;
     }
+
+    throw wrapRequestFailure(node, error, message);
   }
 }
 
@@ -227,7 +247,7 @@ export async function directWebSearch(query: string, options: {
  *   caller storing it always stores a working one. That recovery is what makes
  *   it safe to reuse a token across executions rather than only within one.
  */
-export async function directImageSearch(query: string, options: {
+export async function directImageSearch(node: INode, query: string, options: {
   locale?: string;
   safeSearch?: string;
   maxResults?: number;
@@ -372,20 +392,23 @@ export async function directImageSearch(query: string, options: {
       throw error;
     }
 
+    const status = error.response?.status;
+    let message: string;
     if (error.code === 'ECONNABORTED') {
-      throw new Error('Image search request timed out. Please try again.');
+      message = 'Image search request timed out. Please try again.';
     } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-      throw new Error('Unable to connect to DuckDuckGo for image search. Please check your internet connection.');
-    } else if (error.response && error.response.status === 429) {
-      throw new Error('Too many image search requests. Please wait a moment before trying again.');
-    } else if (error.response && error.response.status === 403) {
-      throw new Error(
+      message = 'Unable to connect to DuckDuckGo for image search. Please check your internet connection.';
+    } else if (status === 429) {
+      message = 'Too many image search requests. Please wait a moment before trying again.';
+    } else if (status === 403) {
+      message =
         'DuckDuckGo image search returned 403 Forbidden. ' +
-        'The search token (VQD) may have expired or the request was blocked. Please try again.'
-      );
+        'The search token (VQD) may have expired or the request was blocked. Please try again.';
     } else {
-      throw new Error(`Image search failed: ${error.message}`);
+      message = `Image search failed: ${error.message}`;
     }
+
+    throw wrapRequestFailure(node, error, message);
   }
 }
 

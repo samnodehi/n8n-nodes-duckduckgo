@@ -7,6 +7,7 @@ import {
   INodeType,
   INodeTypeDescription,
   IDataObject,
+  NodeApiError,
   NodeConnectionTypes,
   NodeOperationError,
   sleep,
@@ -1208,6 +1209,7 @@ export class DuckDuckGo implements INodeType {
         maxPages: Math.min(DEFAULT_PAGINATION_CONFIG.maxPages, Math.ceil(options.maxResults / DEFAULT_PAGINATION_CONFIG.pageSize)),
         delayBetweenRequests: DEFAULT_PAGINATION_CONFIG.delayBetweenRequests,
         debugLog,
+        node: this.getNode(),
       }
     );
 
@@ -1420,7 +1422,7 @@ export class DuckDuckGo implements INodeType {
               }
 
               // SIMPLIFIED: Execute search directly using our direct implementation
-              const directResults = await directWebSearch(enhancedQuery, {
+              const directResults = await directWebSearch(this.getNode(), enhancedQuery, {
                 locale: searchOptions.locale || DEFAULT_PARAMETERS.REGION,
                 safeSearch: getSafeSearchString(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
                 maxResults: undefined, // Let it fetch all available results
@@ -1633,6 +1635,7 @@ export class DuckDuckGo implements INodeType {
               const storedVqd = takeStoredVqd(imageQuery, BROWSER_USER_AGENT);
 
               const directImageResults = await directImageSearch(
+                this.getNode(),
                 imageQuery,
                 {
                   locale: searchOptions.locale || DEFAULT_PARAMETERS.REGION,
@@ -2616,6 +2619,13 @@ export class DuckDuckGo implements INodeType {
           debugLog?.(logEntry);
         }
 
+
+        // An error the search helpers already shaped carries the status code and
+        // the response body. Re-wrapping it would keep only the message, so the
+        // HTTP context the n8n UI shows would be lost right at the end.
+        if (error instanceof NodeApiError) {
+          throw error;
+        }
 
         throw new NodeOperationError(this.getNode(), error, { itemIndex });
       }
