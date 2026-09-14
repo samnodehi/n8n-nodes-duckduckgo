@@ -81,7 +81,8 @@ Measured through `api.n8n.io` on 2026-09-14: **1,300 published templates sampled
 **every node in every one of them is `n8n-nodes-base.*` or `@n8n/*`** — not one
 community node, from any package.
 
-n8n's creator team confirmed the cause on 2026-09-14:
+n8n's creator team, asked directly on 2026-09-14, confirmed the **rendering
+limitation and the fix**:
 
 > Templates using community nodes can be published in the library. However,
 > you're correct that the canvas preview may not render properly when a workflow
@@ -94,30 +95,49 @@ n8n's creator team confirmed the cause on 2026-09-14:
 > **publicly accessible link** to a screenshot of the complete canvas when you
 > resubmit. A GitHub-hosted image is fine.
 
-So the reviewer was reading a description with nothing to look at. "Too basic" is
-what an unrendered canvas looks like, whatever the JSON contains.
+**Read that carefully, and keep the two apart.** What is *confirmed* is that the
+preview may not render, that this can make a workflow harder to assess, and that
+the image belongs in the description as a link. What is *ours* is the conclusion
+that this is why both templates came back — a strong inference, given the
+identical sentence for a 2-node and a 10-node workflow and zero community nodes
+in 1,300 published templates, but n8n did not say it. They also pointed out that
+the reviewer does still receive the JSON.
 
-**What to do:** put the raw GitHub URL of the canvas screenshot at the very top of
-the description. The images in `images/` are committed, so each has a stable
-public URL:
+So do not treat the screenshot as a fix that makes an unchanged resubmission
+succeed. It removes a known obstacle; if a template comes back a third time with
+the same sentence, the cause is something else and the next step is to ask what,
+not to guess again.
 
-| Template | Paste this |
-|---|---|
-| 1 | `https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/01-research-assistant.png` |
-| 2 | `https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/02-query-expansion.png` |
-| 3 | `https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/03-news-monitor.png` |
-| 4 | `https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/04-ai-news-writer.png` |
+**What to do:** put the screenshot at the very top of the description as a
+Markdown image, not as a bare URL — the description is Markdown-only, so a bare
+URL renders as a link and the reviewer still has no canvas to look at. The images
+in `images/` are committed, so each has a stable public URL. Paste one of these
+verbatim:
 
-All four were checked as publicly reachable: HTTP 200, `image/png`, and the bytes
-match the committed file. Retake and re-commit whenever a template changes shape —
+```markdown
+![Build a research brief from DuckDuckGo results](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/01-research-assistant.png)
+
+![Expand one keyword into multiple DuckDuckGo searches](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/02-query-expansion.png)
+
+![Monitor news from DuckDuckGo on a schedule](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/03-news-monitor.png)
+
+![Write a daily AI news story to Telegram](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/04-ai-news-writer.png)
+```
+
+If a field strips Markdown or the word counter fights it, fall back to the bare
+URL on its own line — that still satisfies what was literally asked for — but try
+the image form first.
+
+All four URLs were checked as publicly reachable: HTTP 200, `image/png`, and the
+bytes match the committed file. Retake and re-commit whenever a template changes shape —
 the URL stays the same, so a stale screenshot would silently mislead a reviewer.
 
 ## Before submitting
 
-1. **Put the screenshot URL at the top of the description** — see the section
-   above. Without it the reviewer has nothing to look at, which is what sank the
-   first two submissions. All four images are current, taken from a self-hosted
-   n8n with the node installed, on the light theme.
+1. **Put the screenshot at the top of the description, as a Markdown image** —
+   see the section above for the exact line. Without it the reviewer has no
+   canvas to look at. All four images are current, taken from a self-hosted n8n
+   with the node installed, on the light theme.
 2. Run it once so the description matches what actually happens.
 3. Submit through the Creator Dashboard at <https://creators.n8n.io/login>.
 
