@@ -52,8 +52,8 @@ Two more things worth knowing, both measured rather than assumed:
 - **Requiring credentials is normal.** Published Telegram + AI agent templates
   commonly need 2–5 (`telegramApi` + an LLM, often plus Sheets or Postgres).
   The only credential rule in the guidelines is not to *hardcode* keys.
-- **The portal has no image upload field** at any step seen so far, despite the
-  guidelines asking for a canvas image. The AI review derives the title from the
+- **The portal has no image upload field**, and that is by design — see
+  *The canvas does not render* below. The AI review derives the title from the
   workflow's `name` and pre-fills the description form from the sticky notes.
 
 **Diff the AI's rewritten JSON; do not upload it unread.** It has now been seen
@@ -65,12 +65,79 @@ which is exactly what a community-node template must carry. What is in the repo
 takes its node names, positions and four-section layout, and keeps our overview
 text re-keyed to the new names.
 
+## The canvas does not render — link the screenshot yourself
+
+**This is the single thing that mattered, and it took two rejections to find.**
+
+Templates 1 and 4 were both refused with the same sentence, word for word:
+*"It is currently too basic to meet our publishing criteria."* Template 1 was two
+nodes, so that read as fair. Template 4 is ten — schedule trigger, news search, a
+rate-limit branch, an aggregate, an AI Agent calling a search tool, a Code node
+and two Telegram nodes, with two credentials and days of real runs. The identical
+sentence for both meant the sentence was not about either workflow.
+
+Measured through `api.n8n.io` on 2026-09-14: **1,300 published templates sampled**
+(pages 1–8 plus pages 40, 60, 80, 100 and 120, from a library of 12,324) and
+**every node in every one of them is `n8n-nodes-base.*` or `@n8n/*`** — not one
+community node, from any package.
+
+n8n's creator team, asked directly on 2026-09-14, confirmed the **rendering
+limitation and the fix**:
+
+> Templates using community nodes can be published in the library. However,
+> you're correct that the canvas preview may not render properly when a workflow
+> contains a community node. The reviewer still receives the submitted JSON, but
+> the missing visual preview can make the workflow harder to assess.
+>
+> The workflow image mentioned in the guidelines should be added **at the top of
+> the template description** rather than through a separate upload field. Since
+> the current submission flow doesn't make that clear, please include a
+> **publicly accessible link** to a screenshot of the complete canvas when you
+> resubmit. A GitHub-hosted image is fine.
+
+**Read that carefully, and keep the two apart.** What is *confirmed* is that the
+preview may not render, that this can make a workflow harder to assess, and that
+the image belongs in the description as a link. What is *ours* is the conclusion
+that this is why both templates came back — a strong inference, given the
+identical sentence for a 2-node and a 10-node workflow and zero community nodes
+in 1,300 published templates, but n8n did not say it. They also pointed out that
+the reviewer does still receive the JSON.
+
+So do not treat the screenshot as a fix that makes an unchanged resubmission
+succeed. It removes a known obstacle; if a template comes back a third time with
+the same sentence, the cause is something else and the next step is to ask what,
+not to guess again.
+
+**What to do:** put the screenshot at the very top of the description as a
+Markdown image, not as a bare URL — the description is Markdown-only, so a bare
+URL renders as a link and the reviewer still has no canvas to look at. The images
+in `images/` are committed, so each has a stable public URL. Paste one of these
+verbatim:
+
+```markdown
+![Build a research brief from DuckDuckGo results](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/01-research-assistant.png)
+
+![Expand one keyword into multiple DuckDuckGo searches](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/02-query-expansion.png)
+
+![Monitor news from DuckDuckGo on a schedule](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/03-news-monitor.png)
+
+![Write a daily AI news story to Telegram](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/04-ai-news-writer.png)
+```
+
+If a field strips Markdown or the word counter fights it, fall back to the bare
+URL on its own line — that still satisfies what was literally asked for — but try
+the image form first.
+
+All four URLs were checked as publicly reachable: HTTP 200, `image/png`, and the
+bytes match the committed file. Retake and re-commit whenever a template changes shape —
+the URL stays the same, so a stale screenshot would silently mislead a reviewer.
+
 ## Before submitting
 
-1. If a description field accepts an image, use the canvas screenshot from
-   `images/`. All four are current, taken from a self-hosted n8n with the node
-   installed, on the light theme. Retake one whenever a template changes shape —
-   a stale canvas is worse than none.
+1. **Put the screenshot at the top of the description, as a Markdown image** —
+   see the section above for the exact line. Without it the reviewer has no
+   canvas to look at. All four images are current, taken from a self-hosted n8n
+   with the node installed, on the light theme.
 2. Run it once so the description matches what actually happens.
 3. Submit through the Creator Dashboard at <https://creators.n8n.io/login>.
 
