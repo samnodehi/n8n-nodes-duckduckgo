@@ -128,6 +128,30 @@ If a field strips Markdown or the word counter fights it, fall back to the bare
 URL on its own line — that still satisfies what was literally asked for — but try
 the image form first.
 
+### On a revision there is no field for it — send it by email
+
+**The "Implement changes" dialog has no description fields at all** (seen
+2026-09-15): the workflow JSON, a *Submit for human review* button, and nothing
+else. The description written at first submission is not editable there.
+
+So on a revision: **upload the JSON, submit, and reply to the reviewer's email
+with the Markdown image line above.** The reviewer asked for the link herself and
+is already on that thread, so it reaches a person either way.
+
+**Do not embed the screenshot inside the overview sticky.** It was tried on
+2026-09-15 and reverted, for three reasons, the first of which is fatal:
+
+1. **It is self-referential.** The screenshot is a picture of the canvas; putting
+   it inside a sticky on that canvas means the next screenshot shows a sticky
+   containing the previous screenshot, and every layout edit invalidates the
+   image that lives inside the layout.
+2. **It only helps in a scenario we cannot verify.** The description was
+   pre-filled from the stickies at *first* submission; nothing shows a revision
+   re-derives it. And if the canvas does not render for the reviewer, the
+   rendered sticky does not reach them either.
+3. **It costs real content.** Template 4's overview was at 298 of the 300
+   permitted words, so making room meant cutting text that was doing a job.
+
 All four URLs were checked as publicly reachable: HTTP 200, `image/png`, and the
 bytes match the committed file. Retake and re-commit whenever a template changes shape —
 the URL stays the same, so a stale screenshot would silently mislead a reviewer.
