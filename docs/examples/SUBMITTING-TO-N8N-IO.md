@@ -128,24 +128,29 @@ If a field strips Markdown or the word counter fights it, fall back to the bare
 URL on its own line — that still satisfies what was literally asked for — but try
 the image form first.
 
+### On a revision there is no field for it — send it by email
+
 **The "Implement changes" dialog has no description fields at all** (seen
-2026-09-15): it takes the workflow JSON and a *Submit for human review* button,
-nothing else. So on a revision the JSON is the only channel you control, and the
-image has to travel inside it. **Templates 1 and 4 now carry the image as the
-first line of their overview sticky** — that sticky is what the description is
-built from, so it is the closest thing to "the top of the description" that a
-JSON-only dialog can reach.
+2026-09-15): the workflow JSON, a *Submit for human review* button, and nothing
+else. The description written at first submission is not editable there.
 
-Two consequences worth knowing:
+So on a revision: **upload the JSON, submit, and reply to the reviewer's email
+with the Markdown image line above.** The reviewer asked for the link herself and
+is already on that thread, so it reaches a person either way.
 
-- The overview sticky must stay within the 100–300 word rule *including* the
-  image line. Template 4 was at 298 words and had to be trimmed to fit; it is now
-  292. Check the count after any edit.
-- The sticky was made taller (04: 900→1160, 01: 760→1020) so the image has room
-  and does not overlap a section sticky. Both were re-checked for overlap.
+**Do not embed the screenshot inside the overview sticky.** It was tried on
+2026-09-15 and reverted, for three reasons, the first of which is fatal:
 
-Since the dialog gives no field for it, **also reply to the reviewer's email with
-the link** rather than relying on the sticky alone.
+1. **It is self-referential.** The screenshot is a picture of the canvas; putting
+   it inside a sticky on that canvas means the next screenshot shows a sticky
+   containing the previous screenshot, and every layout edit invalidates the
+   image that lives inside the layout.
+2. **It only helps in a scenario we cannot verify.** The description was
+   pre-filled from the stickies at *first* submission; nothing shows a revision
+   re-derives it. And if the canvas does not render for the reviewer, the
+   rendered sticky does not reach them either.
+3. **It costs real content.** Template 4's overview was at 298 of the 300
+   permitted words, so making room meant cutting text that was doing a job.
 
 All four URLs were checked as publicly reachable: HTTP 200, `image/png`, and the
 bytes match the committed file. Retake and re-commit whenever a template changes shape —
