@@ -128,6 +128,25 @@ If a field strips Markdown or the word counter fights it, fall back to the bare
 URL on its own line — that still satisfies what was literally asked for — but try
 the image form first.
 
+**The "Implement changes" dialog has no description fields at all** (seen
+2026-09-15): it takes the workflow JSON and a *Submit for human review* button,
+nothing else. So on a revision the JSON is the only channel you control, and the
+image has to travel inside it. **Templates 1 and 4 now carry the image as the
+first line of their overview sticky** — that sticky is what the description is
+built from, so it is the closest thing to "the top of the description" that a
+JSON-only dialog can reach.
+
+Two consequences worth knowing:
+
+- The overview sticky must stay within the 100–300 word rule *including* the
+  image line. Template 4 was at 298 words and had to be trimmed to fit; it is now
+  292. Check the count after any edit.
+- The sticky was made taller (04: 900→1160, 01: 760→1020) so the image has room
+  and does not overlap a section sticky. Both were re-checked for overlap.
+
+Since the dialog gives no field for it, **also reply to the reviewer's email with
+the link** rather than relying on the sticky alone.
+
 All four URLs were checked as publicly reachable: HTTP 200, `image/png`, and the
 bytes match the committed file. Retake and re-commit whenever a template changes shape —
 the URL stays the same, so a stale screenshot would silently mislead a reviewer.
