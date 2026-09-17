@@ -195,4 +195,44 @@ describe('fetchPageContent URL enforcement', () => {
     expect(() => config.beforeRedirect({ protocol: 'https:', hostname: 'example.org' }))
       .not.toThrow();
   });
+
+  it('rejects a redirect target spelled as IPv4-mapped IPv6', async () => {
+    // follow-redirects builds the target with the native URL class, so the
+    // hostname reaches the hook in the same hex-compressed form that defeated
+    // the guard on the initial URL. The redirect path carried the identical
+    // bypass and is covered by the same fix.
+    mockedAxios.get.mockResolvedValueOnce({
+      status: 200,
+      headers: { 'content-type': 'text/html' },
+      data: '<html><body><p>ok</p></body></html>',
+    });
+
+    await fetchPageContent('https://example.com/article');
+    const config = mockedAxios.get.mock.calls[0][1] as any;
+
+    const hostnameOf = (url: string) => new URL(url).hostname;
+    expect(hostnameOf('http://[::ffff:169.254.169.254]/')).toBe('[::ffff:a9fe:a9fe]');
+
+    expect(() =>
+      config.beforeRedirect({
+        protocol: 'http:',
+        hostname: hostnameOf('http://[::ffff:169.254.169.254]/'),
+      }),
+    ).toThrow(/Refused to follow a redirect/);
+
+    expect(() =>
+      config.beforeRedirect({
+        protocol: 'http:',
+        hostname: hostnameOf('http://[::ffff:127.0.0.1]/'),
+      }),
+    ).toThrow(/Refused to follow a redirect/);
+
+    // A public address in the same notation must still be followed.
+    expect(() =>
+      config.beforeRedirect({
+        protocol: 'http:',
+        hostname: hostnameOf('http://[::ffff:8.8.8.8]/'),
+      }),
+    ).not.toThrow();
+  });
 });
