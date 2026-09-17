@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [32.15.1] - 2026-09-17
 
 ### Fixed
 
@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   In 32.15.0 and earlier, `http://[::ffff:169.254.169.254]/latest/meta-data/` — the cloud instance-credentials endpoint — and `http://[::ffff:127.0.0.1]/` were both accepted. An agent that could be steered into calling Extract Page Content with such a URL, including by text arriving inside search results, could have had the response handed back to it.
 
   The guard now parses the literal into its eight groups and compares numbers, so no spelling can step around it. IPv4-mapped (`::ffff:a.b.c.d`), IPv4-compatible (`::a.b.c.d`) and NAT64 (`64:ff9b::a.b.c.d`) forms are all judged on the address they carry. Link-local and unique-local are matched by range rather than by prefix text, which also closes `feb0::1` and the rest of `fe80::/10` above `fe80:`.
+
+  **Redirects carried the same bypass and are fixed by the same change.** The guard already re-ran on every redirect target before following it, but the target reached it through the same URL parser and so arrived in the same compressed form — a page answering `302 → http://[::ffff:169.254.169.254]/` would have been followed. There is now a regression test for that path as well.
 
   Dotted IPv4, decimal (`http://2130706433/`) and hex (`http://0x7f000001/`) forms were never affected: the URL parser converts those to dotted-quad before the guard sees them. DNS names that resolve to private addresses remain out of scope, as documented.
 

@@ -1,3 +1,84 @@
+# v32.15.1 — An IPv6 spelling could get past the page-fetch guard
+
+**Release Date:** 2026-09-17
+
+A security fix. **If you use Extract Page Content or Fetch Page Content, update.**
+Nothing else changes, and nothing you have built needs adjusting.
+
+---
+
+## What was wrong
+
+The page-fetching features refuse to fetch loopback, private and link-local
+addresses. That guard exists because this node is usable as an AI Agent tool and
+the URL it is handed is untrusted input — an agent can be steered by text it
+reads, including text arriving inside the search results this node returns.
+
+The guard checked IPv4-mapped IPv6 addresses by looking for the familiar dotted
+spelling, `::ffff:127.0.0.1`. But `new URL()` rewrites every IPv6 literal before
+the hostname can be read, and the rewritten form is compressed hexadecimal:
+
+```
+new URL('http://[::ffff:169.254.169.254]/').hostname   →   '[::ffff:a9fe:a9fe]'
+```
+
+So the check was looking for a spelling the URL parser never produces. That
+branch had never once matched anything.
+
+In 32.15.0 and earlier the following were accepted:
+
+| Address | 32.15.0 | 32.15.1 |
+|---|---|---|
+| `http://[::ffff:169.254.169.254]/latest/meta-data/` | **fetched** | refused |
+| `http://[::ffff:127.0.0.1]/` | **fetched** | refused |
+| `http://[::ffff:10.0.0.5]/` | **fetched** | refused |
+| `http://169.254.169.254/` | refused | refused |
+| `http://2130706433/` | refused | refused |
+
+The first is the cloud instance-credentials endpoint on AWS, GCP and Azure.
+
+## What is fixed
+
+The guard no longer matches text. It expands an IPv6 literal into its eight
+groups and compares numbers, so no spelling of the same address can step around
+it:
+
+- **IPv4-mapped** (`::ffff:a.b.c.d`), **IPv4-compatible** (`::a.b.c.d`) and
+  **NAT64** (`64:ff9b::a.b.c.d`) are each judged on the IPv4 address they carry.
+- **Link-local and unique-local are matched by range** — `fe80::/10` and
+  `fc00::/7` — rather than by the start of the text. That also closes `feb0::1`
+  and everything else in `fe80::/10` that the old prefix check did not cover.
+
+## Redirects were affected too, and are covered
+
+The guard runs again on every redirect target before the chain is followed, and
+a redirect target reaches it through the same URL parser — so it arrived in the
+same hex-compressed form and slipped through the same way. A page that answered
+`302 → http://[::ffff:169.254.169.254]/` would have been followed. The one fix
+covers both paths, and there is now a test for the redirect one.
+
+## What was never affected
+
+Dotted, decimal and hexadecimal IPv4 forms — `169.254.169.254`, `2130706433`,
+`0x7f000001` — were all refused before and still are. The URL parser converts
+those to a dotted quad before the guard sees them.
+
+A DNS name that resolves to a private address (DNS rebinding) is still out of
+scope; the guard does not resolve names, and the module has always said so.
+
+## Why it was not caught
+
+The test for this case passed the string `::ffff:127.0.0.1` straight to the
+guard. That is a spelling the URL parser never emits, so the test exercised the
+pattern on its own terms rather than on the input the guard actually receives.
+The new tests go through a real URL, as the production path does.
+
+16 cases were added for the guard itself — 12 blocked spellings and 3 public
+addresses that must stay allowed, plus a malformed literal — and one more for the
+redirect path. 493 tests across 22 suites.
+
+---
+
 # v32.15.0 — Errors that say what happened
 
 **Release Date:** 2026-09-12
