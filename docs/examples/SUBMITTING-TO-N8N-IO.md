@@ -40,9 +40,11 @@ too basic to meet our publishing criteria."* It was two nodes — a trigger and
 one DuckDuckGo node — with everything interesting happening inside that node's
 options. As a *workflow* that is a configuration sample.
 
-Measured against the live library on 2026-09-11 (`api.n8n.io` template search,
-then each workflow's detail): published "research assistant" templates carry
-**4–21 real nodes, median about 8**. Two was never going to clear it.
+Measured against the live library on 2026-09-11: published "research assistant"
+templates carry 4–21 nodes, median about 8. **That number is wrong — see
+*The measurement that was wrong* below.** It came from the search API's node
+*preview* list, which reports distinct node types rather than node instances. The
+real median is **14**. Two nodes was never going to clear it either way.
 
 So a template here has to **do a job end to end**, not demonstrate one option.
 Both templates below were rebuilt or written to that bar.
@@ -65,21 +67,88 @@ which is exactly what a community-node template must carry. What is in the repo
 takes its node names, positions and four-section layout, and keeps our overview
 text re-keyed to the new names.
 
+## The measurement that was wrong
+
+**Read this before trusting any node-count figure elsewhere in this file.**
+
+Two conclusions here were built on `api.n8n.io`'s template **search** response and
+its `nodes[]` field. That field is not the workflow's nodes. It is a *preview*
+generated from n8n's own registry of known node types, and it has two properties
+that broke both measurements:
+
+- it lists **distinct node types**, not node instances, so it undercounts; and
+- a node type n8n's registry does not know is **omitted entirely** rather than
+  listed without an icon — so **every community node is invisible in it**.
+
+Proved on 2026-09-17 with published template **3231**, *"Search the web with
+MCP-based Brave Search Engine on Telegram"*. Its raw workflow JSON
+(`api.n8n.io/api/templates/workflows/3231`) contains
+`n8n-nodes-mcp.mcpClient` — a community package. The preview field for that same
+template does not mention it at all.
+
+**n8n's own search index is blind to them too.** The search endpoint takes a
+`nodes=` filter and reports exact population counts for core types —
+`n8n-nodes-base.code` → 7,069, `@n8n/n8n-nodes-langchain.agent` → 4,064. Every
+community type returns **0**: `n8n-nodes-mcp.mcpClient`,
+`@blotato/n8n-nodes-blotato.blotato`, `n8n-nodes-serpapi.serpApi`. Template 3231
+uses the first of those and is published. So a published community-node template
+is **undiscoverable by node** in n8n's own library, and no filter or aggregation
+there can be used to count them.
+
+**Re-measured against raw JSON**, `workflow.nodes[].type` per template, on the
+98 templates that parsed out of the first 100 ids returned by the search endpoint:
+
+| | this batch | community-node ones | ours |
+|---|---|---|---|
+| use a community node | 24 of 98 | — | — |
+| real nodes, median | 14 | 17 (n=24) | 10 (t4), 7 (t1) |
+| real nodes, 25th percentile | 10 | 13 | — |
+| fewer than 10 real nodes | — | 2 of 24 | both of ours |
+
+**Read those as one batch, not as the library.** The 100 ids came from a single
+page of the endpoint's default ordering. That ordering is stable across calls but
+it is not random and not representative: **0 of the 98 carry the "AI" category,
+which tags 69% of the 12,394 published templates.** Two ids are missing — 15694
+failed to download, 6281 returns 404, a stale index entry. The community-node
+figures additionally rest on 24 cases. A population share would need a sample
+stratified on the category proportions the endpoint itself publishes.
+
+There are **12 distinct community packages** in the batch (15 node types —
+`n8n-nodes-serpapi.serpApi` and `.serpApiTool` are two types from one package),
+including `n8n-nodes-serpapi`, a **search** node and the closest published
+comparison to this one.
+
+**The skew argues against us, not for us.** The missing segment is AI-tagged
+workflows, and AI-agent templates tend to carry *more* nodes, not fewer — model,
+memory and tool sub-nodes each count. A sample with none of them most likely
+**understates** the real median. So "ours is small relative to what gets
+published" survives the sampling problem even though the number 14 does not.
+
+**What this overturns:**
+
+- *"No published template uses a community node"* — **false**. About a quarter do.
+- *"Published templates run 4–21 nodes, median about 8"* — **false**, and it was
+  measured with the same broken field. The batch above puts the median at 14,
+  with the caveats above.
+- *"The identical rejection sentence cannot be about the workflow"* — **retracted**.
+  Templates 1 and 4 sit at or below the 25th percentile of everything published,
+  and below the 25th percentile of community-node templates specifically. "Too
+  basic" is consistent with what the library actually contains.
+
+The rendering limitation is still real and n8n confirmed it. It is just not
+evidence that our submissions failed for that reason, since a quarter of the
+library has the same limitation and is published.
+
 ## The canvas does not render — link the screenshot yourself
 
-**This is the single thing that mattered, and it took two rejections to find.**
-
 Templates 1 and 4 were both refused with the same sentence, word for word:
-*"It is currently too basic to meet our publishing criteria."* Template 1 was two
-nodes, so that read as fair. Template 4 is ten — schedule trigger, news search, a
-rate-limit branch, an aggregate, an AI Agent calling a search tool, a Code node
-and two Telegram nodes, with two credentials and days of real runs. The identical
-sentence for both meant the sentence was not about either workflow.
+*"It is currently too basic to meet our publishing criteria."* Template 4 was
+refused a third time on 2026-09-17, after a resubmission carrying the screenshot
+link.
 
-Measured through `api.n8n.io` on 2026-09-14: **1,300 published templates sampled**
-(pages 1–8 plus pages 40, 60, 80, 100 and 120, from a library of 12,324) and
-**every node in every one of them is `n8n-nodes-base.*` or `@n8n/*`** — not one
-community node, from any package.
+A scan on 2026-09-14 appeared to show that **no** published template used a
+community node. **That was wrong** — see *The measurement that was wrong* below.
+Roughly a quarter of published templates use one.
 
 n8n's creator team, asked directly on 2026-09-14, confirmed the **rendering
 limitation and the fix**:
@@ -97,11 +166,12 @@ limitation and the fix**:
 
 **Read that carefully, and keep the two apart.** What is *confirmed* is that the
 preview may not render, that this can make a workflow harder to assess, and that
-the image belongs in the description as a link. What is *ours* is the conclusion
-that this is why both templates came back — a strong inference, given the
-identical sentence for a 2-node and a 10-node workflow and zero community nodes
-in 1,300 published templates, but n8n did not say it. They also pointed out that
-the reviewer does still receive the JSON.
+the image belongs in the description as a link. What is *ours* was the conclusion
+that this is why both templates came back — and **that inference is now retracted**.
+It rested on a measurement that turned out to be measuring nothing, and about a
+quarter of published templates carry a community node and the same rendering
+problem while being published anyway. n8n never said the preview caused either
+rejection, and they pointed out the reviewer does still receive the JSON.
 
 So do not treat the screenshot as a fix that makes an unchanged resubmission
 succeed. It removes a known obstacle; if a template comes back a third time with
