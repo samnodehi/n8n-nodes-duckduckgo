@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Security: an IPv6 spelling of a private address could get past the page-fetch guard.** `Extract Page Content` and `Fetch Page Content` refuse to fetch loopback, private and link-local addresses, because the node is usable as an AI Agent tool and the URL it is asked for is untrusted input. That guard judged IPv4-mapped IPv6 literals by matching the dotted form, `::ffff:127.0.0.1` — but `new URL()` normalises every IPv6 literal before the hostname is read, and the normal form is compressed hex: `[::ffff:169.254.169.254]` arrives as `::ffff:a9fe:a9fe`. The pattern was matching a string the URL parser never produces, so that branch had never once fired.
+
+  In 32.15.0 and earlier, `http://[::ffff:169.254.169.254]/latest/meta-data/` — the cloud instance-credentials endpoint — and `http://[::ffff:127.0.0.1]/` were both accepted. An agent that could be steered into calling Extract Page Content with such a URL, including by text arriving inside search results, could have had the response handed back to it.
+
+  The guard now parses the literal into its eight groups and compares numbers, so no spelling can step around it. IPv4-mapped (`::ffff:a.b.c.d`), IPv4-compatible (`::a.b.c.d`) and NAT64 (`64:ff9b::a.b.c.d`) forms are all judged on the address they carry. Link-local and unique-local are matched by range rather than by prefix text, which also closes `feb0::1` and the rest of `fe80::/10` above `fe80:`.
+
+  Dotted IPv4, decimal (`http://2130706433/`) and hex (`http://0x7f000001/`) forms were never affected: the URL parser converts those to dotted-quad before the guard sees them. DNS names that resolve to private addresses remain out of scope, as documented.
+
+---
+
 ## [32.15.0] - 2026-09-12
 
 ### Changed
