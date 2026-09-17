@@ -53,6 +53,45 @@ describe('isBlockedHost', () => {
   });
 });
 
+describe('IPv6 spellings of a private address', () => {
+  // These go through a real URL rather than calling isBlockedHost with a
+  // hand-written host, because that is where the bug was. `new URL()`
+  // normalises every IPv6 literal before `.hostname` returns it - the longest
+  // zero run is compressed and the embedded IPv4 octets become hex - so
+  // `[::ffff:169.254.169.254]` arrives as `::ffff:a9fe:a9fe`. A guard written
+  // against the dotted spelling matched a string the parser never produces, and
+  // the cloud metadata address was reachable in 32.15.0 and earlier.
+  it.each([
+    ['IPv4-mapped cloud metadata', 'http://[::ffff:169.254.169.254]/latest/meta-data/'],
+    ['IPv4-mapped loopback', 'http://[::ffff:127.0.0.1]/'],
+    ['IPv4-mapped RFC1918', 'http://[::ffff:10.0.0.5]/'],
+    ['IPv4-mapped 192.168', 'http://[::ffff:192.168.1.1]/'],
+    ['IPv4-compatible loopback', 'http://[::127.0.0.1]/'],
+    ['NAT64-embedded metadata', 'http://[64:ff9b::169.254.169.254]/'],
+    ['plain loopback', 'http://[::1]/'],
+    ['link-local at the bottom of the range', 'http://[fe80::1]/'],
+    ['link-local at the top of the range', 'http://[febf::1]/'],
+    ['link-local mid-range', 'http://[feb0::1]/'],
+    ['unique-local fc00', 'http://[fc00::1]/'],
+    ['unique-local fd00', 'http://[fd00::1]/'],
+  ])('blocks %s', (_label, url) => {
+    expect(isFetchableUrl(url)).toBe(false);
+  });
+
+  it.each([
+    ['a public IPv6', 'http://[2001:4860:4860::8888]/'],
+    ['an IPv4-mapped PUBLIC address', 'http://[::ffff:8.8.8.8]/'],
+    ['a public IPv6 with a full-length spelling', 'http://[2606:4700:4700:0:0:0:0:1111]/'],
+  ])('allows %s', (_label, url) => {
+    expect(isFetchableUrl(url)).toBe(true);
+  });
+
+  it('does not treat a malformed literal as private', () => {
+    // Nonsense must fall through to "not a private address" rather than throw.
+    expect(isBlockedHost('not:an:address:at:all:zz')).toBe(false);
+  });
+});
+
 describe('getUrlBlockReason', () => {
   it('accepts ordinary http and https URLs', () => {
     expect(getUrlBlockReason('https://example.com/article')).toBeNull();
