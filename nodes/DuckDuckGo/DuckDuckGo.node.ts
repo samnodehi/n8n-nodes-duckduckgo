@@ -10,7 +10,6 @@ import {
   NodeApiError,
   NodeConnectionTypes,
   NodeOperationError,
-  sleep,
 } from 'n8n-workflow';
 
 // Import types from duck-duck-scrape for compatibility, but use fallback functions
@@ -62,7 +61,6 @@ import {
 
 
 import { buildSearchQuery, validateSearchOperators, OPERATOR_INFO, ISearchOperators } from './searchOperators';
-import { paginateWithVqd, DEFAULT_PAGINATION_CONFIG } from './vqdPagination';
 import { fallbackNewsSearch, fallbackVideoSearch } from './fallbackSearch';
 import { fetchPageContent, fetchPageContents } from './pageContent';
 import { getInstantAnswer } from './instantAnswer';
@@ -1175,110 +1173,6 @@ export class DuckDuckGo implements INodeType {
 
     ],
   };
-
-  /**
-   * Advanced search method with super pagination capabilities
-   * Uses both JSON API and HTML scraping with intelligent pagination
-   * NOTE: Currently unused due to simplified web search implementation
-   */
-  // @ts-ignore - kept for potential future use
-  private async _webSearchWithSuperPagination(
-    this: IExecuteFunctions,
-    query: string,
-    options: {
-      maxResults: number;
-      safeSearch: number;
-      locale: string;
-      timePeriod?: string;
-    },
-  ): Promise<Array<any>> {
-    const debugMode = this.getNodeParameter('debugMode', 0, false) as boolean;
-    const debugLog = makeDebugLogger(this.logger, debugMode);
-
-    // Use the enhanced VQD pagination with corrected SearchOptions
-    const paginationResult = await paginateWithVqd(
-      query,
-      {
-        safeSearch: getSafeSearchType(options.safeSearch),
-        locale: options.locale,
-        time: options.timePeriod,
-      } as SearchOptions,
-      {
-        maxResults: options.maxResults,
-        pageSize: DEFAULT_PAGINATION_CONFIG.pageSize,
-        maxPages: Math.min(DEFAULT_PAGINATION_CONFIG.maxPages, Math.ceil(options.maxResults / DEFAULT_PAGINATION_CONFIG.pageSize)),
-        delayBetweenRequests: DEFAULT_PAGINATION_CONFIG.delayBetweenRequests,
-        debugLog,
-        node: this.getNode(),
-      }
-    );
-
-    // If VQD pagination didn't get enough results and we still need more, try HTML fallback
-    if (paginationResult.results.length < options.maxResults && paginationResult.totalFetched < options.maxResults) {
-      const { parseHtmlResults } = await import('./htmlParser');
-      const remainingNeeded = options.maxResults - paginationResult.results.length;
-      const htmlResults: any[] = [];
-      let offsetHtml = 0;
-      let hasMoreHtml = true;
-      const pageSizeHtml = 10;
-
-      // Try to get remaining results from HTML
-      while (htmlResults.length < remainingNeeded && hasMoreHtml) {
-        const htmlUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}&s=${offsetHtml}`;
-
-        try {
-          const html = await this.helpers.httpRequest({
-            url: htmlUrl,
-            method: 'GET',
-            headers: {
-              'User-Agent': BROWSER_USER_AGENT,
-            },
-          });
-          const page = parseHtmlResults(html);
-
-          if (!page.length) {
-            hasMoreHtml = false;
-            break;
-          }
-
-          const convertedResults = page.map(item => ({
-            title: item.title,
-            url: item.url,
-            description: item.snippet,
-            rawDescription: item.snippet,
-            hostname: new URL(item.url).hostname,
-            icon: '', // HTML results don't have icons
-          }));
-
-          htmlResults.push(...convertedResults);
-          if (page.length < pageSizeHtml) {
-            hasMoreHtml = false;
-          }
-
-          offsetHtml += pageSizeHtml;
-        } catch (error) {
-          hasMoreHtml = false;
-          if (debugMode) {
-            const logEntry = createLogEntry(
-              LogLevel.ERROR,
-              `HTML fallback error: ${error.message}`,
-              'webSearchWithSuperPagination',
-              { query, error: error.message }
-            );
-            debugLog?.(logEntry);
-          }
-          break;
-        }
-
-        await sleep(DEFAULT_PAGINATION_CONFIG.delayBetweenRequests);
-      }
-
-      // Combine VQD results with HTML results
-      return [...paginationResult.results, ...htmlResults].slice(0, options.maxResults);
-    }
-
-    return paginationResult.results;
-  }
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
