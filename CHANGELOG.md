@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Removed
+
+- **Dead pagination code.** `vqdPagination.ts`, `htmlParser.ts` and the private `_webSearchWithSuperPagination` method were never reachable: the method was marked `@ts-ignore - kept for potential future use` and carried its own note that it was unused, and nothing called it. Web Search has gone through `directWebSearch` for a long time. Together they were about 680 lines, and `vqdPagination.ts` was the file keeping a `duck-duck-scrape` import alive for no running code.
+
+  Its test file went with them. Worth recording why it gave no cover: of the four tests it declared, **only two ever ran** — the `paginateWithVqd` block was commented out, with a note saying the pagination logic was "difficult to test accurately with mocks" and "works correctly in production", for a function production never called.
+
+  Nothing about the node's behaviour changes. The published package is two files and 18 kB smaller.
+
+---
+
 ## [32.15.1] - 2026-09-17
 
 ### Fixed
