@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **News and Video returned a short result set without saying why.** Asking for more than ten results fetches a page at a time. If a later page failed - the request threw, or DuckDuckGo answered without the token needed to continue - the node kept the pages it already had and returned them with nothing said: no error, no log line, nothing on the canvas. Asking for thirty and getting ten looked exactly like DuckDuckGo having only ten.
+
+  That is the same shape as the worst bug this node has had. DuckDuckGo's HTTP 202 challenge page returned *empty* results silently until 32.12.0; this returned *partial* results silently.
+
+  Partial results are still returned - ten real results beat none - but now the node logs a warning and, on n8n versions that support execution hints, shows one on the canvas: how many it asked for, how many it got, and what stopped it. Genuine exhaustion, where DuckDuckGo simply has no more results, is not a failure and is still reported as nothing at all.
+
+  A truncated answer is also no longer written to the cache. Caching it would have served the shortfall for the whole TTL without a request, and without the failure left to explain it.
+
+- **Video search did not log a failure of its primary path.** News logs `Primary news search failed: ...` before falling back; Video did not. When the fallback then succeeded, nothing reached the workflow and there was no record that the primary path had failed at all.
+
+### Changed
+
+- **All four cache keys now include `maxResults`.** None of them did, so a cached ten-result answer was served to a later request for fifty and came back short with nothing to say so. On News and Video the cache hit skipped the pagination loop entirely; on Web and Image the results had already been cut to ten before being stored. The four operations behaved the same way and are fixed the same way.
+
+- **The `Maximum Results` tooltip no longer reads as a promise.** All four operations now say "Maximum number of ... to return; DuckDuckGo may return fewer", matching the README.
+
 ### Removed
 
 - **Dead pagination code.** `vqdPagination.ts`, `htmlParser.ts` and the private `_webSearchWithSuperPagination` method were never reachable: the method was marked `@ts-ignore - kept for potential future use` and carried its own note that it was unused, and nothing called it. Web Search has gone through `directWebSearch` for a long time. Together they were about 680 lines, and `vqdPagination.ts` was the file keeping a `duck-duck-scrape` import alive for no running code.

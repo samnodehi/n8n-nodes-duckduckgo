@@ -1153,8 +1153,9 @@ describe('DuckDuckGo Node', () => {
     });
 
     it('should cache news search results when enabled', async () => {
-      // Set up node parameters with cache enabled
-      setupNodeParameters('searchNews', 'cached news query', { useCache: true, cacheTtl: 300 });
+      // maxResults matches what the fixture returns, so the pagination loop does
+      // not run: this test is about caching, not about paging.
+      setupNodeParameters('searchNews', 'cached news query', { useCache: true, cacheTtl: 300, maxResults: 2 });
 
       // Mock cache miss then API success
       (cache.getCached as jest.Mock).mockReturnValue(undefined);

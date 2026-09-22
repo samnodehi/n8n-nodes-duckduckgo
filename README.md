@@ -48,6 +48,7 @@ An n8n community node for DuckDuckGo search. Search the web, find images, discov
 - **Works as an n8n AI Agent tool** — attach it to any Agent node; no extra setup needed
 - **Four search types in one node** — Web, Image, News, and Video from a single, consistent interface
 - **Clean JSON output designed for automation** — predictable field names, no noise, easy to wire into downstream nodes
+- **A short result set says why** — asking News or Video for more than ten results fetches a page at a time. If a later page fails you still get the pages that worked, and the node warns on the canvas with how many it asked for, how many it got and what went wrong, rather than handing back a quietly short list
 - **Fallback labels for News and Video** — when results come from the fallback path, `isFallback: true` tells you so
 
 ---
@@ -90,7 +91,7 @@ Searches DuckDuckGo and returns organic web results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `query` | string | required | Search terms |
-| `maxResults` | number | 10 | Number of results (1–100) |
+| `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code (e.g. `de-de`, `fr-fr`) |
 | `useSearchOperators` | boolean | false | Enable advanced operator parsing |
@@ -144,7 +145,7 @@ Searches DuckDuckGo images and returns image metadata.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `imageQuery` | string | required | Image search terms |
-| `maxResults` | number | 10 | Number of results (1–100) |
+| `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
 
 **Example:**
@@ -190,7 +191,7 @@ Searches DuckDuckGo news results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `newsQuery` | string | required | News search terms |
-| `maxResults` | number | 10 | Number of results (1–100) |
+| `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
 | `timePeriod` | string | — | Time filter: `d` (day), `w` (week), `m` (month), `y` (year) |
@@ -246,7 +247,7 @@ Searches DuckDuckGo video results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `videoQuery` | string | required | Video search terms |
-| `maxResults` | number | 10 | Number of results (1–100) |
+| `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer |
 | `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
 

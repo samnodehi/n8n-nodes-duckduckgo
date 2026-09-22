@@ -457,7 +457,7 @@ export class DuckDuckGo implements INodeType {
             name: 'maxResults',
             type: 'number',
             default: DEFAULT_PARAMETERS.MAX_RESULTS,
-            description: 'Maximum number of search results to return',
+            description: 'Maximum number of search results to return; DuckDuckGo may return fewer',
             typeOptions: {
               minValue: 1,
               maxValue: 100,
@@ -770,7 +770,7 @@ export class DuckDuckGo implements INodeType {
             name: 'maxResults',
             type: 'number',
             default: DEFAULT_PARAMETERS.MAX_RESULTS,
-            description: 'Maximum number of image results to return',
+            description: 'Maximum number of image results to return; DuckDuckGo may return fewer',
             typeOptions: {
               minValue: 1,
               maxValue: 100,
@@ -865,7 +865,7 @@ export class DuckDuckGo implements INodeType {
             name: 'maxResults',
             type: 'number',
             default: DEFAULT_PARAMETERS.MAX_RESULTS,
-            description: 'Maximum number of news articles to return',
+            description: 'Maximum number of news articles to return; DuckDuckGo may return fewer',
             typeOptions: {
               minValue: 1,
               maxValue: 100,
@@ -1061,7 +1061,7 @@ export class DuckDuckGo implements INodeType {
             name: 'maxResults',
             type: 'number',
             default: DEFAULT_PARAMETERS.MAX_RESULTS,
-            description: 'Maximum number of videos to return',
+            description: 'Maximum number of videos to return; DuckDuckGo may return fewer',
             typeOptions: {
               minValue: 1,
               maxValue: 100,
@@ -1272,11 +1272,14 @@ export class DuckDuckGo implements INodeType {
           };
 
 
-          // Create a cache key based on operation and parameters
+          // `maxResults` belongs in the key even though it is not a search option.
+          // The results are cut to it before they are cached, so without it a
+          // cached ten-result answer would be served to a later request for fifty.
           const cacheKey = JSON.stringify({
             operation,
             query: enhancedQuery,
             options: searchOptions,
+            maxResults: options.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS,
           });
 
 
@@ -1476,11 +1479,14 @@ export class DuckDuckGo implements INodeType {
           };
 
 
-          // Create a cache key based on operation and parameters
+          // `maxResults` belongs in the key even though it is not a search option.
+          // The results are cut to it before they are cached, so without it a
+          // cached ten-result answer would be served to a later request for fifty.
           const cacheKey = JSON.stringify({
             operation,
             query: imageQuery,
             options: searchOptions,
+            maxResults: imageSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS,
           });
 
 
@@ -1700,11 +1706,15 @@ export class DuckDuckGo implements INodeType {
           // generic primary error, which would otherwise mask it.
           let newsChallengeMessage: string | undefined;
 
-          // Create a cache key based on operation and parameters
+          // `maxResults` belongs in the key even though it is not a search option.
+          // It decides how many pages are fetched, so a cached ten-result answer
+          // would otherwise be served to a later request for fifty - skipping the
+          // pagination loop entirely and returning ten with nothing to show for it.
           const cacheKey = JSON.stringify({
             operation,
             query: newsQuery,
             options: searchOptions,
+            maxResults,
           });
 
 
@@ -1758,6 +1768,11 @@ export class DuckDuckGo implements INodeType {
               // For maxResults > 10, we need to fetch additional results
               // Note: duck-duck-scrape library has a limit of ~10 results per request
 
+              // Why the pagination loop stopped, when it stopped for a reason
+              // other than DuckDuckGo running out of results. Declared out here
+              // because the cache below must not store a short answer.
+              let truncatedBecause: string | undefined;
+
               // Check if user explicitly set maxResults (not using default)
               // Always attempt pagination if user explicitly requested a specific number of results
               if (newsSearchOptions.maxResults !== undefined && result.results && result.results.length > 0) {
@@ -1804,10 +1819,11 @@ export class DuckDuckGo implements INodeType {
                       }
                     } else {
                       // Can't continue without vqd
+                      truncatedBecause = 'DuckDuckGo did not return a token to page with';
                       break;
                     }
                   } catch (pageError) {
-                    // Log the error but continue with what we have
+                    truncatedBecause = pageError instanceof Error ? pageError.message : String(pageError);
                     if (debugMode) {
                       const logEntry = createLogEntry(
                         LogLevel.ERROR,
@@ -1827,8 +1843,21 @@ export class DuckDuckGo implements INodeType {
                 result.results = allResults;
               }
 
-              // Cache the result if cache is enabled
-              if (enableCache && result) {
+              // A short answer with no explanation is the failure this node exists
+              // to avoid. The log is not gated on Debug Mode because the workflow
+              // itself sees nothing wrong, and the hint puts it on the canvas.
+              if (truncatedBecause) {
+                const shortfall = `Asked DuckDuckGo for ${maxResults} news results and returned ${result.results.length}: ${truncatedBecause}`;
+                this.logger.warn(shortfall, { query: newsQuery });
+                if (typeof this.addExecutionHints === 'function') {
+                  this.addExecutionHints({ message: shortfall, type: 'warning', location: 'outputPane' });
+                }
+              }
+
+              // Cache the result if cache is enabled. A truncated answer is never
+              // cached: it would be served for the whole TTL without a request,
+              // so the shortfall would repeat with nothing left to report it.
+              if (enableCache && result && !truncatedBecause) {
                 setCache(cacheKey, result, cacheTTL);
 
                 // Log cache store if debug is enabled
@@ -2042,11 +2071,15 @@ export class DuckDuckGo implements INodeType {
           const maxResults = videoSearchOptions.maxResults ?? DEFAULT_PARAMETERS.MAX_RESULTS;
 
 
-          // Create a cache key based on operation and parameters
+          // `maxResults` belongs in the key even though it is not a search option.
+          // It decides how many pages are fetched, so a cached ten-result answer
+          // would otherwise be served to a later request for fifty - skipping the
+          // pagination loop entirely and returning ten with nothing to show for it.
           const cacheKey = JSON.stringify({
             operation,
             query: videoQuery,
             options: searchOptions,
+            maxResults,
           });
 
 
@@ -2101,6 +2134,11 @@ export class DuckDuckGo implements INodeType {
               // For maxResults > 10, we need to fetch additional results
               // Note: duck-duck-scrape library has a limit of ~10 results per request
 
+              // Why the pagination loop stopped, when it stopped for a reason
+              // other than DuckDuckGo running out of results. Declared out here
+              // because the cache below must not store a short answer.
+              let truncatedBecause: string | undefined;
+
               // Check if user explicitly set maxResults (not using default)
               // Always attempt pagination if user explicitly requested a specific number of results
               if (videoSearchOptions.maxResults !== undefined && result.results && result.results.length > 0) {
@@ -2147,10 +2185,11 @@ export class DuckDuckGo implements INodeType {
                       }
                     } else {
                       // Can't continue without vqd
+                      truncatedBecause = 'DuckDuckGo did not return a token to page with';
                       break;
                     }
                   } catch (pageError) {
-                    // Log the error but continue with what we have
+                    truncatedBecause = pageError instanceof Error ? pageError.message : String(pageError);
                     if (debugMode) {
                       const logEntry = createLogEntry(
                         LogLevel.ERROR,
@@ -2170,8 +2209,21 @@ export class DuckDuckGo implements INodeType {
                 result.results = allResults;
               }
 
-              // Cache the result if cache is enabled
-              if (enableCache && result) {
+              // A short answer with no explanation is the failure this node exists
+              // to avoid. The log is not gated on Debug Mode because the workflow
+              // itself sees nothing wrong, and the hint puts it on the canvas.
+              if (truncatedBecause) {
+                const shortfall = `Asked DuckDuckGo for ${maxResults} video results and returned ${result.results.length}: ${truncatedBecause}`;
+                this.logger.warn(shortfall, { query: videoQuery });
+                if (typeof this.addExecutionHints === 'function') {
+                  this.addExecutionHints({ message: shortfall, type: 'warning', location: 'outputPane' });
+                }
+              }
+
+              // Cache the result if cache is enabled. A truncated answer is never
+              // cached: it would be served for the whole TTL without a request,
+              // so the shortfall would repeat with nothing left to report it.
+              if (enableCache && result && !truncatedBecause) {
                 setCache(cacheKey, result, cacheTTL);
 
                 // Log cache store if debug is enabled
@@ -2242,6 +2294,14 @@ export class DuckDuckGo implements INodeType {
 
             }
           } catch (error) {
+            // Always emitted, matching the news path: when the fallback below
+            // succeeds, no error reaches the workflow and this log is the only
+            // place the primary failure is visible.
+            this.logger.warn(
+              `Primary video search failed: ${error instanceof Error ? error.message : String(error)}`,
+              { query: videoQuery },
+            );
+
             // Try fallback search if duck-duck-scrape fails
             try {
               const fallbackResult = await fallbackVideoSearch(videoQuery, {
