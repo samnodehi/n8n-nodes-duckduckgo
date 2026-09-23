@@ -1,3 +1,71 @@
+# v32.15.2 — A short result set now says why
+
+**Release Date:** 2026-09-23
+
+A correctness fix. No new options, and nothing you have built needs adjusting.
+The node now warns when it returns fewer results than you asked for because
+something failed — not when DuckDuckGo simply had fewer.
+
+---
+
+## What was wrong
+
+**News and Video could return a short list with nothing to say why.** When you
+set Maximum Results higher than DuckDuckGo's first page holds, the node fetches
+further pages one at a time. If one of those later pages failed — the request threw, or
+DuckDuckGo answered without the token needed to continue — the node kept what it
+already had and returned it with no error, no log line and nothing on the canvas.
+Asking for fifty and getting thirty looked exactly like DuckDuckGo having only
+thirty.
+
+That is the shape of the worst bug this node has had. Until 32.12.0,
+DuckDuckGo's challenge page returned *empty* results silently. This returned
+*partial* results silently.
+
+**The cache could serve a short answer to a bigger request.** None of the four
+operations put `maxResults` in the cache key. So a cached ten-result answer was
+served to a later request for fifty, and came back short. On News and Video the
+cache hit skipped fetching more pages at all. On Web and Image the list had
+already been cut to ten before it was stored.
+
+## What changed
+
+- **A short result set says why.** Partial results are still returned, because
+  real results beat none. But the node now logs a warning and, on n8n versions
+  that support execution hints, shows one on the canvas. It says how many
+  results were asked for, how many came back and what stopped it. When
+  DuckDuckGo simply has no more results, nothing failed, so nothing is said.
+- **A truncated answer is not cached.** Caching it served the shortfall for the
+  whole cache lifetime without a request. The failure was usually temporary, so
+  it also kept serving the short list after DuckDuckGo had recovered.
+- **All four cache keys include `maxResults`.**
+- **Video logs a failure of its primary path**, as News already did. Before, when
+  the fallback then succeeded, there was no record that the primary path had
+  failed at all.
+- **The `Maximum Results` tooltip no longer reads as a promise.** It now says
+  DuckDuckGo may return fewer.
+
+## What this costs
+
+Two things now send requests that used to be answered from the cache, both
+deliberately:
+
+- A request that fails part-way is not cached, so the next run sends its
+  requests again. A short answer in the cache stays short for the whole cache
+  lifetime.
+- The same query with a different Maximum Results is a separate cache entry. It
+  used to be served whatever size was cached first.
+
+Nothing else about the number of requests changes.
+
+## Checked
+
+501 tests across 23 suites. The two new test files, covering the shortfall
+report and the cache key, were each run against the code *without* the fix, and
+both fail there.
+
+---
+
 # v32.15.1 — An IPv6 spelling could get past the page-fetch guard
 
 **Release Date:** 2026-09-17
