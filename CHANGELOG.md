@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [32.15.2] - 2026-09-23
 
 ### Fixed
 
-- **News and Video returned a short result set without saying why.** Asking for more than ten results fetches a page at a time. If a later page failed - the request threw, or DuckDuckGo answered without the token needed to continue - the node kept the pages it already had and returned them with nothing said: no error, no log line, nothing on the canvas. Asking for thirty and getting ten looked exactly like DuckDuckGo having only ten.
+- **News and Video returned a short result set without saying why.** When Maximum Results is set higher than DuckDuckGo's first page holds, the node fetches further pages one at a time. If a later page failed - the request threw, or DuckDuckGo answered without the token needed to continue - the node kept the pages it already had and returned them with nothing said: no error, no log line, nothing on the canvas. Asking for thirty and getting ten looked exactly like DuckDuckGo having only ten.
 
   That is the same shape as the worst bug this node has had. DuckDuckGo's HTTP 202 challenge page returned *empty* results silently until 32.12.0; this returned *partial* results silently.
 
@@ -28,14 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **All four cache keys now include `maxResults`.** None of them did, so a cached ten-result answer was served to a later request for fifty and came back short with nothing to say so. On News and Video the cache hit skipped the pagination loop entirely; on Web and Image the results had already been cut to ten before being stored. The four operations behaved the same way and are fixed the same way.
 
 - **The `Maximum Results` tooltip no longer reads as a promise.** All four operations now say "Maximum number of ... to return; DuckDuckGo may return fewer", matching the README.
-
-### Removed
-
-- **Dead pagination code.** `vqdPagination.ts`, `htmlParser.ts` and the private `_webSearchWithSuperPagination` method were never reachable: the method was marked `@ts-ignore - kept for potential future use` and carried its own note that it was unused, and nothing called it. Web Search has gone through `directWebSearch` for a long time. Together they were about 680 lines, and `vqdPagination.ts` was the file keeping a `duck-duck-scrape` import alive for no running code.
-
-  Its test file went with them. Worth recording why it gave no cover: of the four tests it declared, **only two ever ran** — the `paginateWithVqd` block was commented out, with a note saying the pagination logic was "difficult to test accurately with mocks" and "works correctly in production", for a function production never called.
-
-  Nothing about the node's behaviour changes. The published package is two files and 18 kB smaller.
 
 ---
 
@@ -52,6 +44,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Redirects carried the same bypass and are fixed by the same change.** The guard already re-ran on every redirect target before following it, but the target reached it through the same URL parser and so arrived in the same compressed form — a page answering `302 → http://[::ffff:169.254.169.254]/` would have been followed. There is now a regression test for that path as well.
 
   Dotted IPv4, decimal (`http://2130706433/`) and hex (`http://0x7f000001/`) forms were never affected: the URL parser converts those to dotted-quad before the guard sees them. DNS names that resolve to private addresses remain out of scope, as documented.
+
+
+### Removed
+
+- **Dead pagination code.** `vqdPagination.ts`, `htmlParser.ts` and the private `_webSearchWithSuperPagination` method were never reachable: the method was marked `@ts-ignore - kept for potential future use` and carried its own note that it was unused, and nothing called it. Web Search has gone through `directWebSearch` for a long time. Together they were about 680 lines, and `vqdPagination.ts` was the file keeping a `duck-duck-scrape` import alive for no running code.
+
+  Its test file went with them. Worth recording why it gave no cover: of the four tests it declared, **only two ever ran** — the `paginateWithVqd` block was commented out, with a note saying the pagination logic was "difficult to test accurately with mocks" and "works correctly in production", for a function production never called.
+
+  Nothing about the node's behaviour changes. The published package is two files and 18 kB smaller.
 
 ---
 
