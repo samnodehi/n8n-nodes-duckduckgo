@@ -10,8 +10,8 @@
  * was requested at DuckDuckGo's own next-page URL. Sent as the same-origin XHR the
  * results page itself makes - JSON accept, a Referer, fetch-metadata headers -
  * later pages are served: with this module, at the node's defaults, a live
- * request for 45 news results was answered over three pages. Video's first
- * page held 45 or more on its own, so its later pages are not yet proven live.
+ * request for 45 news results was answered over three pages, and one for 100
+ * videos over two - video steps by 60 where news steps by 30.
  *
  * Paging follows DuckDuckGo's own `next` field rather than counting results:
  * pages of 30, 28, 26 and 22 results all named an offset in fixed steps of 30,

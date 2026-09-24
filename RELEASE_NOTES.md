@@ -29,7 +29,8 @@ the first page already satisfies costs what it did before — two requests.
   it always has: nothing went wrong.
 
 Video's first page held 45 or more results in the live check, so Video's later
-pages are requested the same way but have not yet been exercised live.
+pages had not been exercised live when this was released. A check made after
+the release, with this code, fetched 100 videos over two pages, none repeated.
 
 ## How
 
