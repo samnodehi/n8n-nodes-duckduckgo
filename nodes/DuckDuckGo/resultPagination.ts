@@ -2,9 +2,10 @@
  * Paging through DuckDuckGo News and Video results.
  *
  * Each page names the offset of the next one, and paging follows that rather
- * than counting: live pages of 30, 28, 26 and 22 results all named offsets in
- * fixed steps of 30, so a count drifts from DuckDuckGo's own figure. Where a
- * page names no next offset, there is nothing more to fetch.
+ * than counting: live News pages of 30, 28, 26 and 22 results all named offsets
+ * in fixed steps of 30, and Video stepped by 60, so a count drifts from
+ * DuckDuckGo's own figure. Where a page names no next offset, there is nothing
+ * more to fetch.
  *
  * DuckDuckGo repeats itself across pages - a live second page repeated 12 of
  * its 22 results from the first - so results are de-duplicated as they are
