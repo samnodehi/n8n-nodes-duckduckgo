@@ -4,7 +4,7 @@
  * html.duckduckgo.com — no third-party search APIs are used.
  */
 
-import { SearchOptions } from 'duck-duck-scrape';
+import { SearchOptions } from './types';
 
 import axios from 'axios';
 import { BROWSER_USER_AGENT } from './constants';
@@ -142,7 +142,7 @@ function normaliseDdgUrl(raw: string): string | null {
 
 /**
  * Fallback search using DuckDuckGo HTML Lite API
- * This is used when duck-duck-scrape fails - now using regex parsing
+ * Used when the News or Video request fails; parses the HTML page with regexes
  */
 export async function fallbackWebSearch(
   query: string,

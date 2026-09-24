@@ -48,7 +48,7 @@ An n8n community node for DuckDuckGo search. Search the web, find images, discov
 - **Works as an n8n AI Agent tool** — attach it to any Agent node; no extra setup needed
 - **Four search types in one node** — Web, Image, News, and Video from a single, consistent interface
 - **Clean JSON output designed for automation** — predictable field names, no noise, easy to wire into downstream nodes
-- **A short result set says why** — if the node returns fewer results than you asked for because something stopped it, it warns on the canvas with how many it asked for, how many it got and why, rather than handing back a quietly short list. **News and Video currently return one page** (for News, 26–30 results in tests): the library they use cannot request later pages with DuckDuckGo's current tokens ([upstream issue](https://github.com/Snazzah/duck-duck-scrape/issues/149)), and the warning says so
+- **A short result set says why** — if the node returns fewer results than you asked for because something stopped it, it warns on the canvas with how many it asked for, how many it got and why, rather than handing back a quietly short list. **News and Video fetch further pages** when you ask for more than the first page holds (for News, 26–30 results a page in tests), following DuckDuckGo's own next-page pointer, dropping results DuckDuckGo repeats across pages, and stopping at five pages to spare your IP's rate limit
 - **Fallback labels for News and Video** — when results come from the fallback path, `isFallback: true` tells you so
 
 ---
@@ -191,7 +191,7 @@ Searches DuckDuckGo news results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `newsQuery` | string | required | News search terms |
-| `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer. Currently at most one page (26–30 in tests); see *A short result set says why* |
+| `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer. Fetched a page (26–30 results) at a time, at most five pages |
 | `safeSearch` | options | Strict | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
 | `timePeriod` | string | — | Time filter: `d` (day), `w` (week), `m` (month), `y` (year) |
@@ -247,7 +247,7 @@ Searches DuckDuckGo video results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `videoQuery` | string | required | Video search terms |
-| `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer. Currently at most one page; see *A short result set says why* |
+| `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer. Fetched a page at a time (45 or more on one page in a live test), at most five pages |
 | `safeSearch` | options | Strict | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
 
@@ -535,9 +535,9 @@ Available on Web, News and Video Search under **Options → Ranking Rules**.
   you with eight. How much that buys depends on the operation: **Web Search**
   fetches everything the request returned and cuts afterwards, so a discard is
   backfilled from further down and you still get the number you asked for.
-  **News and Video** currently return one page however many results you ask
-  for (see *A short result set says why*), so a discard can leave you short, and
-  raising **Maximum Results** does not help until later pages can be fetched.
+  **News and Video** fetch pages until they hold about as many results as you
+  asked for, so a discard can leave you short; raise **Maximum Results** to
+  compensate, bearing in mind that each extra page is one more request.
 - **`position` is renumbered** to match the order you actually receive, on the operations that carry one (Web Search).
 - **A result the rules cannot judge is kept.** A result with no URL, or one that
   does not parse, is never discarded by a rule it had no chance to match.
@@ -605,7 +605,7 @@ anything risks breaking a working link for no gain.
 
 ## 🔄 Fallback Behavior
 
-**News Search** and **Video Search** use `duck-duck-scrape` as their primary result source.
+**News Search** and **Video Search** request DuckDuckGo's `news.js` and `v.js` directly, the way DuckDuckGo's own results page does.
 
 If the primary path fails (e.g. DuckDuckGo returns a server error or no parseable results), the node automatically attempts an alternative HTML-based fallback search.
 
@@ -912,8 +912,8 @@ To get **more text**, enable **Fetch Page Content** (available on **Web Search**
 |-----------|-------------|---------------|
 | Web Search | `directWebSearch` (html.duckduckgo.com POST) | None |
 | Image Search | `directImageSearch` (duckduckgo.com + i.js) | None |
-| News Search | `duck-duck-scrape` `searchNews` | HTML-based fallback |
-| Video Search | `duck-duck-scrape` `searchVideos` | HTML-based fallback |
+| News Search | `searchNews` (duckduckgo.com + news.js, paged) | HTML-based fallback |
+| Video Search | `searchVideos` (duckduckgo.com + v.js, paged) | HTML-based fallback |
 | Search Suggestions | `getAutocomplete` (duckduckgo.com/ac/) | None |
 
 There is no user-configurable backend selector. Each operation type uses the most reliable path available. Every path — primary and fallback — talks only to DuckDuckGo; no third-party search API is used.

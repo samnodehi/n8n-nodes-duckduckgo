@@ -13,13 +13,6 @@
  */
 
 jest.mock('axios');
-jest.mock('duck-duck-scrape', () => ({
-  search: jest.fn(),
-  searchNews: jest.fn(),
-  searchVideos: jest.fn(),
-  SafeSearchType: { STRICT: 'strict', MODERATE: 'moderate', OFF: 'off' },
-  SearchTimeType: { DAY: 'd', WEEK: 'w', MONTH: 'm', YEAR: 'y', ALL: 'a' },
-}));
 import axios from 'axios';
 import { fallbackWebSearch, fallbackNewsSearch } from '../fallbackSearch';
 

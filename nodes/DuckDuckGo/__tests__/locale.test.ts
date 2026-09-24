@@ -2,17 +2,10 @@ import { IExecuteFunctions } from 'n8n-workflow';
 import { DuckDuckGo } from '../DuckDuckGo.node';
 import * as directSearch from '../directSearch';
 
-// Mock the duck-duck-scrape library
-jest.mock('duck-duck-scrape', () => ({
-  search: jest.fn(),
+// News and Video requests, so no test here can reach the network through them.
+jest.mock('../newsVideoSearch', () => ({
   searchNews: jest.fn(),
-  searchImages: jest.fn(),
   searchVideos: jest.fn(),
-  SafeSearchType: {
-    STRICT: 'strict',
-    MODERATE: 'moderate',
-    OFF: 'off',
-  },
 }));
 
 // Mock the directSearch module

@@ -64,29 +64,6 @@ describe('parseApiError', () => {
     });
   });
 
-  describe('duck-duck-scrape server error', () => {
-    it('should return actionable message for exact duck-duck-scrape error string', () => {
-      const error = new Error('A server error occurred!');
-      const result = parseApiError(error, 'news search');
-      expect(result).toBe(
-        'DuckDuckGo returned a server error during news search. This may be a temporary DuckDuckGo issue, rate limit, or upstream scraper failure. Try again later or reduce request frequency.'
-      );
-    });
-
-    it('should include the operation name in the message', () => {
-      const error = new Error('A server error occurred!');
-      expect(parseApiError(error, 'video search')).toContain('video search');
-      expect(parseApiError(error, 'image search')).toContain('image search');
-    });
-
-    it('should NOT match if message has extra text', () => {
-      // Only the exact string triggers the branch; partial matches fall through
-      const error = new Error('A server error occurred! Please try again.');
-      const result = parseApiError(error, 'news search');
-      expect(result).toContain('Error during news search');
-    });
-  });
-
   describe('generic fallthrough', () => {
     it('should echo original message for unrecognised errors', () => {
       const error = new Error('Something unexpected went wrong');

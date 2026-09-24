@@ -1,30 +1,19 @@
 /**
  * Paging through DuckDuckGo News and Video results.
  *
- * DuckDuckGo pages by item offset, and a page is not ten results long: live
- * News responses held 30, 28 and 26 results, and all named `s=30` as their
- * next page. The loops this replaces asked for page 2 at `s=10`. The next offset
- * here is the number of results received so far. That is not always
- * DuckDuckGo's own figure - after 28 it said 30. If a page never holds more
- * than DuckDuckGo's step, as both samples suggest, the count can fall short of
- * its offset but not pass it, and falling short is the safe way to be wrong: a
- * result or two is fetched again and dropped as a repeat, where an offset past
- * DuckDuckGo's would skip results without trace. The library drops `next`, so
- * it cannot be read.
+ * Each page names the offset of the next one, and paging follows that rather
+ * than counting: live pages of 30, 28, 26 and 22 results all named offsets in
+ * fixed steps of 30, so a count drifts from DuckDuckGo's own figure. Where a
+ * page names no next offset, there is nothing more to fetch.
  *
- * As of September 2026 no page after the first can be fetched through the
- * library: it rejects DuckDuckGo's current token format before sending anything
- * (Snazzah/duck-duck-scrape#149). The fetcher reports that as
- * {@link PagingUnavailable}. Sent with the library's headers, later pages are
- * refused with 403; sent as the same-origin XHR DuckDuckGo's own page uses,
- * page 2 was served - and it showed this module's offset and last-page rules
- * are wrong for DuckDuckGo (fixed steps of 30, repeats across pages). Both are
- * to be reworked when that request replaces the library's for later pages.
+ * DuckDuckGo repeats itself across pages - a live second page repeated 12 of
+ * its 22 results from the first - so results are de-duplicated as they are
+ * collected, and paging carries on past repeats while there are pages left.
  *
  * Two things are never silent. A page that fails ends the paging and says why,
  * and so does the page limit: a request cut short to spare the rate limit is
  * reported as exactly that, not passed off as all DuckDuckGo had. Only real
- * exhaustion - an empty page, or a short one - ends it without a word.
+ * exhaustion - no next page, or an empty one - ends it without a word.
  */
 
 import { stripTrackingParameters } from './urlNormalize';
@@ -39,6 +28,8 @@ export const MAX_PAGES = 5;
 export interface ResultPage<T> {
   results?: T[];
   vqd?: string;
+  /** Offset of the next page as DuckDuckGo names it; absent on the last page. */
+  nextOffset?: number;
 }
 
 /**
@@ -49,32 +40,6 @@ export interface ResultPage<T> {
 export interface Shortfall {
   reason: string;
   transient: boolean;
-}
-
-/**
- * Thrown by a page fetcher when no later page can be requested at all, as
- * opposed to one that failed this time. Every run would stop the same way, so
- * the short answer is reported as permanent and may be cached.
- */
-export class PagingUnavailable extends Error {}
-
-/**
- * duck-duck-scrape checks a token before using it and demands two dashes;
- * DuckDuckGo's tokens now have one. Every later page is then refused locally,
- * before any request, with an error naming the token and nothing else. It is
- * recognised by its wording, not re-checked here: if the library is fixed,
- * paging must resume on its own, and a copy of its check would keep blocking it.
- * A contract test pins that wording, so a reworded message fails CI instead of
- * quietly falling back to the generic report.
- */
-export function explainPagingFailure(error: unknown): never {
-  if (error instanceof Error && error.message.endsWith(' is an invalid VQD!')) {
-    throw new PagingUnavailable(
-      "only the first page can be fetched: the duck-duck-scrape library rejects DuckDuckGo's current "
-      + 'token format, so later pages cannot be requested (Snazzah/duck-duck-scrape#149)',
-    );
-  }
-  throw error;
 }
 
 export interface CollectedResults<T> {
@@ -92,15 +57,11 @@ function dedupeKey(item: { url?: string | null }): string | undefined {
 
 /**
  * Collect results page by page until `maxResults` are held, DuckDuckGo runs
- * out, a page fails, or the page budget is spent.
+ * out, a page fails, or {@link MAX_PAGES} have been fetched. The caller cuts
+ * the list to `maxResults` after ranking, so collecting past it is harmless.
  *
- * The budget is derived from the first page's size, so a search is never sent
- * more pages than it needs to reach `maxResults` at that size, and never more
- * than {@link MAX_PAGES}. The caller cuts the list to `maxResults` after
- * ranking, so collecting past it is harmless.
- *
- * @param fetchPage - Fetches the page starting at `offset`, with the token the
- *   first page was served under.
+ * @param fetchPage - Fetches the page at `offset`, with the token the first
+ *   page was served under.
  * @param onPage - Called before each page after the first is requested.
  */
 export async function collectPages<T extends { url?: string | null }>(
@@ -112,10 +73,8 @@ export async function collectPages<T extends { url?: string | null }>(
   const results: T[] = [];
   const seen = new Set<string>();
 
-  // Returns how many items were new. Items without a URL cannot be compared
-  // and are always kept.
-  const add = (items: T[]): number => {
-    let added = 0;
+  // Items without a URL cannot be compared and are always kept.
+  const add = (items: T[]): void => {
     for (const item of items) {
       const key = dedupeKey(item);
       if (key !== undefined) {
@@ -123,26 +82,22 @@ export async function collectPages<T extends { url?: string | null }>(
         seen.add(key);
       }
       results.push(item);
-      added++;
     }
-    return added;
   };
 
-  const pageSize = firstPage.results?.length ?? 0;
   add(firstPage.results ?? []);
-  if (pageSize === 0 || results.length >= maxResults) {
-    return { results };
-  }
 
-  const pageBudget = Math.min(MAX_PAGES, Math.ceil(maxResults / pageSize));
-  let received = pageSize;
-
+  let current = firstPage;
   for (let page = 2; results.length < maxResults; page++) {
-    if (page > pageBudget) {
+    const offset = current.nextOffset;
+    if (offset === undefined) {
+      break;
+    }
+    if (page > MAX_PAGES) {
       return {
         results,
         shortfall: {
-          reason: `stopped after ${pageBudget} pages to limit requests to DuckDuckGo`,
+          reason: `stopped after ${MAX_PAGES} pages to limit requests to DuckDuckGo`,
           transient: false,
         },
       };
@@ -154,41 +109,22 @@ export async function collectPages<T extends { url?: string | null }>(
       };
     }
 
-    onPage?.(page, received);
+    onPage?.(page, offset);
 
-    let next: ResultPage<T>;
     try {
-      next = await fetchPage(received, firstPage.vqd);
+      current = await fetchPage(offset, firstPage.vqd);
     } catch (error) {
       return {
         results,
-        shortfall: {
-          reason: error instanceof Error ? error.message : String(error),
-          transient: !(error instanceof PagingUnavailable),
-        },
+        shortfall: { reason: error instanceof Error ? error.message : String(error), transient: true },
       };
     }
 
-    const items = next.results ?? [];
+    const items = current.results ?? [];
     if (items.length === 0) {
       break;
     }
-    received += items.length;
-
-    // With the offset right, a page of nothing new means the listing moved
-    // under us between requests (breaking news does). That is not DuckDuckGo
-    // saying it has no more, so it is reported rather than taken as the end.
-    if (add(items) === 0) {
-      return {
-        results,
-        shortfall: { reason: 'DuckDuckGo answered with results already collected', transient: true },
-      };
-    }
-
-    // A page shorter than the first is the last one there is.
-    if (items.length < pageSize) {
-      break;
-    }
+    add(items);
   }
 
   return { results };

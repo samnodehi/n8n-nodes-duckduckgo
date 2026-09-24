@@ -1,48 +1,47 @@
 /**
- * The offsets asked for are the point of these tests. The loops this module
- * replaced asked for page 2 at `s=10` whatever the first page held, and no test
- * looked at the offset, so nothing noticed when DuckDuckGo's pages turned out
- * to be 30 long.
+ * Paging follows the offset each page names for the next one. The offsets
+ * asked for are the point of most of these tests: the loops this module
+ * replaced asked for page 2 at `s=10`, and its first version counted results,
+ * which drifts from DuckDuckGo's own fixed steps of 30.
  */
 
-import { collectPages, MAX_PAGES, PagingUnavailable, ResultPage } from '../resultPagination';
+import { collectPages, MAX_PAGES, ResultPage } from '../resultPagination';
 
 const VQD = '4-123456789-987654321';
 
-type Item = { url?: string | null; n?: number };
+type Item = { url?: string | null };
 
-/** `count` results numbered from `from`, each with its own URL. */
-const page = (from: number, count: number): ResultPage<Item> => ({
+/** `count` results numbered from `from`, naming `next` as the next page. */
+const page = (from: number, count: number, next?: number): ResultPage<Item> => ({
   vqd: VQD,
-  results: Array.from({ length: count }, (_, i) => ({ url: `https://e.com/${from + i}`, n: from + i })),
+  results: Array.from({ length: count }, (_, i) => ({ url: `https://e.com/${from + i}` })),
+  nextOffset: next,
 });
 
-/** A DuckDuckGo that pages by item offset and holds `total` results. */
-const catalogue = (total: number, pageSize: number) =>
-  jest.fn(async (offset: number) => page(offset, Math.max(0, Math.min(pageSize, total - offset))));
-
-describe('the offset', () => {
-  it('asks for the next page where the first one ended, not at ten', async () => {
-    const fetchPage = catalogue(200, 30);
-
-    await collectPages(page(0, 30), 60, fetchPage);
-
-    // DuckDuckGo's own `next` after a 30-result page is s=30.
-    expect(fetchPage.mock.calls.map(([offset]) => offset)).toEqual([30]);
+/**
+ * A DuckDuckGo that steps by 30 but serves `perPage` results a page, from
+ * `total` in all, and names no next page after the last.
+ */
+const catalogue = (total: number, perPage = 30) =>
+  jest.fn(async (offset: number) => {
+    const count = Math.max(0, Math.min(perPage, total - offset));
+    return page(offset, count, offset + 30 < total ? offset + 30 : undefined);
   });
 
-  it('keeps counting what was received across several pages', async () => {
-    const fetchPage = catalogue(200, 10);
+describe('the offset', () => {
+  it('is the one the previous page named, not a count of what it held', async () => {
+    // Page 1 holds 26 but names s=30, as DuckDuckGo's did live.
+    const fetchPage = catalogue(500, 26);
 
-    await collectPages(page(0, 10), 40, fetchPage);
+    await collectPages(page(0, 26, 30), 60, fetchPage);
 
-    expect(fetchPage.mock.calls.map(([offset]) => offset)).toEqual([10, 20, 30]);
+    expect(fetchPage.mock.calls.map(([offset]) => offset)).toEqual([30, 60]);
   });
 
   it('pages with the token the first page was served under', async () => {
-    const fetchPage = catalogue(200, 30);
+    const fetchPage = catalogue(500);
 
-    await collectPages(page(0, 30), 45, fetchPage);
+    await collectPages(page(0, 30, 30), 45, fetchPage);
 
     expect(fetchPage).toHaveBeenCalledWith(30, VQD);
   });
@@ -50,21 +49,21 @@ describe('the offset', () => {
 
 describe('how many requests are sent', () => {
   it('sends none when the first page already holds enough', async () => {
-    const fetchPage = catalogue(200, 30);
+    const fetchPage = catalogue(500);
 
-    const out = await collectPages(page(0, 30), 25, fetchPage);
+    const out = await collectPages(page(0, 30, 30), 25, fetchPage);
 
     expect(fetchPage).not.toHaveBeenCalled();
     expect(out.results).toHaveLength(30);
     expect(out.shortfall).toBeUndefined();
   });
 
-  it('sends only as many pages as maxResults needs at the observed page size', async () => {
-    const fetchPage = catalogue(500, 30);
+  it('stops as soon as it holds enough', async () => {
+    const fetchPage = catalogue(500);
 
-    const out = await collectPages(page(0, 30), 100, fetchPage);
+    const out = await collectPages(page(0, 30, 30), 100, fetchPage);
 
-    // ceil(100 / 30) = 4 pages in all, so three more requests.
+    // 30 + 30 + 30 + 30 = 120 after three more pages.
     expect(fetchPage).toHaveBeenCalledTimes(3);
     expect(out.results).toHaveLength(120);
     expect(out.shortfall).toBeUndefined();
@@ -73,7 +72,7 @@ describe('how many requests are sent', () => {
   it(`never fetches more than ${MAX_PAGES} pages, and says so when that is why it stopped`, async () => {
     const fetchPage = catalogue(500, 10);
 
-    const out = await collectPages(page(0, 10), 100, fetchPage);
+    const out = await collectPages(page(0, 10, 30), 100, fetchPage);
 
     expect(fetchPage).toHaveBeenCalledTimes(MAX_PAGES - 1);
     expect(out.results).toHaveLength(MAX_PAGES * 10);
@@ -86,54 +85,52 @@ describe('how many requests are sent', () => {
 });
 
 describe('DuckDuckGo running out', () => {
-  it('stops without comment on an empty page', async () => {
-    const fetchPage = catalogue(30, 30);
+  it('stops without comment when a page names no next page', async () => {
+    const fetchPage = catalogue(500);
 
     const out = await collectPages(page(0, 30), 60, fetchPage);
 
-    expect(fetchPage).toHaveBeenCalledTimes(1);
+    expect(fetchPage).not.toHaveBeenCalled();
     expect(out.results).toHaveLength(30);
     expect(out.shortfall).toBeUndefined();
   });
 
-  it('stops without comment after a page shorter than the first', async () => {
-    const fetchPage = catalogue(42, 30);
+  it('stops without comment on an empty page', async () => {
+    const fetchPage = jest.fn(async () => page(30, 0, 60));
 
-    const out = await collectPages(page(0, 30), 100, fetchPage);
+    const out = await collectPages(page(0, 30, 30), 60, fetchPage);
 
-    // Page 2 held 12 of a possible 30: it was the last one, so no third request.
     expect(fetchPage).toHaveBeenCalledTimes(1);
-    expect(out.results).toHaveLength(42);
     expect(out.shortfall).toBeUndefined();
   });
 
-  it('does not page at all when the first page is empty', async () => {
-    const fetchPage = catalogue(0, 30);
+  it('carries on after a page shorter than the first while a next page is named', async () => {
+    // DuckDuckGo served 26 then 22 and still named s=60: a short page is not the last.
+    const fetchPage = jest.fn()
+      .mockResolvedValueOnce(page(30, 22, 60))
+      .mockResolvedValueOnce(page(60, 22));
 
-    const out = await collectPages(page(0, 0), 50, fetchPage);
+    const out = await collectPages(page(0, 26, 30), 100, fetchPage);
 
-    expect(fetchPage).not.toHaveBeenCalled();
-    expect(out.results).toHaveLength(0);
+    expect(fetchPage).toHaveBeenCalledTimes(2);
+    expect(out.results).toHaveLength(70);
   });
 });
 
 describe('duplicates', () => {
   it('drops a result already collected from an earlier page', async () => {
-    const fetchPage = jest.fn(async () => ({
-      vqd: VQD,
-      results: [{ url: 'https://e.com/5' }, { url: 'https://e.com/new' }],
-    }));
+    // Page 2 repeats the last ten of page 1, then brings ten new ones.
+    const fetchPage = jest.fn(async () => page(20, 20));
 
-    const out = await collectPages(page(0, 10), 12, fetchPage);
+    const out = await collectPages(page(0, 30, 30), 40, fetchPage);
 
-    expect(out.results.map((r) => r.url)).toEqual([
-      ...Array.from({ length: 10 }, (_, i) => `https://e.com/${i}`),
-      'https://e.com/new',
-    ]);
+    const urls = out.results.map((r) => r.url);
+    expect(new Set(urls).size).toBe(urls.length);
+    expect(urls).toHaveLength(40);
   });
 
   it('treats the same article with different tracking parameters as one', async () => {
-    const first = { vqd: VQD, results: [{ url: 'https://e.com/story?utm_source=ddg' }] };
+    const first = { vqd: VQD, results: [{ url: 'https://e.com/story?utm_source=ddg' }], nextOffset: 30 };
     const fetchPage = jest.fn(async () => ({
       vqd: VQD,
       results: [{ url: 'https://e.com/story?utm_source=other&fbclid=x' }, { url: 'https://e.com/other' }],
@@ -150,45 +147,44 @@ describe('duplicates', () => {
 
   it('keeps results that have no URL to compare', async () => {
     const first = { vqd: VQD, results: [{ url: null }, { url: undefined }] as Item[] };
-    const fetchPage = jest.fn(async () => ({ vqd: VQD, results: [] as Item[] }));
 
-    const out = await collectPages(first, 1, fetchPage);
+    const out = await collectPages(first, 1, jest.fn());
 
     expect(out.results).toHaveLength(2);
   });
 
-  it('reports a page of nothing new instead of taking it as the end', async () => {
-    const fetchPage = jest.fn(async () => page(0, 30));
+  it('carries on past a page of nothing new while DuckDuckGo names another', async () => {
+    const fetchPage = jest.fn()
+      .mockResolvedValueOnce(page(0, 30, 60))
+      .mockResolvedValueOnce(page(60, 30));
 
-    const out = await collectPages(page(0, 30), 60, fetchPage);
+    const out = await collectPages(page(0, 30, 30), 60, fetchPage);
 
-    // With the offset right this means the listing moved between requests,
-    // which is not DuckDuckGo saying it has no more.
-    expect(fetchPage).toHaveBeenCalledTimes(1);
-    expect(out.results).toHaveLength(30);
-    expect(out.shortfall).toEqual({
-      reason: 'DuckDuckGo answered with results already collected',
-      transient: true,
-    });
+    expect(fetchPage).toHaveBeenCalledTimes(2);
+    expect(out.results).toHaveLength(60);
+    expect(out.shortfall).toBeUndefined();
   });
 });
 
 describe('failures', () => {
   it('stops at a failed page, keeps what it has, and says why', async () => {
     const fetchPage = jest.fn()
-      .mockResolvedValueOnce(page(30, 30))
-      .mockRejectedValueOnce(new Error('A server error occurred!'));
+      .mockResolvedValueOnce(page(30, 30, 60))
+      .mockRejectedValueOnce(new Error('DuckDuckGo refused the news search request (HTTP 403).'));
 
-    const out = await collectPages(page(0, 30), 100, fetchPage);
+    const out = await collectPages(page(0, 30, 30), 100, fetchPage);
 
     expect(out.results).toHaveLength(60);
-    expect(out.shortfall).toEqual({ reason: 'A server error occurred!', transient: true });
+    expect(out.shortfall).toEqual({
+      reason: 'DuckDuckGo refused the news search request (HTTP 403).',
+      transient: true,
+    });
   });
 
   it('reports a first page that came without a token to page with', async () => {
-    const fetchPage = catalogue(200, 30);
+    const fetchPage = catalogue(500);
 
-    const out = await collectPages({ ...page(0, 30), vqd: undefined }, 60, fetchPage);
+    const out = await collectPages({ ...page(0, 30, 30), vqd: undefined }, 60, fetchPage);
 
     expect(fetchPage).not.toHaveBeenCalled();
     expect(out.shortfall).toEqual({
@@ -197,19 +193,10 @@ describe('failures', () => {
     });
   });
 
-  it('reports paging that cannot happen at all as permanent, so it may be cached', async () => {
-    const fetchPage = jest.fn().mockRejectedValueOnce(new PagingUnavailable('no later pages here'));
-
-    const out = await collectPages(page(0, 30), 60, fetchPage);
-
-    expect(out.results).toHaveLength(30);
-    expect(out.shortfall).toEqual({ reason: 'no later pages here', transient: false });
-  });
-
   it('reports a thrown value that is not an Error', async () => {
     const fetchPage = jest.fn().mockRejectedValueOnce('socket hang up');
 
-    const out = await collectPages(page(0, 30), 60, fetchPage);
+    const out = await collectPages(page(0, 30, 30), 60, fetchPage);
 
     expect(out.shortfall).toEqual({ reason: 'socket hang up', transient: true });
   });
@@ -219,7 +206,7 @@ describe('the debug callback', () => {
   it('is told each page and the offset it is asked for', async () => {
     const onPage = jest.fn();
 
-    await collectPages(page(0, 30), 90, catalogue(200, 30), onPage);
+    await collectPages(page(0, 30, 30), 90, catalogue(500), onPage);
 
     expect(onPage.mock.calls).toEqual([[2, 30], [3, 60]]);
   });

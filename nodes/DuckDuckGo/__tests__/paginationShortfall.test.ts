@@ -9,10 +9,10 @@
  * results silently.
  */
 
-jest.mock('duck-duck-scrape');
+jest.mock('../newsVideoSearch');
 jest.mock('../fallbackSearch');
 
-import { searchNews, searchVideos } from 'duck-duck-scrape';
+import { searchNews, searchVideos } from '../newsVideoSearch';
 import { DuckDuckGo } from '../DuckDuckGo.node';
 import * as cacheModule from '../cache';
 import { clearCache } from '../cache';
@@ -21,11 +21,14 @@ import { resetChallengeCooldown } from '../challengeCooldown';
 const mockedNews = searchNews as jest.MockedFunction<typeof searchNews>;
 const mockedVideos = searchVideos as jest.MockedFunction<typeof searchVideos>;
 
-const VQD = '3-123456789-98765432109876543210';
+// DuckDuckGo's current token shape: one dash.
+const VQD = '4-142907716215351487660642192699445978524';
 
-const newsPage = (n: number) => ({
+// A non-empty page names the next one, as DuckDuckGo's do; an empty one does not.
+const newsPage = (n: number, nextOffset: number | undefined = n > 0 ? 30 : undefined) => ({
   noResults: n === 0,
   vqd: VQD,
+  nextOffset,
   results: Array.from({ length: n }, (_, i) => ({
     date: 1625097600,
     excerpt: `excerpt ${i}`,
@@ -40,16 +43,17 @@ const newsPage = (n: number) => ({
 
 /** A news page whose articles are numbered from `from`, so pages do not repeat. */
 const newsPageFrom = (from: number, n: number) => {
-  const p = newsPage(n);
+  const p = newsPage(n, from + 30);
   p.results.forEach((r, i) => { r.url = `https://e.com/a${from + i}`; r.title = `Article ${from + i}`; });
   return p;
 };
 
-// The shape `searchVideos` returns, not DuckDuckGo's raw JSON: the library maps
-// the raw `content` field to `url`, and the node only ever sees the mapped one.
-const videoPage = (n: number) => ({
+// The shape `searchVideos` returns, not DuckDuckGo's raw JSON: the raw
+// `content` field is mapped to `url`, and the node only ever sees the mapped one.
+const videoPage = (n: number, nextOffset: number | undefined = n > 0 ? 30 : undefined) => ({
   noResults: n === 0,
   vqd: VQD,
+  nextOffset,
   results: Array.from({ length: n }, (_, i) => ({
     url: `https://e.com/v${i}`,
     title: `Video ${i}`,
@@ -65,7 +69,7 @@ const videoPage = (n: number) => ({
 
 /** A video page whose videos are numbered from `from`, so pages do not repeat. */
 const videoPageFrom = (from: number, n: number) => {
-  const p = videoPage(n);
+  const p = videoPage(n, from + 30);
   p.results.forEach((r, i) => { r.url = `https://e.com/v${from + i}`; r.title = `Video ${from + i}`; });
   return p;
 };
@@ -114,7 +118,7 @@ describe('a later page failing', () => {
   it('says so on the canvas and in the log, and still returns what it has', async () => {
     mockedNews
       .mockResolvedValueOnce(newsPage(10) as any)
-      .mockRejectedValueOnce(new Error('A server error occurred!'));
+      .mockRejectedValueOnce(new Error('DuckDuckGo refused the news search request (HTTP 403).'));
 
     const out = await run('searchNews', 'ai', 30);
 
@@ -123,7 +127,7 @@ describe('a later page failing', () => {
     const warned = logger.warn.mock.calls[0][0] as string;
     expect(warned).toContain('30');
     expect(warned).toContain('10');
-    expect(warned).toContain('A server error occurred!');
+    expect(warned).toContain('HTTP 403');
 
     expect(addExecutionHints).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'warning', location: 'outputPane' }),
@@ -133,7 +137,7 @@ describe('a later page failing', () => {
   it('does not cache the short answer', async () => {
     mockedNews
       .mockResolvedValueOnce(newsPage(10) as any)
-      .mockRejectedValueOnce(new Error('A server error occurred!'));
+      .mockRejectedValueOnce(new Error('DuckDuckGo refused the news search request (HTTP 403).'));
 
     await run('searchNews', 'ai', 30, true);
 
@@ -145,7 +149,7 @@ describe('a later page failing', () => {
   it('reports the same way for video search', async () => {
     mockedVideos
       .mockResolvedValueOnce(videoPage(10) as any)
-      .mockRejectedValueOnce(new Error('A server error occurred!'));
+      .mockRejectedValueOnce(new Error('DuckDuckGo refused the news search request (HTTP 403).'));
 
     const out = await run('searchVideos', 'ai', 30);
 
@@ -154,44 +158,6 @@ describe('a later page failing', () => {
     expect(addExecutionHints).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'warning', location: 'outputPane' }),
     );
-  });
-});
-
-describe("the library refusing DuckDuckGo's current token", () => {
-  it('explains why, and caches the answer because every run would stop the same way', async () => {
-    mockedNews
-      .mockResolvedValueOnce(newsPage(30) as any)
-      .mockRejectedValueOnce(new Error('4-142907716215351487660642192699445978524 is an invalid VQD!'));
-
-    const out = await run('searchNews', 'ai', 45, true);
-
-    expect(out[0]).toHaveLength(30);
-    const warned = logger.warn.mock.calls[0][0] as string;
-    expect(warned).toContain('later pages cannot be requested');
-    expect(warned).toContain('duck-duck-scrape#149');
-    expect(warned).not.toContain('invalid VQD');
-    expect(setCacheSpy).toHaveBeenCalled();
-  });
-
-  it('is explained the same way for video search', async () => {
-    mockedVideos
-      .mockResolvedValueOnce(videoPage(30) as any)
-      .mockRejectedValueOnce(new Error('4-142907716215351487660642192699445978524 is an invalid VQD!'));
-
-    await run('searchVideos', 'ai', 45);
-
-    expect(logger.warn.mock.calls[0][0]).toContain('later pages cannot be requested');
-  });
-
-  it('leaves any other page failure reported as it was, and uncached', async () => {
-    mockedNews
-      .mockResolvedValueOnce(newsPage(30) as any)
-      .mockRejectedValueOnce(new Error('A server error occurred!'));
-
-    await run('searchNews', 'ai', 45, true);
-
-    expect(logger.warn.mock.calls[0][0]).toContain('A server error occurred!');
-    expect(setCacheSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -326,7 +292,7 @@ describe('a node running on an n8n without execution hints', () => {
   it('still logs the shortfall instead of throwing', async () => {
     mockedNews
       .mockResolvedValueOnce(newsPage(10) as any)
-      .mockRejectedValueOnce(new Error('A server error occurred!'));
+      .mockRejectedValueOnce(new Error('DuckDuckGo refused the news search request (HTTP 403).'));
 
     const ctx = context('searchNews', 'ai', 30) as any;
     delete ctx.addExecutionHints;
