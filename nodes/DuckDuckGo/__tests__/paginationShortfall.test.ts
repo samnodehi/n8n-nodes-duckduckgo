@@ -45,30 +45,28 @@ const newsPageFrom = (from: number, n: number) => {
   return p;
 };
 
+// The shape `searchVideos` returns, not DuckDuckGo's raw JSON: the library maps
+// the raw `content` field to `url`, and the node only ever sees the mapped one.
 const videoPage = (n: number) => ({
   noResults: n === 0,
   vqd: VQD,
   results: Array.from({ length: n }, (_, i) => ({
-    content: `https://e.com/v${i}`,
-    description: 'd',
-    duration: '1:00',
-    embed_html: '',
-    embed_url: '',
-    image_token: '',
-    images: { large: '', medium: '', motion: '', small: '' },
-    provider: 'YouTube',
-    published: '',
-    publisher: 'Example',
-    statistics: { viewCount: 1 },
+    url: `https://e.com/v${i}`,
     title: `Video ${i}`,
-    uploader: 'someone',
+    description: 'd',
+    image: '',
+    duration: '1:00',
+    publishedOn: 'YouTube',
+    published: '',
+    publisher: 'someone',
+    viewCount: 1,
   })),
 });
 
 /** A video page whose videos are numbered from `from`, so pages do not repeat. */
 const videoPageFrom = (from: number, n: number) => {
   const p = videoPage(n);
-  p.results.forEach((r, i) => { r.content = `https://e.com/v${from + i}`; r.title = `Video ${from + i}`; });
+  p.results.forEach((r, i) => { r.url = `https://e.com/v${from + i}`; r.title = `Video ${from + i}`; });
   return p;
 };
 
@@ -251,6 +249,22 @@ describe('paging through videos', () => {
     expect(out[0]).toHaveLength(50);
     expect(logger.warn.mock.calls[0][0]).toContain('stopped after 5 pages');
     expect(setCacheSpy).toHaveBeenCalled();
+  });
+});
+
+describe('duplicates across pages', () => {
+  it('are dropped for videos as well as news', async () => {
+    // Page 2 repeats the last ten videos of page 1, then brings ten new ones.
+    const repeat = videoPageFrom(20, 20);
+    mockedVideos
+      .mockResolvedValueOnce(videoPageFrom(0, 30) as any)
+      .mockResolvedValueOnce(repeat as any);
+
+    const out = await run('searchVideos', 'ai', 40);
+
+    const urls = out[0].map((item: any) => item.json.url);
+    expect(new Set(urls).size).toBe(urls.length);
+    expect(urls).toHaveLength(40);
   });
 });
 
