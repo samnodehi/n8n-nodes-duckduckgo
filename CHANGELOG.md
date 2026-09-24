@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [32.15.3] - 2026-09-24
 
 ### Fixed
 
@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The README gave Moderate as the Safe Search default; it is Strict**, on all four search operations, and has been since the first release. The README now says so, and the Moderate option's description in the node no longer calls it the default level. The default itself is unchanged: changing it would quietly loosen filtering for everyone who left the option alone.
 
-- **News and Video have never been able to fetch a second page, and the warning about it made no sense.** Asking for more results than DuckDuckGo's first page holds returned the first page with a warning ending in `4-1429… is an invalid VQD!`. The cause, established live: DuckDuckGo's tokens now have one dash, and duck-duck-scrape 2.2.7 — the latest release — checks for two before using one, so every later page is refused locally and never sent. Reported upstream as [Snazzah/duck-duck-scrape#149](https://github.com/Snazzah/duck-duck-scrape/issues/149). Requested directly, bypassing the library, later pages were refused by DuckDuckGo with 403 four times out of four, including once at DuckDuckGo's own next-page URL. So for now News and Video return one page. For News that held 28 and 30 results in those tests; Video's page size has not been measured.
+- **News and Video cannot fetch a second page with DuckDuckGo's current tokens, and the warning about it made no sense.** Asking for more results than DuckDuckGo's first page holds returned the first page with a warning ending in `4-1429… is an invalid VQD!`. The cause, established live: DuckDuckGo's tokens now have one dash, and duck-duck-scrape 2.2.7 — the latest release — checks for two before using one, so every later page is refused locally and never sent. Reported upstream as [Snazzah/duck-duck-scrape#149](https://github.com/Snazzah/duck-duck-scrape/issues/149). Requested directly, bypassing the library, later pages were refused by DuckDuckGo with 403 four times out of four, including once at DuckDuckGo's own next-page URL. So for now News and Video return one page. For News that held 28 and 30 results in those tests; Video's page size has not been measured.
 
   The warning now says that plainly and names the upstream issue. Because every run would stop in the same place, the answer is cached like any other, instead of fetching page 1 again on each run only to be refused page 2 again.
 

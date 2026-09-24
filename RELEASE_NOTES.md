@@ -1,3 +1,74 @@
+# v32.15.3 — Safe Search on the fallback path, and why News stops at one page
+
+**Release Date:** 2026-09-24
+
+Two fixes and one clear explanation. Nothing you have built needs adjusting.
+**If you rely on Safe Search for News or Video, update.**
+
+---
+
+## Safe Search was not applied on the fallback path
+
+When the primary News or Video search fails, the node falls back to DuckDuckGo's
+HTML page. That path sent the Safe Search setting in the wrong parameter — `s`,
+which DuckDuckGo's search endpoints use for the result offset — instead of `kp`,
+where DuckDuckGo reads it and where Web Search already sent it. So no level was
+applied there: Strict, the default, went out as `s=moderate`.
+
+It now sends `kp`: 1 for Strict, -1 for Moderate, -2 for Off. On the fallback
+path Strict therefore filters for the first time, so it may return fewer results
+there than before. Web and Image search never used this path and were not
+affected.
+
+## The Safe Search default is Strict — the README said Moderate
+
+The node's default has been **Strict** on all four search operations since the
+first release. The README said Moderate, and the Moderate option described
+itself as the default level. The text is corrected. **The default itself is not
+changed**: changing it would quietly loosen filtering for everyone who left the
+option alone.
+
+## News and Video return one page, and now say why
+
+Asking News or Video for more results than DuckDuckGo's first page holds returns
+just that first page, in every case we have been able to test. Until now the
+warning explaining it ended in something like `4-1429… is an invalid VQD!`.
+
+The cause: DuckDuckGo's tokens now have one dash, and the duck-duck-scrape
+library — 2.2.7, its latest release — checks for two before it will use one. So
+every later page is refused before anything is sent. This has been reported
+upstream as
+[Snazzah/duck-duck-scrape#149](https://github.com/Snazzah/duck-duck-scrape/issues/149).
+Requested directly instead, later pages were refused by DuckDuckGo with 403 in
+every attempt.
+
+- **The warning now says plainly** that only the first page can be fetched, and
+  why. In our tests a News page held 28 to 30 results.
+- **The answer is cached** like any other, instead of fetching page 1 again on
+  every run only to be refused page 2 again. A cache hit repeats the warning.
+- **The paging itself is corrected for when it becomes possible:** each page is
+  requested where the last one ended rather than at a fixed offset of 10, repeats
+  across pages are dropped, and the number of pages follows the page size
+  DuckDuckGo returns, never more than five. None of this runs until a second page
+  can be fetched.
+
+## Also
+
+- The README gave `maxResults` as 1–50. The search operations accept 1–100;
+  50 is the limit for Search Suggestions.
+
+## Checked
+
+537 tests across 25 suites. The tests that exercise each fix through the node —
+the Safe Search parameter, the paging warning, the second-page offset, video
+de-duplication and the cached warning — were also run against the code without
+that fix, and fail there.
+Separately, a new contract test checks what the node assumes about the real
+duck-duck-scrape library, offline, so a library update that changes it fails the
+build instead of reaching users.
+
+---
+
 # v32.15.2 — A short result set now says why
 
 **Release Date:** 2026-09-23
