@@ -1,3 +1,67 @@
+# v32.16.0 — News and Video fetch more than one page
+
+**Release Date:** 2026-09-25
+
+Ask News or Video for more results than DuckDuckGo's first page holds, and the
+node now fetches further pages. Until now it could not: with DuckDuckGo's
+current tokens, every version returned the first page only. Nothing you have built needs adjusting, and a search that
+the first page already satisfies costs what it did before — two requests.
+
+---
+
+## What you get
+
+- **More than one page.** Pages are fetched until the node holds as many results
+  as you asked for, up to five pages in all. Checked live with this release at
+  the node's defaults (Strict, all time): a request for 45 News results was
+  answered over three pages, 45 results, none repeated.
+- **No repeats.** DuckDuckGo repeats results across its pages — a live second
+  page repeated 12 of its 22 — so a result already collected is dropped. Two
+  copies that differ only by tracking parameters count as one.
+- **The same settings on every page.** Only the page position is taken from
+  DuckDuckGo's next-page pointer. Safe Search, region and the time filter always
+  come from your node, so a later page cannot arrive under weaker filtering, and
+  nothing is ever fetched from a URL DuckDuckGo supplied.
+- **A short answer still says why.** If paging stops early — a page fails, or
+  the five-page limit is reached — you still get what was collected, and the
+  node warns on the canvas with how many it asked for, how many it got and why.
+  When DuckDuckGo simply has no more results, it stops without a warning, as
+  it always has: nothing went wrong.
+
+Video's first page held 45 or more results in the live check, so Video's later
+pages are requested the same way but have not yet been exercised live.
+
+## How
+
+The node now makes News and Video requests itself, as it already did for Web and
+Image search, and no longer uses the duck-duck-scrape library. That library
+refuses DuckDuckGo's current tokens when asked for a later page (reported
+upstream as
+[Snazzah/duck-duck-scrape#149](https://github.com/Snazzah/duck-duck-scrape/issues/149)),
+and in our tests DuckDuckGo refused its style of request for later pages anyway. Requests
+are now shaped the way DuckDuckGo's own results page makes them, which is what
+it serves.
+
+Results keep exactly the shape they had. A test runs the old library's own
+mapping on the same answer and requires the output to match, entity decoding
+included; that decoding now uses `html-entities`, the package the library used,
+as a direct dependency.
+
+## Also
+
+- **A block is recognised where it happens.** If DuckDuckGo answers the News or
+  Video request with its bot-detection page, the node starts its local back-off
+  at once, and the fallback sends nothing into the block.
+
+## Checked
+
+548 tests across 26 suites, including tests that run a search end to end
+through the node with only the network replaced: two requests at default
+settings, the second page at DuckDuckGo's own offset and with your settings, and
+no fallback request into a block.
+
+---
+
 # v32.15.3 — Safe Search on the fallback path, and why News stops at one page
 
 **Release Date:** 2026-09-24
