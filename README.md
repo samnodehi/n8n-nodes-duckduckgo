@@ -92,7 +92,7 @@ Searches DuckDuckGo and returns organic web results.
 |-----------|------|---------|-------------|
 | `query` | string | required | Search terms |
 | `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer |
-| `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
+| `safeSearch` | options | Strict | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code (e.g. `de-de`, `fr-fr`) |
 | `useSearchOperators` | boolean | false | Enable advanced operator parsing |
 | `searchOperators` | string | — | Operator string appended to query |
@@ -146,7 +146,7 @@ Searches DuckDuckGo images and returns image metadata.
 |-----------|------|---------|-------------|
 | `imageQuery` | string | required | Image search terms |
 | `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer |
-| `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
+| `safeSearch` | options | Strict | `Strict`, `Moderate`, or `Off` |
 
 **Example:**
 
@@ -192,7 +192,7 @@ Searches DuckDuckGo news results.
 |-----------|------|---------|-------------|
 | `newsQuery` | string | required | News search terms |
 | `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer. Currently at most one page (28–30 in tests); see *A short result set says why* |
-| `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
+| `safeSearch` | options | Strict | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
 | `timePeriod` | string | — | Time filter: `d` (day), `w` (week), `m` (month), `y` (year) |
 | `fetchPageContent` | boolean | false | Fetch each article's page and extract its main text (opt-in; see [Page Content Extraction](#-page-content-extraction)) |
@@ -248,7 +248,7 @@ Searches DuckDuckGo video results.
 |-----------|------|---------|-------------|
 | `videoQuery` | string | required | Video search terms |
 | `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer. Currently at most one page; see *A short result set says why* |
-| `safeSearch` | options | Moderate | `Strict`, `Moderate`, or `Off` |
+| `safeSearch` | options | Strict | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
 
 **Example:**
@@ -405,12 +405,12 @@ This uses DuckDuckGo's suggestion endpoint, which needs no VQD token and returns
 
 ## ⚙️ Configuration Reference
 
-### Common Parameters (all operations)
+### Common Parameters (Web, Image, News and Video search)
 
 | Parameter | Type | Default | Values |
 |-----------|------|---------|--------|
 | `maxResults` | number | 10 | 1–100 |
-| `safeSearch` | options | Moderate | `Strict`, `Moderate`, `Off` |
+| `safeSearch` | options | Strict | `Strict`, `Moderate`, `Off` |
 | `region` | string | `wt-wt` | DuckDuckGo locale code (e.g. `de-de`, `fr-fr`) |
 
 ### Operation-specific parameters

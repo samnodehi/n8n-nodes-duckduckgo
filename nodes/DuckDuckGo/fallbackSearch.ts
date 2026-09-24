@@ -158,10 +158,17 @@ export async function fallbackWebSearch(
   try {
     const searchUrl = 'https://html.duckduckgo.com/html/';
 
+    // Safe search goes in `kp` (1 strict, -1 moderate, -2 off), as
+    // directWebSearch sends it. This used to put the setting in `s`, which
+    // DuckDuckGo's search endpoints use for the result offset, so no level was
+    // ever applied on this path and Strict (0) went out as the word 'moderate'.
+    // The values are the library's SafeSearchType: STRICT 0, MODERATE -1, OFF -2.
+    const kp = options.safeSearch === 0 ? '1' : options.safeSearch === -2 ? '-2' : '-1';
+
     const params = new URLSearchParams({
       q: query,
       kl: options.locale || 'us-en',
-      s: String(options.safeSearch || 'moderate'),
+      kp,
       df: options.time || '',
     });
 

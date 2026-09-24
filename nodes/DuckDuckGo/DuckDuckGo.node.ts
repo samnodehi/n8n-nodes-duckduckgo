@@ -81,7 +81,7 @@ function getSafeSearchType(value: number): SafeSearchType {
     case -2:
       return SafeSearchType.OFF;
     default:
-      return SafeSearchType.MODERATE; // Default to moderate
+      return SafeSearchType.MODERATE; // Only for a value the UI cannot send; the node's default is Strict
   }
 }
 
@@ -488,7 +488,7 @@ export class DuckDuckGo implements INodeType {
               {
                 name: 'Moderate',
                 value: SafeSearchLevel.Moderate,
-                description: 'Default filtering level',
+                description: 'Less filtering than Strict',
               },
               {
                 name: 'Off',
@@ -800,7 +800,7 @@ export class DuckDuckGo implements INodeType {
               {
                 name: 'Moderate',
                 value: SafeSearchLevel.Moderate,
-                description: 'Default filtering level',
+                description: 'Less filtering than Strict',
               },
               {
                 name: 'Off',
@@ -896,7 +896,7 @@ export class DuckDuckGo implements INodeType {
               {
                 name: 'Moderate',
                 value: SafeSearchLevel.Moderate,
-                description: 'Default filtering level',
+                description: 'Less filtering than Strict',
               },
               {
                 name: 'Off',
@@ -1092,7 +1092,7 @@ export class DuckDuckGo implements INodeType {
               {
                 name: 'Moderate',
                 value: SafeSearchLevel.Moderate,
-                description: 'Default filtering level',
+                description: 'Less filtering than Strict',
               },
               {
                 name: 'Off',

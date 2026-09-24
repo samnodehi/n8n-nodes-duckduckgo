@@ -327,3 +327,34 @@ describe('fallbackNewsSearch — query construction (32.5.2)', () => {
     expect(qParam).toContain('workflow automation news');
   });
 });
+
+describe('fallbackWebSearch — safe search', () => {
+  const requestedUrl = () => new URL((mockedAxios.get as jest.Mock).mock.calls[0][0]);
+
+  beforeEach(() => {
+    mockedAxios.get = jest.fn().mockResolvedValue({ status: 200, data: '<html></html>' });
+  });
+
+  it.each([
+    [0, '1', 'Strict'],
+    [-1, '-1', 'Moderate'],
+    [-2, '-2', 'Off'],
+  ])('sends safe search %s as kp=%s (%s)', async (level, kp) => {
+    await fallbackWebSearch('q', { safeSearch: level } as any);
+
+    expect(requestedUrl().searchParams.get('kp')).toBe(kp);
+  });
+
+  it('does not put the safe-search setting in `s`, which is the result offset', async () => {
+    // It did, so no level was ever applied on this path, and Strict went out as s=moderate.
+    await fallbackWebSearch('q', { safeSearch: 0 } as any);
+
+    expect(requestedUrl().searchParams.has('s')).toBe(false);
+  });
+
+  it("falls back to Moderate, DuckDuckGo's own default, when no level is given", async () => {
+    await fallbackWebSearch('q');
+
+    expect(requestedUrl().searchParams.get('kp')).toBe('-1');
+  });
+});
