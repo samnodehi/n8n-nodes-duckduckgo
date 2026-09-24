@@ -13,17 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **News and Video asked for the wrong second page.** Both paging loops assumed ten results a page and asked for page 2 at offset 10, 20, and so on. DuckDuckGo pages by item offset, and a News page holds 30: a live response to `s=0` returned 30 results and named `s=30` as its own next page. So any search with Maximum Results above 30 asked for `s=10` - which either returned most of page 1 again, twenty duplicates with nothing to remove them, or was refused with 403, as it was each time it was tried live. The next page is now requested where the last one ended, counted from the results actually received, which is the offset DuckDuckGo gives itself. Video's page size has not been measured; counting is right whatever it is.
+- **News and Video have never been able to fetch a second page, and the warning about it made no sense.** Asking for more results than DuckDuckGo's first page holds returned the first page with a warning ending in `4-1429… is an invalid VQD!`. The cause, established live: DuckDuckGo's tokens now have one dash, and duck-duck-scrape 2.2.7 — the latest release — checks for two before using one, so every later page is refused locally and never sent. Reported upstream as [Snazzah/duck-duck-scrape#149](https://github.com/Snazzah/duck-duck-scrape/issues/149). Requested directly, bypassing the library, later pages were refused by DuckDuckGo with 403 four times out of four, including once at DuckDuckGo's own next-page URL. So for now News and Video return one page. For News that held 28 and 30 results in those tests; Video's page size has not been measured.
 
-- **Results repeated across pages are dropped.** Two copies of one article are compared by URL with tracking parameters removed, the way the output shows them, so a copy carrying a different `utm_source` is still recognised. This also applies to **Return Raw Results**, which now returns the collected pages without repeats.
+  The warning now says that plainly and names the upstream issue. Because every run would stop in the same place, the answer is cached like any other, instead of fetching page 1 again on each run only to be refused page 2 again.
+
+- **The paging itself is corrected for when it becomes possible.** Both loops asked for page 2 at offset 10 whatever page 1 held. The next page is now requested at the number of results received so far. That is not always DuckDuckGo's own figure — after a 28-result page it named 30. If a page never holds more than DuckDuckGo's step, as both samples suggest, the count can fall short of its offset but not pass it, and falling short is the safe way to be wrong: a result or two is fetched again and dropped as a repeat, where an offset past DuckDuckGo's would skip results unseen. Repeats are compared by URL with tracking parameters removed, the way the output shows them. None of this runs until a second page can be fetched.
 
 - **The troubleshooting note in the README gave the wrong range for `maxResults`.** It said 1 to 50; the four search operations accept 1 to 100. Fifty is the limit for Search Suggestions.
 
 ### Changed
 
-- **How many pages are fetched follows the page size DuckDuckGo actually returned**, never more than five in all. A request for 100 with 30-result pages now fetches four pages, where it used to ask for the second one at the wrong offset — which, each time that was tried live, returned a 403. A request the first page already satisfies fetches no further page.
+- **How many pages are fetched follows the page size DuckDuckGo actually returned**, never more than five in all, rather than assuming ten per page.
 
-- **A result set cut short by the page limit now says so**, on the canvas and in the log, like one cut short by a failure. The limit is at most five pages, fewer when each page is large. The answer is still cached, because every run would stop at the same place — and a cache hit repeats the warning, so a short list served from the cache is not silent either. A page that brings nothing new - the listing moved between requests, as breaking news does - is reported too, and not cached.
+- **A result set cut short by the page limit says so**, on the canvas and in the log, like one cut short by a failure. The limit is at most five pages, fewer when each page is large. The answer is still cached, because every run would stop at the same place — and a cache hit repeats the warning, so a short list served from the cache is not silent either. A page that brings nothing new is reported too, and not cached.
+
+- **Return Raw Results** for News and Video returns the collected pages with repeats removed.
 
 ---
 

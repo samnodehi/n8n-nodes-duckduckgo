@@ -5,7 +5,7 @@
  * to be 30 long.
  */
 
-import { collectPages, MAX_PAGES, ResultPage } from '../resultPagination';
+import { collectPages, MAX_PAGES, PagingUnavailable, ResultPage } from '../resultPagination';
 
 const VQD = '4-123456789-987654321';
 
@@ -195,6 +195,15 @@ describe('failures', () => {
       reason: 'DuckDuckGo did not return a token to page with',
       transient: true,
     });
+  });
+
+  it('reports paging that cannot happen at all as permanent, so it may be cached', async () => {
+    const fetchPage = jest.fn().mockRejectedValueOnce(new PagingUnavailable('no later pages here'));
+
+    const out = await collectPages(page(0, 30), 60, fetchPage);
+
+    expect(out.results).toHaveLength(30);
+    expect(out.shortfall).toEqual({ reason: 'no later pages here', transient: false });
   });
 
   it('reports a thrown value that is not an Error', async () => {

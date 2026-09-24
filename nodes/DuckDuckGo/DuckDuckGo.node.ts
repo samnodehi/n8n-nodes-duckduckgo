@@ -28,7 +28,7 @@ import {
 import { directWebSearch, directImageSearch, getSafeSearchString } from './directSearch';
 import { takeStoredVqd, storeVqd } from './vqdStore';
 import { applyRankingRules, rulesFromOptions, rankingRulesProperty } from './resultRanking';
-import { collectPages, Shortfall } from './resultPagination';
+import { collectPages, explainPagingFailure, Shortfall } from './resultPagination';
 
 // Use duck-duck-scrape types directly
 
@@ -1776,7 +1776,7 @@ export class DuckDuckGo implements INodeType {
                 const collected = await collectPages(
                   result,
                   maxResults,
-                  (offset, vqd) => searchNews(newsQuery, { ...searchOptions, offset, vqd }),
+                  (offset, vqd) => searchNews(newsQuery, { ...searchOptions, offset, vqd }).catch(explainPagingFailure),
                   debugMode
                     ? (page, offset) => debugLog?.(createLogEntry(
                       LogLevel.INFO,
@@ -2092,7 +2092,7 @@ export class DuckDuckGo implements INodeType {
                 const collected = await collectPages(
                   result,
                   maxResults,
-                  (offset, vqd) => searchVideos(videoQuery, { ...searchOptions, offset, vqd }),
+                  (offset, vqd) => searchVideos(videoQuery, { ...searchOptions, offset, vqd }).catch(explainPagingFailure),
                   debugMode
                     ? (page, offset) => debugLog?.(createLogEntry(
                       LogLevel.INFO,

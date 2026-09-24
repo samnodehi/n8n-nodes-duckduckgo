@@ -1,12 +1,21 @@
 /**
  * Paging through DuckDuckGo News and Video results.
  *
- * DuckDuckGo pages by item offset, and a page is not ten results long. A live
- * News response held 30 results and named `s=30` as its own next page. Both
- * loops this replaces asked for page 2 at `s=10`, so a request for more than 30
- * got page 1 again with a shifted start, or a 403. The next offset is therefore
- * the number of results actually received, which is what DuckDuckGo's own
- * `next` says; the library drops `next`, so it is counted rather than read.
+ * DuckDuckGo pages by item offset, and a page is not ten results long: live
+ * News responses held 30 and 28 results, and both named `s=30` as their next
+ * page. The loops this replaces asked for page 2 at `s=10`. The next offset
+ * here is the number of results received so far. That is not always
+ * DuckDuckGo's own figure - after 28 it said 30. If a page never holds more
+ * than DuckDuckGo's step, as both samples suggest, the count can fall short of
+ * its offset but not pass it, and falling short is the safe way to be wrong: a
+ * result or two is fetched again and dropped as a repeat, where an offset past
+ * DuckDuckGo's would skip results without trace. The library drops `next`, so
+ * it cannot be read.
+ *
+ * As of September 2026 no page after the first can be fetched at all: the
+ * library rejects DuckDuckGo's current token format before sending anything
+ * (Snazzah/duck-duck-scrape#149), and requested directly, later pages were
+ * refused with 403. The fetcher reports that as {@link PagingUnavailable}.
  *
  * Two things are never silent. A page that fails ends the paging and says why,
  * and so does the page limit: a request cut short to spare the rate limit is
@@ -36,6 +45,32 @@ export interface ResultPage<T> {
 export interface Shortfall {
   reason: string;
   transient: boolean;
+}
+
+/**
+ * Thrown by a page fetcher when no later page can be requested at all, as
+ * opposed to one that failed this time. Every run would stop the same way, so
+ * the short answer is reported as permanent and may be cached.
+ */
+export class PagingUnavailable extends Error {}
+
+/**
+ * duck-duck-scrape checks a token before using it and demands two dashes;
+ * DuckDuckGo's tokens now have one. Every later page is then refused locally,
+ * before any request, with an error naming the token and nothing else. It is
+ * recognised by its wording, not re-checked here: if the library is fixed,
+ * paging must resume on its own, and a copy of its check would keep blocking it.
+ * A contract test pins that wording, so a reworded message fails CI instead of
+ * quietly falling back to the generic report.
+ */
+export function explainPagingFailure(error: unknown): never {
+  if (error instanceof Error && error.message.endsWith(' is an invalid VQD!')) {
+    throw new PagingUnavailable(
+      "only the first page can be fetched: the duck-duck-scrape library rejects DuckDuckGo's current "
+      + 'token format, so later pages cannot be requested (Snazzah/duck-duck-scrape#149)',
+    );
+  }
+  throw error;
 }
 
 export interface CollectedResults<T> {
@@ -123,7 +158,10 @@ export async function collectPages<T extends { url?: string | null }>(
     } catch (error) {
       return {
         results,
-        shortfall: { reason: error instanceof Error ? error.message : String(error), transient: true },
+        shortfall: {
+          reason: error instanceof Error ? error.message : String(error),
+          transient: !(error instanceof PagingUnavailable),
+        },
       };
     }
 

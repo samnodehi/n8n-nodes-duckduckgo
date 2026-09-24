@@ -157,6 +157,44 @@ describe('a later page failing', () => {
   });
 });
 
+describe("the library refusing DuckDuckGo's current token", () => {
+  it('explains why, and caches the answer because every run would stop the same way', async () => {
+    mockedNews
+      .mockResolvedValueOnce(newsPage(30) as any)
+      .mockRejectedValueOnce(new Error('4-142907716215351487660642192699445978524 is an invalid VQD!'));
+
+    const out = await run('searchNews', 'ai', 45, true);
+
+    expect(out[0]).toHaveLength(30);
+    const warned = logger.warn.mock.calls[0][0] as string;
+    expect(warned).toContain('later pages cannot be requested');
+    expect(warned).toContain('duck-duck-scrape#149');
+    expect(warned).not.toContain('invalid VQD');
+    expect(setCacheSpy).toHaveBeenCalled();
+  });
+
+  it('is explained the same way for video search', async () => {
+    mockedVideos
+      .mockResolvedValueOnce(videoPage(30) as any)
+      .mockRejectedValueOnce(new Error('4-142907716215351487660642192699445978524 is an invalid VQD!'));
+
+    await run('searchVideos', 'ai', 45);
+
+    expect(logger.warn.mock.calls[0][0]).toContain('later pages cannot be requested');
+  });
+
+  it('leaves any other page failure reported as it was, and uncached', async () => {
+    mockedNews
+      .mockResolvedValueOnce(newsPage(30) as any)
+      .mockRejectedValueOnce(new Error('A server error occurred!'));
+
+    await run('searchNews', 'ai', 45, true);
+
+    expect(logger.warn.mock.calls[0][0]).toContain('A server error occurred!');
+    expect(setCacheSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe('DuckDuckGo simply running out of results', () => {
   it('is not reported as a failure, and is cached', async () => {
     mockedNews
