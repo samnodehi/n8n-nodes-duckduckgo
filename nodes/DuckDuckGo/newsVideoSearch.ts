@@ -6,7 +6,8 @@
  * could be fetched. The library refuses DuckDuckGo's current one-dash tokens
  * when it is handed one to page with (Snazzah/duck-duck-scrape#149), and sent
  * directly with the library's navigation-style headers, later pages were
- * refused with 403 four times out of four. Sent as the same-origin XHR the
+ * refused with 403 - most clearly when page 1 had just been served and page 2
+ * was requested at DuckDuckGo's own next-page URL. Sent as the same-origin XHR the
  * results page itself makes - JSON accept, a Referer, fetch-metadata headers -
  * later pages are served: with this module, at the node's defaults, a live
  * request for 45 news results was answered over three pages. Video's first
