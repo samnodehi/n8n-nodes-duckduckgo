@@ -247,7 +247,7 @@ Searches DuckDuckGo video results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `videoQuery` | string | required | Video search terms |
-| `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer. Fetched a page at a time, at most five pages |
+| `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer. Fetched a page at a time (45 or more on one page in a live test), at most five pages |
 | `safeSearch` | options | Strict | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
 

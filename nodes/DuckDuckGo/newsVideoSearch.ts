@@ -8,7 +8,9 @@
  * directly with the library's navigation-style headers, later pages were
  * refused with 403 four times out of four. Sent as the same-origin XHR the
  * results page itself makes - JSON accept, a Referer, fetch-metadata headers -
- * both pages were served.
+ * later pages are served: with this module, at the node's defaults, a live
+ * request for 45 news results was answered over three pages. Video's first
+ * page held 45 or more on its own, so its later pages are not yet proven live.
  *
  * Paging follows DuckDuckGo's own `next` field rather than counting results:
  * pages of 30, 28, 26 and 22 results all named an offset in fixed steps of 30,

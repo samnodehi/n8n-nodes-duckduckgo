@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **News and Video fetch more than one page again.** Asking for more results than DuckDuckGo's first page holds now fetches further pages, up to five in all. They are requested the way DuckDuckGo's own results page requests them — a same-origin request with a Referer — which is what a live test found DuckDuckGo serves; the navigation-style requests duck-duck-scrape sent were refused for every page after the first. Each next page is the one DuckDuckGo names itself: it steps in fixed pages of 30 whatever a page held, so counting results would drift. Results DuckDuckGo repeats across pages are dropped (a live second page repeated 12 of its 22). A request the first page already satisfies costs what it did before: one request for the token and one for the page.
 
+  Checked live with this code at the node's defaults — Strict and all time, sent as `p=1` and `df=a`: a request for 45 News results fetched three pages (`s=0`, `30`, `60`) and returned 45 results, none repeated, with no fallback and no warning. Video's first page alone held 45 or more, so Video's second page has not yet been exercised live; it is requested the same way.
+
   Only the offset is taken from DuckDuckGo's next-page pointer. The request itself is always rebuilt from the node's own settings, so a later page cannot come back under a different Safe Search level, region or time filter, and nothing is fetched from a URL DuckDuckGo supplied.
 
 ### Changed
