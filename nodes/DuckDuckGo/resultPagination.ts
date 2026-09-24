@@ -2,8 +2,8 @@
  * Paging through DuckDuckGo News and Video results.
  *
  * DuckDuckGo pages by item offset, and a page is not ten results long: live
- * News responses held 30 and 28 results, and both named `s=30` as their next
- * page. The loops this replaces asked for page 2 at `s=10`. The next offset
+ * News responses held 30, 28 and 26 results, and all named `s=30` as their
+ * next page. The loops this replaces asked for page 2 at `s=10`. The next offset
  * here is the number of results received so far. That is not always
  * DuckDuckGo's own figure - after 28 it said 30. If a page never holds more
  * than DuckDuckGo's step, as both samples suggest, the count can fall short of
@@ -12,10 +12,14 @@
  * DuckDuckGo's would skip results without trace. The library drops `next`, so
  * it cannot be read.
  *
- * As of September 2026 no page after the first can be fetched at all: the
- * library rejects DuckDuckGo's current token format before sending anything
- * (Snazzah/duck-duck-scrape#149), and requested directly, later pages were
- * refused with 403. The fetcher reports that as {@link PagingUnavailable}.
+ * As of September 2026 no page after the first can be fetched through the
+ * library: it rejects DuckDuckGo's current token format before sending anything
+ * (Snazzah/duck-duck-scrape#149). The fetcher reports that as
+ * {@link PagingUnavailable}. Sent with the library's headers, later pages are
+ * refused with 403; sent as the same-origin XHR DuckDuckGo's own page uses,
+ * page 2 was served - and it showed this module's offset and last-page rules
+ * are wrong for DuckDuckGo (fixed steps of 30, repeats across pages). Both are
+ * to be reworked when that request replaces the library's for later pages.
  *
  * Two things are never silent. A page that fails ends the paging and says why,
  * and so does the page limit: a request cut short to spare the rate limit is
