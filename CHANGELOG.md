@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **News and Video asked for the wrong second page.** Both paging loops assumed ten results a page and asked for page 2 at offset 10, 20, and so on. DuckDuckGo pages by item offset, and a News page holds 30: a live response to `s=0` returned 30 results and named `s=30` as its own next page. So any search with Maximum Results above 30 asked for `s=10` - which either returned most of page 1 again, twenty duplicates with nothing to remove them, or was refused with 403, as it was each time it was tried live. The next page is now requested where the last one ended, counted from the results actually received, which is the offset DuckDuckGo gives itself. Video's page size has not been measured; counting is right whatever it is.
+
+- **Results repeated across pages are dropped.** Two copies of one article are compared by URL with tracking parameters removed, the way the output shows them, so a copy carrying a different `utm_source` is still recognised. This also applies to **Return Raw Results**, which now returns the collected pages without repeats.
+
+- **The troubleshooting note in the README gave the wrong range for `maxResults`.** It said 1 to 50; the four search operations accept 1 to 100. Fifty is the limit for Search Suggestions.
+
+### Changed
+
+- **How many pages are fetched follows the page size DuckDuckGo actually returned**, never more than five in all. A request for 100 with 30-result pages now fetches four pages, where it used to ask for the second one at the wrong offset — which, each time that was tried live, returned a 403. A request the first page already satisfies fetches no further page.
+
+- **A result set cut short by the page limit now says so**, on the canvas and in the log, like one cut short by a failure. The limit is at most five pages, fewer when each page is large. The answer is still cached, because every run would stop at the same place — and a cache hit repeats the warning, so a short list served from the cache is not silent either. A page that brings nothing new - the listing moved between requests, as breaking news does - is reported too, and not cached.
+
+---
+
 ## [32.15.2] - 2026-09-23
 
 ### Fixed

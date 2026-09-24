@@ -38,6 +38,13 @@ const newsPage = (n: number) => ({
   })),
 });
 
+/** A news page whose articles are numbered from `from`, so pages do not repeat. */
+const newsPageFrom = (from: number, n: number) => {
+  const p = newsPage(n);
+  p.results.forEach((r, i) => { r.url = `https://e.com/a${from + i}`; r.title = `Article ${from + i}`; });
+  return p;
+};
+
 const videoPage = (n: number) => ({
   noResults: n === 0,
   vqd: VQD,
@@ -57,6 +64,13 @@ const videoPage = (n: number) => ({
     uploader: 'someone',
   })),
 });
+
+/** A video page whose videos are numbered from `from`, so pages do not repeat. */
+const videoPageFrom = (from: number, n: number) => {
+  const p = videoPage(n);
+  p.results.forEach((r, i) => { r.content = `https://e.com/v${from + i}`; r.title = `Video ${from + i}`; });
+  return p;
+};
 
 let logger: Record<'debug' | 'info' | 'warn' | 'error', jest.Mock>;
 let addExecutionHints: jest.Mock;
@@ -157,6 +171,85 @@ describe('DuckDuckGo simply running out of results', () => {
     // Ten was all there was. Nothing went wrong, so nothing is said.
     expect(logger.warn).not.toHaveBeenCalled();
     expect(addExecutionHints).not.toHaveBeenCalled();
+    expect(setCacheSpy).toHaveBeenCalled();
+  });
+});
+
+describe('paging through news', () => {
+  it('asks for the second page where the first ended', async () => {
+    mockedNews
+      .mockResolvedValueOnce(newsPageFrom(0, 30) as any)
+      .mockResolvedValueOnce(newsPageFrom(30, 30) as any);
+
+    const out = await run('searchNews', 'ai', 45);
+
+    // The old loop asked for s=10 here, which DuckDuckGo answered with 403 or
+    // with page 1 again. Its own next page after 30 results is s=30.
+    expect(mockedNews).toHaveBeenCalledTimes(2);
+    expect(mockedNews.mock.calls[1][1]).toEqual(expect.objectContaining({ offset: 30, vqd: VQD }));
+    expect(out[0]).toHaveLength(45);
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('warns when the page limit is what stopped it, and still caches the answer', async () => {
+    for (let p = 0; p < 5; p++) {
+      mockedNews.mockResolvedValueOnce(newsPageFrom(p * 10, 10) as any);
+    }
+
+    const out = await run('searchNews', 'ai', 100, true);
+
+    expect(out[0]).toHaveLength(50);
+    expect(logger.warn.mock.calls[0][0]).toContain('stopped after 5 pages');
+    expect(addExecutionHints).toHaveBeenCalled();
+    // Every run would stop at the same place, so there is nothing to recover by
+    // asking again.
+    expect(setCacheSpy).toHaveBeenCalled();
+  });
+});
+
+describe('a capped answer served from the cache', () => {
+  it('still says it is short', async () => {
+    for (let p = 0; p < 5; p++) {
+      mockedNews.mockResolvedValueOnce(newsPageFrom(p * 10, 10) as any);
+    }
+    await run('searchNews', 'ai', 100, true);
+    logger.warn.mockClear();
+    addExecutionHints.mockClear();
+
+    const out = await run('searchNews', 'ai', 100, true);
+
+    // Served without a request, and without the warning the first run gave,
+    // this would be exactly the silent short list the warning exists to prevent.
+    expect(mockedNews).toHaveBeenCalledTimes(5);
+    expect(out[0]).toHaveLength(50);
+    expect(logger.warn.mock.calls[0][0]).toContain('stopped after 5 pages');
+    expect(addExecutionHints).toHaveBeenCalled();
+  });
+});
+
+describe('paging through videos', () => {
+  it('asks for the second page where the first ended', async () => {
+    mockedVideos
+      .mockResolvedValueOnce(videoPageFrom(0, 30) as any)
+      .mockResolvedValueOnce(videoPageFrom(30, 30) as any);
+
+    const out = await run('searchVideos', 'ai', 45);
+
+    expect(mockedVideos).toHaveBeenCalledTimes(2);
+    expect(mockedVideos.mock.calls[1][1]).toEqual(expect.objectContaining({ offset: 30, vqd: VQD }));
+    expect(out[0]).toHaveLength(45);
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('warns when the page limit is what stopped it, and still caches the answer', async () => {
+    for (let p = 0; p < 5; p++) {
+      mockedVideos.mockResolvedValueOnce(videoPageFrom(p * 10, 10) as any);
+    }
+
+    const out = await run('searchVideos', 'ai', 100, true);
+
+    expect(out[0]).toHaveLength(50);
+    expect(logger.warn.mock.calls[0][0]).toContain('stopped after 5 pages');
     expect(setCacheSpy).toHaveBeenCalled();
   });
 });
