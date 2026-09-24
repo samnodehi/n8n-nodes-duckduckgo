@@ -28,6 +28,7 @@ import {
 import { directWebSearch, directImageSearch, getSafeSearchString } from './directSearch';
 import { takeStoredVqd, storeVqd } from './vqdStore';
 import { applyRankingRules, rulesFromOptions, rankingRulesProperty } from './resultRanking';
+import { collectPages, Shortfall } from './resultPagination';
 
 // Use duck-duck-scrape types directly
 
@@ -1720,6 +1721,10 @@ export class DuckDuckGo implements INodeType {
 
           // Try to get cached result if cache is enabled
           let result;
+          // Why this answer holds fewer results than asked for, when that is not
+          // because DuckDuckGo ran out. Kept beside a cached answer so a cache
+          // hit reports it too.
+          let shortfall: Shortfall | undefined;
           if (enableCache) {
             const cachedResult = getCached<any>(cacheKey);
 
@@ -1736,6 +1741,7 @@ export class DuckDuckGo implements INodeType {
               }
 
               result = cachedResult;
+              shortfall = getCached<Shortfall>(`${cacheKey}|shortfall`);
             }
           }
 
@@ -1765,100 +1771,34 @@ export class DuckDuckGo implements INodeType {
               // Execute news search
               result = await searchNews(newsQuery, searchOptions);
 
-              // For maxResults > 10, we need to fetch additional results
-              // Note: duck-duck-scrape library has a limit of ~10 results per request
-
-              // Why the pagination loop stopped, when it stopped for a reason
-              // other than DuckDuckGo running out of results. Declared out here
-              // because the cache below must not store a short answer.
-              let truncatedBecause: string | undefined;
-
-              // Check if user explicitly set maxResults (not using default)
-              // Always attempt pagination if user explicitly requested a specific number of results
+              // Paging runs only when Maximum Results was set explicitly.
               if (newsSearchOptions.maxResults !== undefined && result.results && result.results.length > 0) {
-                // Only attempt to get more results if we got some results initially
-                let page = 2;
-                const maxPages = Math.ceil(maxResults / 10);
-                const allResults = [...result.results];
-
-                // We need to limit to a reasonable number of pages to avoid abuse
-                const maxPageLimit = 5; // Limit to 5 pages (approximately 50 results)
-                const effectiveMaxPages = Math.min(maxPages, maxPageLimit);
-
-                while (allResults.length < maxResults && page <= effectiveMaxPages) {
-                  if (debugMode) {
-                    const logEntry = createLogEntry(
+                const collected = await collectPages(
+                  result,
+                  maxResults,
+                  (offset, vqd) => searchNews(newsQuery, { ...searchOptions, offset, vqd }),
+                  debugMode
+                    ? (page, offset) => debugLog?.(createLogEntry(
                       LogLevel.INFO,
-                      `Fetching additional news results (page ${page}) for: ${newsQuery}`,
+                      `Fetching additional news results (page ${page}, offset ${offset}) for: ${newsQuery}`,
                       operation,
-                      { query: newsQuery, options: searchOptions, page }
-                    );
-                    debugLog?.(logEntry);
-                  }
-
-                  try {
-                    // For subsequent requests, we need the vqd parameter from the first request
-                    if (result.vqd) {
-                      // Use proper pagination with offset parameter for news search
-                      const offset = (page - 1) * 10; // duck-duck-scrape typically returns ~10 results per page
-                      const nextPageOptions: NewsSearchOptions = {
-                        ...searchOptions,
-                        offset: offset,
-                        vqd: result.vqd,
-                      };
-
-                      // Make the additional request
-                      const nextPageResult = await searchNews(newsQuery, nextPageOptions);
-
-                      // If we got results, add them to our collection
-                      if (nextPageResult.results && nextPageResult.results.length > 0) {
-                        allResults.push(...nextPageResult.results);
-                      } else {
-                        // No more results available
-                        break;
-                      }
-                    } else {
-                      // Can't continue without vqd
-                      truncatedBecause = 'DuckDuckGo did not return a token to page with';
-                      break;
-                    }
-                  } catch (pageError) {
-                    truncatedBecause = pageError instanceof Error ? pageError.message : String(pageError);
-                    if (debugMode) {
-                      const logEntry = createLogEntry(
-                        LogLevel.ERROR,
-                        `Error fetching additional news results: ${pageError.message}`,
-                        operation,
-                        { query: newsQuery, options: searchOptions, page }
-                      );
-                      debugLog?.(logEntry);
-                    }
-                    break;
-                  }
-
-                  page++;
-                }
-
-                // Update the result with all collected results
-                result.results = allResults;
+                      { query: newsQuery, options: searchOptions, page, offset },
+                    ))
+                    : undefined,
+                );
+                result.results = collected.results;
+                shortfall = collected.shortfall;
               }
 
-              // A short answer with no explanation is the failure this node exists
-              // to avoid. The log is not gated on Debug Mode because the workflow
-              // itself sees nothing wrong, and the hint puts it on the canvas.
-              if (truncatedBecause) {
-                const shortfall = `Asked DuckDuckGo for ${maxResults} news results and returned ${result.results.length}: ${truncatedBecause}`;
-                this.logger.warn(shortfall, { query: newsQuery });
-                if (typeof this.addExecutionHints === 'function') {
-                  this.addExecutionHints({ message: shortfall, type: 'warning', location: 'outputPane' });
-                }
-              }
-
-              // Cache the result if cache is enabled. A truncated answer is never
-              // cached: it would be served for the whole TTL without a request,
-              // so the shortfall would repeat with nothing left to report it.
-              if (enableCache && result && !truncatedBecause) {
+              // Cache the result if cache is enabled. An answer cut short by a
+              // failure is never cached: it would be served for the whole TTL
+              // without a request, long after the failure had passed. One cut by
+              // the page limit is, because every run would hit the same limit.
+              if (enableCache && result && !shortfall?.transient) {
                 setCache(cacheKey, result, cacheTTL);
+                if (shortfall) {
+                  setCache(`${cacheKey}|shortfall`, shortfall, cacheTTL);
+                }
 
                 // Log cache store if debug is enabled
                 if (debugMode) {
@@ -1870,6 +1810,17 @@ export class DuckDuckGo implements INodeType {
                   );
                   debugLog?.(logEntry);
                 }
+              }
+            }
+
+            // A short answer with no explanation is the failure this node exists
+            // to avoid. The log is not gated on Debug Mode because the workflow
+            // itself sees nothing wrong, and the hint puts it on the canvas.
+            if (shortfall && result) {
+              const message = `Asked DuckDuckGo for ${maxResults} news results and returned ${result.results.length}: ${shortfall.reason}`;
+              this.logger.warn(message, { query: newsQuery });
+              if (typeof this.addExecutionHints === 'function') {
+                this.addExecutionHints({ message, type: 'warning', location: 'outputPane' });
               }
             }
 
@@ -2085,6 +2036,10 @@ export class DuckDuckGo implements INodeType {
 
           // Try to get cached result if cache is enabled
           let result;
+          // Why this answer holds fewer results than asked for, when that is not
+          // because DuckDuckGo ran out. Kept beside a cached answer so a cache
+          // hit reports it too.
+          let shortfall: Shortfall | undefined;
           if (enableCache) {
             const cachedResult = getCached<any>(cacheKey);
 
@@ -2101,6 +2056,7 @@ export class DuckDuckGo implements INodeType {
               }
 
               result = cachedResult;
+              shortfall = getCached<Shortfall>(`${cacheKey}|shortfall`);
             }
           }
 
@@ -2131,100 +2087,34 @@ export class DuckDuckGo implements INodeType {
               // Execute video search
               result = await searchVideos(videoQuery, searchOptions);
 
-              // For maxResults > 10, we need to fetch additional results
-              // Note: duck-duck-scrape library has a limit of ~10 results per request
-
-              // Why the pagination loop stopped, when it stopped for a reason
-              // other than DuckDuckGo running out of results. Declared out here
-              // because the cache below must not store a short answer.
-              let truncatedBecause: string | undefined;
-
-              // Check if user explicitly set maxResults (not using default)
-              // Always attempt pagination if user explicitly requested a specific number of results
+              // Paging runs only when Maximum Results was set explicitly.
               if (videoSearchOptions.maxResults !== undefined && result.results && result.results.length > 0) {
-                // Only attempt to get more results if we got some results initially
-                let page = 2;
-                const maxPages = Math.ceil(maxResults / 10);
-                const allResults = [...result.results];
-
-                // We need to limit to a reasonable number of pages to avoid abuse
-                const maxPageLimit = 5; // Limit to 5 pages (approximately 50 results)
-                const effectiveMaxPages = Math.min(maxPages, maxPageLimit);
-
-                while (allResults.length < maxResults && page <= effectiveMaxPages) {
-                  if (debugMode) {
-                    const logEntry = createLogEntry(
+                const collected = await collectPages(
+                  result,
+                  maxResults,
+                  (offset, vqd) => searchVideos(videoQuery, { ...searchOptions, offset, vqd }),
+                  debugMode
+                    ? (page, offset) => debugLog?.(createLogEntry(
                       LogLevel.INFO,
-                      `Fetching additional video results (page ${page}) for: ${videoQuery}`,
+                      `Fetching additional video results (page ${page}, offset ${offset}) for: ${videoQuery}`,
                       operation,
-                      { query: videoQuery, options: searchOptions, page }
-                    );
-                    debugLog?.(logEntry);
-                  }
-
-                  try {
-                    // For subsequent requests, we need the vqd parameter from the first request
-                    if (result.vqd) {
-                      // Use proper pagination with offset parameter according to duck-duck-scrape API
-                      const offset = (page - 1) * 10; // duck-duck-scrape typically returns ~10 results per page
-                      const nextPageOptions: VideoSearchOptions = {
-                        ...searchOptions,
-                        offset: offset,
-                        vqd: result.vqd,
-                      };
-
-                      // Make the additional request
-                      const nextPageResult = await searchVideos(videoQuery, nextPageOptions);
-
-                      // If we got results, add them to our collection
-                      if (nextPageResult.results && nextPageResult.results.length > 0) {
-                        allResults.push(...nextPageResult.results);
-                      } else {
-                        // No more results available
-                        break;
-                      }
-                    } else {
-                      // Can't continue without vqd
-                      truncatedBecause = 'DuckDuckGo did not return a token to page with';
-                      break;
-                    }
-                  } catch (pageError) {
-                    truncatedBecause = pageError instanceof Error ? pageError.message : String(pageError);
-                    if (debugMode) {
-                      const logEntry = createLogEntry(
-                        LogLevel.ERROR,
-                        `Error fetching additional video results: ${pageError.message}`,
-                        operation,
-                        { query: videoQuery, options: searchOptions, page }
-                      );
-                      debugLog?.(logEntry);
-                    }
-                    break;
-                  }
-
-                  page++;
-                }
-
-                // Update the result with all collected results
-                result.results = allResults;
+                      { query: videoQuery, options: searchOptions, page, offset },
+                    ))
+                    : undefined,
+                );
+                result.results = collected.results;
+                shortfall = collected.shortfall;
               }
 
-              // A short answer with no explanation is the failure this node exists
-              // to avoid. The log is not gated on Debug Mode because the workflow
-              // itself sees nothing wrong, and the hint puts it on the canvas.
-              if (truncatedBecause) {
-                const shortfall = `Asked DuckDuckGo for ${maxResults} video results and returned ${result.results.length}: ${truncatedBecause}`;
-                this.logger.warn(shortfall, { query: videoQuery });
-                if (typeof this.addExecutionHints === 'function') {
-                  this.addExecutionHints({ message: shortfall, type: 'warning', location: 'outputPane' });
-                }
-              }
-
-              // Cache the result if cache is enabled. A truncated answer is never
-              // cached: it would be served for the whole TTL without a request,
-              // so the shortfall would repeat with nothing left to report it.
-              if (enableCache && result && !truncatedBecause) {
+              // Cache the result if cache is enabled. An answer cut short by a
+              // failure is never cached: it would be served for the whole TTL
+              // without a request, long after the failure had passed. One cut by
+              // the page limit is, because every run would hit the same limit.
+              if (enableCache && result && !shortfall?.transient) {
                 setCache(cacheKey, result, cacheTTL);
+                if (shortfall) {
+                  setCache(`${cacheKey}|shortfall`, shortfall, cacheTTL);
+                }
 
                 // Log cache store if debug is enabled
                 if (debugMode) {
@@ -2236,6 +2126,17 @@ export class DuckDuckGo implements INodeType {
                   );
                   debugLog?.(logEntry);
                 }
+              }
+            }
+
+            // A short answer with no explanation is the failure this node exists
+            // to avoid. The log is not gated on Debug Mode because the workflow
+            // itself sees nothing wrong, and the hint puts it on the canvas.
+            if (shortfall && result) {
+              const message = `Asked DuckDuckGo for ${maxResults} video results and returned ${result.results.length}: ${shortfall.reason}`;
+              this.logger.warn(message, { query: videoQuery });
+              if (typeof this.addExecutionHints === 'function') {
+                this.addExecutionHints({ message, type: 'warning', location: 'outputPane' });
               }
             }
 

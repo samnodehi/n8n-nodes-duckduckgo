@@ -48,7 +48,7 @@ An n8n community node for DuckDuckGo search. Search the web, find images, discov
 - **Works as an n8n AI Agent tool** — attach it to any Agent node; no extra setup needed
 - **Four search types in one node** — Web, Image, News, and Video from a single, consistent interface
 - **Clean JSON output designed for automation** — predictable field names, no noise, easy to wire into downstream nodes
-- **A short result set says why** — when you set Maximum Results higher than DuckDuckGo's first page holds, News and Video fetch further pages one at a time. If a later page fails you still get the pages that worked, and the node warns on the canvas with how many it asked for, how many it got and what went wrong, rather than handing back a quietly short list
+- **A short result set says why** — when you set Maximum Results higher than DuckDuckGo's first page holds, News and Video fetch further pages, each starting where the last one ended, and drop any result already collected. If a later page fails, or the page limit that protects your IP from DuckDuckGo's rate limit is reached (at most five pages), you still get what was collected and the node warns on the canvas with how many it asked for, how many it got and why, rather than handing back a quietly short list
 - **Fallback labels for News and Video** — when results come from the fallback path, `isFallback: true` tells you so
 
 ---
@@ -547,8 +547,9 @@ Nothing here contacts anything. No rule causes a request, and none of this is
 sent anywhere — it is applied to the list already in memory.
 
 > Two things rules do **not** apply to: **Image Search**, which has no ranking
-> option, and **Return Raw Results**, which by definition returns DuckDuckGo's
-> response before the node processes it.
+> option, and **Return Raw Results**, which returns DuckDuckGo's response before
+> the node processes it — for News and Video, the pages collected with repeated
+> results removed.
 
 ### Example
 
@@ -847,7 +848,7 @@ The primary search path failed and the fallback HTML path was used. Results are 
 
 - Verify the query field is not empty
 - Ensure `region` uses a valid locale code (e.g. `us-en`, not `en-US`)
-- `maxResults` must be between 1 and 50
+- `maxResults` must be between 1 and 100 (1 to 50 for Search Suggestions)
 
 ---
 
