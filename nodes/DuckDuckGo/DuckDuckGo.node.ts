@@ -12,30 +12,21 @@ import {
   NodeOperationError,
 } from 'n8n-workflow';
 
-// Import types from duck-duck-scrape for compatibility, but use fallback functions
-import {
-  searchNews,
-  searchVideos,
-  SearchOptions,
-  ImageSearchOptions,
-  NewsSearchOptions,
-  VideoSearchOptions,
-  SafeSearchType,
-  SearchTimeType,
-} from 'duck-duck-scrape';
+import { searchNews, searchVideos } from './newsVideoSearch';
 
 // Import our direct search implementations
 import { directWebSearch, directImageSearch, getSafeSearchString } from './directSearch';
 import { takeStoredVqd, storeVqd } from './vqdStore';
 import { applyRankingRules, rulesFromOptions, rankingRulesProperty } from './resultRanking';
-import { collectPages, explainPagingFailure, Shortfall } from './resultPagination';
+import { collectPages, Shortfall } from './resultPagination';
 
-// Use duck-duck-scrape types directly
 
 import {
   DuckDuckGoOperation,
   SafeSearchLevel,
   TimePeriod,
+  SearchOptions,
+  SearchTimeType,
 } from './types';
 
 import {
@@ -70,18 +61,18 @@ import { getCooldownReason } from './challengeCooldown';
 
 
 /**
- * Convert numeric safe search value to SafeSearchType enum
+ * Validate a numeric safe search value from the UI
  */
-function getSafeSearchType(value: number): SafeSearchType {
+function getSafeSearchType(value: number): SafeSearchLevel {
   switch (value) {
     case 0:
-      return SafeSearchType.STRICT;
+      return SafeSearchLevel.Strict;
     case -1:
-      return SafeSearchType.MODERATE;
+      return SafeSearchLevel.Moderate;
     case -2:
-      return SafeSearchType.OFF;
+      return SafeSearchLevel.Off;
     default:
-      return SafeSearchType.MODERATE; // Only for a value the UI cannot send; the node's default is Strict
+      return SafeSearchLevel.Moderate; // Only for a value the UI cannot send; the node's default is Strict
   }
 }
 
@@ -1266,7 +1257,6 @@ export class DuckDuckGo implements INodeType {
             debugLog?.(logEntry);
           }
 
-          // Set up search options with correct API according to duck-duck-scrape documentation
           const searchOptions: SearchOptions = {
             safeSearch: getSafeSearchType(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
             locale: options.region ?? DEFAULT_PARAMETERS.REGION,
@@ -1326,7 +1316,7 @@ export class DuckDuckGo implements INodeType {
                 maxResults: undefined, // Let it fetch all available results
               });
 
-              // Format results to match duck-duck-scrape structure
+              // The result shape every search path shares
               result = {
                 results: directResults.results.map(r => ({
                   title: r.title,
@@ -1473,8 +1463,7 @@ export class DuckDuckGo implements INodeType {
             returnRawResults?: boolean;
           };
 
-          // Set up search options with correct API according to duck-duck-scrape documentation
-          const searchOptions: ImageSearchOptions = {
+          const searchOptions: SearchOptions = {
             safeSearch: getSafeSearchType(imageSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
             locale: imageSearchOptions.region ?? DEFAULT_PARAMETERS.REGION,
           };
@@ -1550,7 +1539,7 @@ export class DuckDuckGo implements INodeType {
               // if the stored one had gone stale, this is the fresh replacement.
               storeVqd(imageQuery, BROWSER_USER_AGENT, directImageResults.vqd);
 
-              // Format results to match duck-duck-scrape structure.
+              // The result shape every search path shares.
               // source is populated from the page URL (r.source) so that
               // processImageSearchResults can pass it through as a non-empty field.
               result = {
@@ -1691,8 +1680,7 @@ export class DuckDuckGo implements INodeType {
             includePageMetadata?: boolean;
           };
 
-          // Set up search options with correct API according to duck-duck-scrape documentation
-          const searchOptions: NewsSearchOptions = {
+          const searchOptions: SearchOptions = {
             safeSearch: getSafeSearchType(newsSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
             locale: newsSearchOptions.region ?? DEFAULT_PARAMETERS.REGION,
             time: getSearchTimeType(newsSearchOptions.timePeriod ?? DEFAULT_PARAMETERS.TIME_PERIOD),
@@ -1776,7 +1764,7 @@ export class DuckDuckGo implements INodeType {
                 const collected = await collectPages(
                   result,
                   maxResults,
-                  (offset, vqd) => searchNews(newsQuery, { ...searchOptions, offset, vqd }).catch(explainPagingFailure),
+                  (offset, vqd) => searchNews(newsQuery, { ...searchOptions, offset, vqd }),
                   debugMode
                     ? (page, offset) => debugLog?.(createLogEntry(
                       LogLevel.INFO,
@@ -1891,7 +1879,7 @@ export class DuckDuckGo implements INodeType {
               { query: newsQuery },
             );
 
-            // Try fallback search if duck-duck-scrape fails
+            // Fall back to the HTML page if the primary request fails
             try {
               const fallbackResult = await fallbackNewsSearch(newsQuery, {
                 locale: searchOptions.locale,
@@ -2012,8 +2000,7 @@ export class DuckDuckGo implements INodeType {
             returnRawResults?: boolean;
           };
 
-          // Set up search options with correct API according to duck-duck-scrape documentation
-          const searchOptions: VideoSearchOptions = {
+          const searchOptions: SearchOptions = {
             safeSearch: getSafeSearchType(videoSearchOptions.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
             locale: videoSearchOptions.region ?? DEFAULT_PARAMETERS.REGION,
           };
@@ -2092,7 +2079,7 @@ export class DuckDuckGo implements INodeType {
                 const collected = await collectPages(
                   result,
                   maxResults,
-                  (offset, vqd) => searchVideos(videoQuery, { ...searchOptions, offset, vqd }).catch(explainPagingFailure),
+                  (offset, vqd) => searchVideos(videoQuery, { ...searchOptions, offset, vqd }),
                   debugMode
                     ? (page, offset) => debugLog?.(createLogEntry(
                       LogLevel.INFO,
@@ -2203,7 +2190,7 @@ export class DuckDuckGo implements INodeType {
               { query: videoQuery },
             );
 
-            // Try fallback search if duck-duck-scrape fails
+            // Fall back to the HTML page if the primary request fails
             try {
               const fallbackResult = await fallbackVideoSearch(videoQuery, {
                 locale: searchOptions.locale,

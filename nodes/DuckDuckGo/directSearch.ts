@@ -1,6 +1,6 @@
 /**
  * Direct DuckDuckGo search implementation
- * Bypasses duck-duck-scrape VQD issues by using HTML API directly
+ * Web and Image search, requested directly
  */
 
 import axios from 'axios';

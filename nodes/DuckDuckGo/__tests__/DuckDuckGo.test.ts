@@ -1,46 +1,16 @@
 import { IExecuteFunctions } from 'n8n-workflow';
 import { DuckDuckGo } from '../DuckDuckGo.node';
-import * as duckDuckScrape from 'duck-duck-scrape';
+import * as newsVideoSearch from '../newsVideoSearch';
 import * as cache from '../cache';
 import * as directSearch from '../directSearch';
 import * as fallbackSearch from '../fallbackSearch';
 import { noteChallenge } from '../challengeCooldown';
 
 
-// Mock the duck-duck-scrape library
-jest.mock('duck-duck-scrape', () => ({
-  search: jest.fn(),
+// News and Video requests; Web and Image go through directSearch, mocked below.
+jest.mock('../newsVideoSearch', () => ({
   searchNews: jest.fn(),
-  searchImages: jest.fn(),
   searchVideos: jest.fn(),
-  SafeSearchType: {
-    STRICT: 'strict',
-    MODERATE: 'moderate',
-    OFF: 'off',
-  },
-  SearchTimeType: {
-    DAY: 'd',
-    WEEK: 'w',
-    MONTH: 'm',
-    YEAR: 'y',
-    ALL: 'a',
-  },
-  VideoDefinition: {
-    HIGH: 'high',
-    STANDARD: 'standard',
-    ALL: 'all',
-  },
-  VideoDuration: {
-    SHORT: 'short',
-    MEDIUM: 'medium',
-    LONG: 'long',
-    ALL: 'all',
-  },
-  VideoLicense: {
-    CREATIVE_COMMONS: 'creativeCommons',
-    YOUTUBE: 'youtube',
-    ALL: 'all',
-  },
 }));
 
 // Mock the cache module
@@ -1039,10 +1009,8 @@ describe('DuckDuckGo Node', () => {
       // Simulate a saved workflow that still has enableTelemetry: true in its parameter store.
       // The node must ignore the unknown parameter gracefully.
       setupNodeParameters('search', 'AI', { enableTelemetry: true });
-      (duckDuckScrape.search as jest.Mock).mockResolvedValue({
-        results: [{ title: 'T', url: 'https://example.com/', excerpt: 'x' }],
-        noResults: false,
-        vqd: 'tok',
+      (directSearch.directWebSearch as jest.Mock).mockResolvedValue({
+        results: [{ title: 'T', url: 'https://example.com/', description: 'x' }],
       });
 
       // Must not throw even though enableTelemetry: true is in the options bag
@@ -1113,7 +1081,7 @@ describe('DuckDuckGo Node', () => {
 
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-      expect(duckDuckScrape.searchNews).not.toHaveBeenCalled();
+      expect(newsVideoSearch.searchNews).not.toHaveBeenCalled();
       expect(result[0][0].json.error).toContain('was not sent');
     });
 
@@ -1124,7 +1092,7 @@ describe('DuckDuckGo Node', () => {
 
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-      expect(duckDuckScrape.searchVideos).not.toHaveBeenCalled();
+      expect(newsVideoSearch.searchVideos).not.toHaveBeenCalled();
       expect(result[0][0].json.error).toContain('was not sent');
     });
 
@@ -1133,13 +1101,13 @@ describe('DuckDuckGo Node', () => {
       setupNodeParameters('searchNews', 'latest tech news', { timePeriod: 'd' });
 
       // Setup the mock implementation of searchNews
-      (duckDuckScrape.searchNews as jest.Mock).mockResolvedValue(mockNewsSearchResults);
+      (newsVideoSearch.searchNews as jest.Mock).mockResolvedValue(mockNewsSearchResults);
 
       // Execute the node
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Assertions
-      expect(duckDuckScrape.searchNews).toHaveBeenCalledWith('latest tech news', expect.objectContaining({
+      expect(newsVideoSearch.searchNews).toHaveBeenCalledWith('latest tech news', expect.objectContaining({
         time: 'd' // timePeriod gets converted to time with SearchTimeType values
       }));
       expect(result).toHaveLength(1);
@@ -1159,7 +1127,7 @@ describe('DuckDuckGo Node', () => {
 
       // Mock cache miss then API success
       (cache.getCached as jest.Mock).mockReturnValue(undefined);
-      (duckDuckScrape.searchNews as jest.Mock).mockResolvedValue(mockNewsSearchResults);
+      (newsVideoSearch.searchNews as jest.Mock).mockResolvedValue(mockNewsSearchResults);
 
       // Execute the node
       await duckDuckGoNode.execute.call(mockExecuteFunction);
@@ -1176,8 +1144,8 @@ describe('DuckDuckGo Node', () => {
       // Set up node parameters
       setupNodeParameters('searchNews', 'news fallback query');
 
-      // Primary search fails with duck-duck-scrape's known error
-      (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(
+      // Primary search fails with a server error
+      (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(
         new Error('A server error occurred!')
       );
 
@@ -1211,7 +1179,7 @@ describe('DuckDuckGo Node', () => {
       setupNodeParameters('searchNews', 'news total failure');
 
       // Both fail
-      (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(
+      (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(
         new Error('A server error occurred!')
       );
       (fallbackSearch.fallbackNewsSearch as jest.Mock).mockRejectedValue(
@@ -1231,7 +1199,7 @@ describe('DuckDuckGo Node', () => {
     describe('news fallback labeling — isFallback and syndicate end-to-end', () => {
       it('fallback news result must carry isFallback: true and syndicate: "DuckDuckGo Fallback"', async () => {
         setupNodeParameters('searchNews', 'label test query');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('primary failed'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('primary failed'));
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1249,7 +1217,7 @@ describe('DuckDuckGo Node', () => {
 
       it('normal (primary) news result must carry isFallback: false', async () => {
         setupNodeParameters('searchNews', 'normal news query', { timePeriod: 'd' });
-        (duckDuckScrape.searchNews as jest.Mock).mockResolvedValue({
+        (newsVideoSearch.searchNews as jest.Mock).mockResolvedValue({
           results: [
             {
               title: 'Real Article',
@@ -1275,7 +1243,7 @@ describe('DuckDuckGo Node', () => {
     describe('32.5.1 — news fallback date and description fixes', () => {
       it('fallback result has date: null (not a millisecond timestamp that becomes year ~58344)', async () => {
         setupNodeParameters('searchNews', 'AI');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1299,7 +1267,7 @@ describe('DuckDuckGo Node', () => {
 
       it('fallback result with non-empty body has non-null description', async () => {
         setupNodeParameters('searchNews', 'AI');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1316,7 +1284,7 @@ describe('DuckDuckGo Node', () => {
 
       it('fallback result with empty body has description: null (not broken empty string)', async () => {
         setupNodeParameters('searchNews', 'AI');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1333,7 +1301,7 @@ describe('DuckDuckGo Node', () => {
 
       it('isFallback: true is preserved after date/description fix', async () => {
         setupNodeParameters('searchNews', 'AI');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('primary failed'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('primary failed'));
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1351,7 +1319,7 @@ describe('DuckDuckGo Node', () => {
 
       it('fallback result with body does not expose raw Date.now() value in date field', async () => {
         setupNodeParameters('searchNews', 'AI');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('primary failed'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('primary failed'));
 
         const beforeMs = Date.now();
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
@@ -1384,7 +1352,7 @@ describe('DuckDuckGo Node', () => {
 
       it('keeps fallback result whose title contains the query token n8n', async () => {
         setupNodeParameters('searchNews', 'n8n');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1401,7 +1369,7 @@ describe('DuckDuckGo Node', () => {
 
       it('keeps fallback result whose body contains the query token but title does not', async () => {
         setupNodeParameters('searchNews', 'n8n');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1418,7 +1386,7 @@ describe('DuckDuckGo Node', () => {
 
       it('drops fallback result whose title and body do not contain the query token', async () => {
         setupNodeParameters('searchNews', 'n8n');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
         // Simulate what the old broken fallback returned — generic BBC/CNN headlines
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
@@ -1438,7 +1406,7 @@ describe('DuckDuckGo Node', () => {
 
       it('drops generic BBC result and keeps relevant n8n result when mixed', async () => {
         setupNodeParameters('searchNews', 'n8n');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1457,7 +1425,7 @@ describe('DuckDuckGo Node', () => {
 
       it('preserves the token n8n (length 3, >= 3 threshold) as a valid filter token', async () => {
         setupNodeParameters('searchNews', 'n8n');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('primary failed'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('primary failed'));
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1480,7 +1448,7 @@ describe('DuckDuckGo Node', () => {
         // 'ai' is in the explicit short-token allowlist; a result with 'AI' as a
         // standalone word must survive the filter.
         setupNodeParameters('searchNews', 'AI');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1500,7 +1468,7 @@ describe('DuckDuckGo Node', () => {
         // substring but 'ai' is NOT a standalone token in them.
         // Exact token matching must reject these results.
         setupNodeParameters('searchNews', 'AI');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1522,7 +1490,7 @@ describe('DuckDuckGo Node', () => {
 
       it('query AI: keeps relevant AI result, drops Taiwan/said/again result when mixed', async () => {
         setupNodeParameters('searchNews', 'AI');
-        (duckDuckScrape.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
+        (newsVideoSearch.searchNews as jest.Mock).mockRejectedValue(new Error('A server error occurred!'));
         (fallbackSearch.fallbackNewsSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1583,13 +1551,13 @@ describe('DuckDuckGo Node', () => {
       setupNodeParameters('searchVideos', 'tutorial videos');
 
       // Setup the mock implementation of searchVideos
-      (duckDuckScrape.searchVideos as jest.Mock).mockResolvedValue(mockVideoSearchResults);
+      (newsVideoSearch.searchVideos as jest.Mock).mockResolvedValue(mockVideoSearchResults);
 
       // Execute the node
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Assertions
-      expect(duckDuckScrape.searchVideos).toHaveBeenCalledWith('tutorial videos', expect.any(Object));
+      expect(newsVideoSearch.searchVideos).toHaveBeenCalledWith('tutorial videos', expect.any(Object));
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveLength(2);
       expect(result[0][0].json).toHaveProperty('title', 'Video 1');
@@ -1614,7 +1582,7 @@ describe('DuckDuckGo Node', () => {
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Internal Server Error',
       });
-      (duckDuckScrape.searchVideos as jest.Mock).mockRejectedValue(errorWithCode);
+      (newsVideoSearch.searchVideos as jest.Mock).mockRejectedValue(errorWithCode);
       // Fallback also fails so error item is returned
       (fallbackSearch.fallbackVideoSearch as jest.Mock).mockRejectedValue(
         new Error('Fallback failed')
@@ -1624,7 +1592,7 @@ describe('DuckDuckGo Node', () => {
       const result = await duckDuckGoNode.execute.call(mockExecuteFunction);
 
       // Assertions
-      expect(duckDuckScrape.searchVideos).toHaveBeenCalled();
+      expect(newsVideoSearch.searchVideos).toHaveBeenCalled();
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveLength(1);
       expect(result[0][0].json).toHaveProperty('success', false);
@@ -1638,7 +1606,7 @@ describe('DuckDuckGo Node', () => {
       setupNodeParameters('searchVideos', 'video fallback query');
 
       // Primary search fails
-      (duckDuckScrape.searchVideos as jest.Mock).mockRejectedValue(
+      (newsVideoSearch.searchVideos as jest.Mock).mockRejectedValue(
         new Error('A server error occurred!')
       );
 
@@ -1672,7 +1640,7 @@ describe('DuckDuckGo Node', () => {
       setupNodeParameters('searchVideos', 'video total failure');
 
       // Both fail
-      (duckDuckScrape.searchVideos as jest.Mock).mockRejectedValue(
+      (newsVideoSearch.searchVideos as jest.Mock).mockRejectedValue(
         new Error('A server error occurred!')
       );
       (fallbackSearch.fallbackVideoSearch as jest.Mock).mockRejectedValue(
@@ -1692,7 +1660,7 @@ describe('DuckDuckGo Node', () => {
     describe('video fallback labeling — isFallback and publisher end-to-end', () => {
       it('fallback video result must carry isFallback: true and publisher: "DuckDuckGo Fallback"', async () => {
         setupNodeParameters('searchVideos', 'video label test');
-        (duckDuckScrape.searchVideos as jest.Mock).mockRejectedValue(new Error('primary failed'));
+        (newsVideoSearch.searchVideos as jest.Mock).mockRejectedValue(new Error('primary failed'));
         (fallbackSearch.fallbackVideoSearch as jest.Mock).mockResolvedValue({
           success: true,
           results: [
@@ -1710,7 +1678,7 @@ describe('DuckDuckGo Node', () => {
 
       it('normal (primary) video result must carry isFallback: false', async () => {
         setupNodeParameters('searchVideos', 'normal video query');
-        (duckDuckScrape.searchVideos as jest.Mock).mockResolvedValue({
+        (newsVideoSearch.searchVideos as jest.Mock).mockResolvedValue({
           results: [
             {
               title: 'Real Video',
@@ -1747,19 +1715,19 @@ describe('DuckDuckGo Node', () => {
           return defaultValue ?? null;
         });
 
-        (duckDuckScrape.searchVideos as jest.Mock).mockResolvedValue({ results: [] });
+        (newsVideoSearch.searchVideos as jest.Mock).mockResolvedValue({ results: [] });
 
         await duckDuckGoNode.execute.call(mockExecuteFunction);
 
         // searchVideos must have been called
-        expect(duckDuckScrape.searchVideos).toHaveBeenCalledWith(
+        expect(newsVideoSearch.searchVideos).toHaveBeenCalledWith(
           'video time period test',
           expect.any(Object)
         );
 
         // The options passed to searchVideos must not contain a time property
         // (timePeriod was removed from runtime — video always uses all-time)
-        const calledOptions = (duckDuckScrape.searchVideos as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
+        const calledOptions = (newsVideoSearch.searchVideos as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
         expect(calledOptions).not.toHaveProperty('time');
         expect(calledOptions).not.toHaveProperty('timePeriod');
       });
@@ -1769,7 +1737,7 @@ describe('DuckDuckGo Node', () => {
 
         for (const staleValue of staleValues) {
           jest.clearAllMocks();
-          (duckDuckScrape.searchVideos as jest.Mock).mockResolvedValue({ results: [] });
+          (newsVideoSearch.searchVideos as jest.Mock).mockResolvedValue({ results: [] });
 
           mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
             if (parameter === 'operation') return 'searchVideos';
@@ -1780,8 +1748,8 @@ describe('DuckDuckGo Node', () => {
 
           await duckDuckGoNode.execute.call(mockExecuteFunction);
 
-          expect(duckDuckScrape.searchVideos).toHaveBeenCalledTimes(1);
-          expect(duckDuckScrape.searchVideos).toHaveBeenCalledWith(
+          expect(newsVideoSearch.searchVideos).toHaveBeenCalledTimes(1);
+          expect(newsVideoSearch.searchVideos).toHaveBeenCalledWith(
             'stable video query',
             expect.any(Object)
           );
@@ -1905,7 +1873,7 @@ describe('DuckDuckGo Node', () => {
 
   describe('Input Validation', () => {
     it('should validate maxResults is within acceptable range', async () => {
-      // Set up node parameters without maxResults since it's not supported by duck-duck-scrape 2.2.7
+      // Set up node parameters without maxResults, as a workflow that never set it would
       setupNodeParameters('search', 'test query', { debugMode: true });
 
       // Mock API response

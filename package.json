@@ -62,6 +62,7 @@
     "@typescript-eslint/parser": "^8.70.0",
     "babel-jest": "^29.7.0",
     "copyfiles": "^2.4.1",
+    "duck-duck-scrape": "^2.2.7",
     "eslint": "^9.39.5",
     "eslint-plugin-n8n-nodes-base": "^2.0.0",
     "glob": "^13.0.6",
@@ -78,7 +79,7 @@
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "axios": "^1.20.0",
-    "duck-duck-scrape": "^2.2.7",
+    "html-entities": "^2.6.0",
     "linkedom": "^0.18.0"
   },
   "peerDependencies": {

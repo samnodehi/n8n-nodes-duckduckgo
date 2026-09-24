@@ -16,6 +16,26 @@ export enum TimePeriod {
 }
 
 /**
+ * The time filter as DuckDuckGo's `df` parameter takes it. Unlike TimePeriod,
+ * which is the UI's value, "all time" is sent as `a` rather than left empty -
+ * what duck-duck-scrape sent, and so what every release until 32.16 sent.
+ */
+export enum SearchTimeType {
+  DAY = 'd',
+  WEEK = 'w',
+  MONTH = 'm',
+  YEAR = 'y',
+  ALL = 'a',
+}
+
+/** Options every search path accepts. */
+export interface SearchOptions {
+  safeSearch?: SafeSearchLevel;
+  locale?: string;
+  time?: SearchTimeType | string;
+}
+
+/**
  * Operation types supported by the node
  */
 export enum DuckDuckGoOperation {

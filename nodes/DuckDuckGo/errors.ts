@@ -340,7 +340,7 @@ export function handleDuckDuckGoError(
     }
   }
 
-  // Handle duck-duck-scrape specific errors
+  // Classify a plain error by its message
   if (error.message) {
     let errorType = DuckDuckGoErrorType.UNKNOWN_ERROR;
 

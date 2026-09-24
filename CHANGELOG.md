@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **News and Video fetch more than one page again.** Asking for more results than DuckDuckGo's first page holds now fetches further pages, up to five in all. They are requested the way DuckDuckGo's own results page requests them — a same-origin request with a Referer — which is what a live test found DuckDuckGo serves; the navigation-style requests duck-duck-scrape sent were refused for every page after the first. Each next page is the one DuckDuckGo names itself: it steps in fixed pages of 30 whatever a page held, so counting results would drift. Results DuckDuckGo repeats across pages are dropped (a live second page repeated 12 of its 22). A request the first page already satisfies costs what it did before: one request for the token and one for the page.
+
+  Only the offset is taken from DuckDuckGo's next-page pointer. The request itself is always rebuilt from the node's own settings, so a later page cannot come back under a different Safe Search level, region or time filter, and nothing is fetched from a URL DuckDuckGo supplied.
+
+### Changed
+
+- **News and Video no longer use duck-duck-scrape.** The library could not page with DuckDuckGo's current tokens ([Snazzah/duck-duck-scrape#149](https://github.com/Snazzah/duck-duck-scrape/issues/149)) and sends requests DuckDuckGo refuses for later pages, so the node now makes these requests itself, as it already did for Web and Image search. Results keep exactly the shape they had: a test runs the library's own mapping on the same answer and requires the two to match, entity decoding included, which is now done by `html-entities` — the same package the library used, now a direct dependency. duck-duck-scrape is no longer installed with the node.
+
+- **A block on the News or Video request is now recognised where it happens.** The page is checked for DuckDuckGo's challenge before its status or JSON is trusted, so a block starts the local back-off at once instead of first sending a fallback request into it.
+
+---
+
 ## [32.15.3] - 2026-09-24
 
 ### Fixed
