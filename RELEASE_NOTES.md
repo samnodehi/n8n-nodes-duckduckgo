@@ -39,18 +39,20 @@ library — 2.2.7, its latest release — checks for two before it will use one.
 every later page is refused before anything is sent. This has been reported
 upstream as
 [Snazzah/duck-duck-scrape#149](https://github.com/Snazzah/duck-duck-scrape/issues/149).
-Requested directly instead, later pages were refused by DuckDuckGo with 403 in
-every attempt.
+Requested directly with the library's own headers, later pages were refused by
+DuckDuckGo with 403 in every attempt. A request shaped the way DuckDuckGo's own
+page asks for the next page did succeed, once — found after the changes below were
+made — so a later release may be able to bring the second page back.
 
 - **The warning now says plainly** that only the first page can be fetched, and
-  why. In our tests a News page held 28 to 30 results.
+  why. In our tests a News page held 26 to 30 results.
 - **The answer is cached** like any other, instead of fetching page 1 again on
   every run only to be refused page 2 again. A cache hit repeats the warning.
-- **The paging itself is corrected for when it becomes possible:** each page is
-  requested where the last one ended rather than at a fixed offset of 10, repeats
-  across pages are dropped, and the number of pages follows the page size
-  DuckDuckGo returns, never more than five. None of this runs until a second page
-  can be fetched.
+- **The paging logic was reworked**, but it cannot run until a second page can
+  be fetched, and the live test that showed a second page is possible also
+  showed it still needs changes: DuckDuckGo steps in fixed pages of 30 whatever
+  a page held, and its second page repeated some of the first. That work is for
+  the release that brings the second page back.
 
 ## Also
 

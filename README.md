@@ -48,7 +48,7 @@ An n8n community node for DuckDuckGo search. Search the web, find images, discov
 - **Works as an n8n AI Agent tool** — attach it to any Agent node; no extra setup needed
 - **Four search types in one node** — Web, Image, News, and Video from a single, consistent interface
 - **Clean JSON output designed for automation** — predictable field names, no noise, easy to wire into downstream nodes
-- **A short result set says why** — if the node returns fewer results than you asked for because something stopped it, it warns on the canvas with how many it asked for, how many it got and why, rather than handing back a quietly short list. **News and Video currently return one page** (for News, 28–30 results in tests): the library they use cannot request later pages with DuckDuckGo's current tokens ([upstream issue](https://github.com/Snazzah/duck-duck-scrape/issues/149)), and the warning says so
+- **A short result set says why** — if the node returns fewer results than you asked for because something stopped it, it warns on the canvas with how many it asked for, how many it got and why, rather than handing back a quietly short list. **News and Video currently return one page** (for News, 26–30 results in tests): the library they use cannot request later pages with DuckDuckGo's current tokens ([upstream issue](https://github.com/Snazzah/duck-duck-scrape/issues/149)), and the warning says so
 - **Fallback labels for News and Video** — when results come from the fallback path, `isFallback: true` tells you so
 
 ---
@@ -191,7 +191,7 @@ Searches DuckDuckGo news results.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `newsQuery` | string | required | News search terms |
-| `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer. Currently at most one page (28–30 in tests); see *A short result set says why* |
+| `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer. Currently at most one page (26–30 in tests); see *A short result set says why* |
 | `safeSearch` | options | Strict | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
 | `timePeriod` | string | — | Time filter: `d` (day), `w` (week), `m` (month), `y` (year) |
