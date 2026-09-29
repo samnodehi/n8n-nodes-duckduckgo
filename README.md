@@ -627,7 +627,7 @@ This allows downstream nodes and AI Agents to detect and handle fallback results
 
 ## ⚠️ Error Behavior
 
-The node surfaces specific, actionable error messages rather than generic failures.
+The node surfaces specific, actionable error messages rather than generic failures. Where this section says the node throws, the Web, News, Image and Video searches catch that error themselves and return it as an item with `success: false` and the message in `error`, rather than failing the execution — see [Ready-made workflows](#ready-made-workflows) for branching on it.
 
 ### Bot-detection challenge (rate limiting)
 
@@ -667,7 +667,7 @@ This typically indicates a VQD token expiry or a temporary block by DuckDuckGo.
 
 ### Web Search: Parser failure
 
-If `directWebSearch` receives an HTTP 200 response with a large body but cannot parse any result blocks from it (indicating DuckDuckGo may have changed its HTML structure), the node throws an error with this message:
+If `directWebSearch` receives an HTTP 200 response with a large body but cannot parse any result blocks from it (indicating DuckDuckGo may have changed its HTML structure), the node returns an error item (`success: false`) with this message in `error`:
 
 > `DuckDuckGo web search response could not be parsed. The page structure may have changed. Please try again later.`
 
@@ -960,10 +960,11 @@ Copy the JSON and paste it straight onto an n8n canvas (**Ctrl/Cmd+V**), or use 
 | [Expand one keyword into multiple searches](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/02-query-expansion.json) | **Search Suggestions** with `splitIntoItems`, looped into one Web Search per suggestion, with a **Wait** node so you stay under the rate limit |
 | [Monitor news on a schedule](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/03-news-monitor.json) | Scheduled **News Search** with `timePeriod: d`, branching on whether DuckDuckGo reported an `error` so a rate-limited run is handled rather than silently skipped |
 | [Write a daily AI news story to Telegram](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/04-ai-news-writer.json) | Scheduled News sweep → error branch → an **AI Agent** that picks one story and researches it with this node **as a tool** → Telegram. Needs OpenRouter and Telegram credentials; the search side needs none |
+| [Write a cited research report](https://github.com/samnodehi/n8n-nodes-duckduckgo/blob/main/docs/examples/05-cited-research-report.json) | A form question → the model plans 3-5 sub-questions → one **Web Search** with **Fetch Page Content** per sub-question, paced by a **Wait** → the model quotes its sources, code keeps only quotes that are really in the page → a report in which every claim cites its source, or a page saying why there is none. Needs an OpenRouter credential; the search side needs none |
 
-Each one uses **On Error → Continue** on the search node, which is the recommended setting: a rate-limited search raises an error rather than returning an empty list, and continuing lets the rest of the run proceed.
+Each one sets **On Error → Continue** on its main search node. A failed search does not stop the run: Web, News, Image and Video searches — a rate limit included — come back as an item with `success: false` and an `error` field instead of an empty list, whatever **Error Handling** is set to. Search Suggestions, Extract Page Content and input errors such as an empty query follow **Error Handling**, which is **Continue on Error** by default. Branch on `error`, as the news monitor and the research report do; **On Error → Continue** covers the remaining case, Error Handling set to Break on Error.
 
-> **On `retryOnFail`:** News and Video catch their own failures and emit an item carrying an `error` field rather than failing the execution, so n8n's retry setting never fires for them. Branch on `error` — as the news monitor example does — instead of relying on retries.
+> **On `retryOnFail`:** Web, News, Image and Video searches catch their own failures and emit an item carrying an `error` field rather than failing the execution, so n8n's retry setting never fires for them. Branch on `error` — as the news monitor example does — instead of relying on retries.
 
 ---
 

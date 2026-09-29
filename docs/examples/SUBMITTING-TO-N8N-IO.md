@@ -24,7 +24,7 @@ and its [template submission guidelines](https://n8n.notion.site/p/Template-subm
   exactly one yellow overview sticky in the top-left corner, 100–300 words,
   containing `### How it works` and `### Setup`; white section stickies (under
   50 words) grouping the nodes of any workflow with four or more of them.
-  All four templates in this folder already satisfy this.
+  All five templates in this folder already satisfy this.
 - **Title format**: `Action verb` + the thing being manipulated +
   `to/on/in/from where`, sentence-style capitalisation, no emoji, no hype. The
   `name` field of each JSON is already written in that form.
@@ -47,7 +47,7 @@ templates carry 4–21 nodes, median about 8. **That number is wrong — see
 real median is **14**. Two nodes was never going to clear it either way.
 
 So a template here has to **do a job end to end**, not demonstrate one option.
-Both templates below were rebuilt or written to that bar.
+Templates 1 and 4 were rebuilt or written to that bar; template 5 was built to it from the start.
 
 Two more things worth knowing, both measured rather than assumed:
 
@@ -230,16 +230,25 @@ the URL stays the same, so a stale screenshot would silently mislead a reviewer.
 
 1. **Put the screenshot at the top of the description, as a Markdown image** —
    see the section above for the exact line. Without it the reviewer has no
-   canvas to look at. All four images are current, taken from a self-hosted n8n
-   with the node installed, on the light theme.
+   canvas to look at. Images 1-4 are current, taken from a self-hosted n8n
+   with the node installed, on the light theme. **Template 5 has no screenshot
+   yet** - take one the same way and commit it as
+   `images/05-cited-research-report.png` before submitting it.
 2. Run it once so the description matches what actually happens.
 3. Submit through the Creator Dashboard at <https://creators.n8n.io/login>.
 
 Suggested order, given the one-at-a-time limit: **4 → 1 → 3 → 2**. Template 4
-goes first because it is the strongest of the set and the only one run end to
-end against the real services; the rebuilt template 1 then goes into the
+goes first because it is the strongest of templates 1-4 and the only one of
+them run end to end against the real services; the rebuilt template 1 then goes into the
 “Implement changes” slot left by the rejection. The news monitor has the
 broadest recurring use after that, and query expansion is the most niche.
+
+**Template 5 (added 2026-09-30) changes that order.** It is the one built to
+the bar measured above rather than below it: 22 nodes, not counting stickies
+and counting its three sub-nodes, against the median of 14 in the one
+non-random batch described above; three model calls, a loop, and two branches that each end in a page the user
+sees. It has also been run end to end against the real services, three times.
+If templates 1 and 4 are still sitting refused as *too basic*, submit 5 next.
 
 ---
 
@@ -383,8 +392,8 @@ silently is worse than no monitor.
 
 ## Template 4 — Write a daily AI news story to Telegram with DuckDuckGo and an AI agent
 
-File: `04-ai-news-writer.json` — ten nodes. The strongest of the set, and the
-only one that has been run end to end against the real services.
+File: `04-ai-news-writer.json` — ten nodes. The strongest of templates 1-4, and
+the only one of them that has been run end to end against the real services.
 
 > ![Write a daily AI news story to Telegram](images/04-ai-news-writer.png)
 >
@@ -428,3 +437,91 @@ Change the query to any beat — one topic per copy of the workflow. The agent
 searches from the same IP as the sweep, so keep **Max Results** low on the tool
 and the schedule no tighter than a few hours. Swap Telegram for Slack or email;
 the Code node hands on plain fields.
+
+---
+
+## Template 5 — Write a cited research report from DuckDuckGo results with an AI model
+
+File: `05-cited-research-report.json` — 22 real nodes (three of them model and
+output-parser sub-nodes) and six stickies. Needs an OpenRouter credential; the
+search side needs none. **No screenshot yet** — see *Before submitting*.
+
+> *Screenshot pending: add `![Write a cited research report from DuckDuckGo results](images/05-cited-research-report.png)` here once the file is committed.*
+>
+> **Self-hosted n8n only.** This template uses the community node
+> `n8n-nodes-duckduckgo-search`, and community nodes cannot be installed on
+> n8n Cloud.
+
+### Who's it for
+
+Anyone who wants an answer they can check: analysts, students, writers and
+teams who need a short report on a question with every claim tied to the page it
+came from, and who would rather get "not enough was found" than a confident
+report written from the model's memory.
+
+### How it works
+
+A form takes a question and a depth. The model splits the question into three to
+five sub-questions, each with a search query; code caps how many run, because
+every search is one request to DuckDuckGo. A loop searches the web for each one,
+reads the top five pages, and waits between searches.
+
+Code then numbers every source S1, S2… and fences its text off as untrusted
+data. The model extracts findings, each with a quote copied from its source, and
+code keeps only the quotes that really are in the page. The model writes the
+report from those findings alone. Code then drops any citation to a source
+without a verified finding, leaves out sentences that cite nothing, strips HTML
+and links from the model's text, and adds the source list and a coverage table
+itself. With too little evidence, or DuckDuckGo
+blocking the searches, the form shows a page saying so instead of a report.
+
+### How to set up
+
+1. Install `n8n-nodes-duckduckgo-search` under **Settings → Community nodes**.
+2. Add an OpenRouter credential to **OpenRouter model**. It is set to Gemini 3.8
+   Flash on the cheaper flex tier; any model that returns JSON reliably will do.
+3. Activate the workflow and open the form's production URL.
+
+### Requirements
+
+Self-hosted n8n, the community node and an OpenRouter account. The form is
+limited to users signed in to your n8n.
+
+### How to customize
+
+Change the depth options in the form, or the number of pages read in **Search
+DuckDuckGo**. Keep the wait between searches: DuckDuckGo limits requests per IP
+address. Swap the form ending for email or Slack; the report is plain Markdown
+before it is rendered.
+
+### What the live runs showed (2026-09-29)
+
+Three runs on the author's instance, Gemini 3.8 Flash through OpenRouter, one
+run per question - examples, not rates. Time is from the start of the execution
+to its last node; nobody waiting on the form is included.
+
+| Question | Depth | DuckDuckGo searches | Time | Result |
+|---|---|---|---|---|
+| Heat pumps in cold climates (first version) | Standard | 4 | 63 s | Report; 12 of 12 quotes found in their sources; 2 of 4 sub-questions with at least one |
+| Intermittent fasting (before the gate fix below) | Quick | 3 | 36 s | No report |
+| Intermittent fasting (after it) | Quick | 3 | 48 s | Report; 10 of 10 quotes found in their sources; 3 of 3 sub-questions with at least one |
+
+A verified quote is one whose text really is in the source it names. That says
+the report is tied to what was read; it does not say the source is right.
+
+- **Unanswered sub-questions in the first run were a matter of evidence.** One
+  sub-question's results were off-topic (UK price calculators for a question
+  about backup heating); another's were search snippets that named field studies
+  without giving their results. The same evidence - with this model, and page
+  text cut at about 3,000 characters - was run through three extraction designs,
+  three times each, and none found anything for those two sub-questions. The
+  report says so in *Gaps and limits*.
+- **Research publishers refuse page fetches.** On the medical question, 6 and 7
+  of 18 results answered HTTP 403 in the two runs (the same question, so partly
+  the same URLs): BMJ, MDPI, ScienceDirect and ResearchGate both times, Wiley
+  and PubMed Central in the first, the journal NMCD in the second. The first
+  version refused to write a report because too few *pages* were readable,
+  although the search snippets carried the facts.
+  The gate now only stops with fewer than three sources or half the searches
+  blocked; whether there is enough to report is decided by the verified quotes,
+  and a report needs at least two.
