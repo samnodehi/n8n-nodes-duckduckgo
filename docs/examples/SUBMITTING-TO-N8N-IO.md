@@ -469,9 +469,10 @@ reads the top five pages, and waits between searches.
 Code then numbers every source S1, S2… and fences its text off as untrusted
 data. The model extracts findings, each with a quote copied from its source, and
 code keeps only the quotes that really are in the page. The model writes the
-report from those findings alone, and code removes any citation to a source that
-does not exist, strips HTML and links from the model's text, and adds the source
-list and a coverage table itself. With too little evidence, or DuckDuckGo
+report from those findings alone. Code then drops any citation to a source
+without a verified finding, leaves out sentences that cite nothing, strips HTML
+and links from the model's text, and adds the source list and a coverage table
+itself. With too little evidence, or DuckDuckGo
 blocking the searches, the form shows a page saying so instead of a report.
 
 ### How to set up

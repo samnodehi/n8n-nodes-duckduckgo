@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **A fifth example workflow: a cited research report.** `docs/examples/05-cited-research-report.json` takes a question from a form, plans three to five sub-questions, runs one Web Search with Fetch Page Content for each, and writes a report in which every claim cites the page it came from. Code, not the model, numbers the sources, keeps only quotes that are really in the page, removes citations to sources that do not exist and builds the source list; with too little evidence the form says so instead of writing a report. It needs an OpenRouter credential; the search side needs none. Run end to end three times against the real services; `docs/examples/SUBMITTING-TO-N8N-IO.md` records what those runs showed.
+- **A fifth example workflow: a cited research report.** `docs/examples/05-cited-research-report.json` takes a question from a form, plans three to five sub-questions, runs one Web Search with Fetch Page Content for each, and writes a report in which every claim cites the page it came from. Code, not the model, numbers the sources, keeps only quotes that are really in the page, accepts citations only to sources with a verified finding, leaves out sentences that cite nothing and builds the source list; with too little evidence the form says so instead of writing a report. It needs an OpenRouter credential; the search side needs none. Run end to end three times against the real services; `docs/examples/SUBMITTING-TO-N8N-IO.md` records what those runs showed.
 
 ### Fixed
 
