@@ -192,6 +192,8 @@ verbatim:
 ![Monitor news from DuckDuckGo on a schedule](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/03-news-monitor.png)
 
 ![Write a daily AI news story to Telegram](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/04-ai-news-writer.png)
+
+![Write a cited research report from DuckDuckGo results](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/05-cited-research-report.png)
 ```
 
 If a field strips Markdown or the word counter fights it, fall back to the bare
@@ -230,10 +232,8 @@ the URL stays the same, so a stale screenshot would silently mislead a reviewer.
 
 1. **Put the screenshot at the top of the description, as a Markdown image** —
    see the section above for the exact line. Without it the reviewer has no
-   canvas to look at. Images 1-4 are current, taken from a self-hosted n8n
-   with the node installed, on the light theme. **Template 5 has no screenshot
-   yet** - take one the same way and commit it as
-   `images/05-cited-research-report.png` before submitting it.
+   canvas to look at. All five images are current, taken from a self-hosted n8n
+   with the node installed, on the light theme.
 2. Run it once so the description matches what actually happens.
 3. Submit through the Creator Dashboard at <https://creators.n8n.io/login>.
 
@@ -444,9 +444,9 @@ the Code node hands on plain fields.
 
 File: `05-cited-research-report.json` — 22 real nodes (three of them model and
 output-parser sub-nodes) and six stickies. Needs an OpenRouter credential; the
-search side needs none. **No screenshot yet** — see *Before submitting*.
+search side needs none.
 
-> *Screenshot pending: add `![Write a cited research report from DuckDuckGo results](images/05-cited-research-report.png)` here once the file is committed.*
+> ![Write a cited research report from DuckDuckGo results](images/05-cited-research-report.png)
 >
 > **Self-hosted n8n only.** This template uses the community node
 > `n8n-nodes-duckduckgo-search`, and community nodes cannot be installed on
@@ -454,45 +454,40 @@ search side needs none. **No screenshot yet** — see *Before submitting*.
 
 ### Who's it for
 
-Anyone who wants an answer they can check: analysts, students, writers and
-teams who need a short report on a question with every claim tied to the page it
-came from, and who would rather get "not enough was found" than a confident
-report written from the model's memory.
+Anyone who needs an answer they can check - analysts, students, writers - and
+would rather be told "not enough was found" than get a confident report written
+from a model's memory.
 
 ### How it works
 
-A form takes a question and a depth. The model splits the question into three to
-five sub-questions, each with a search query; code caps how many run, because
-every search is one request to DuckDuckGo. A loop searches the web for each one,
-reads the top five pages, and waits between searches.
+A form takes a question and a depth. The model splits it into three to five
+sub-questions with a search query each; code caps how many run, since each
+search is one DuckDuckGo request. A loop searches for each one, reads the top
+five pages and waits between searches.
 
-Code then numbers every source S1, S2… and fences its text off as untrusted
-data. The model extracts findings, each with a quote copied from its source, and
-code keeps only the quotes that really are in the page. The model writes the
-report from those findings alone. Code then drops any citation to a source
-without a verified finding, leaves out sentences that cite nothing, strips HTML
-and links from the model's text, and adds the source list and a coverage table
-itself. With too little evidence, or DuckDuckGo
-blocking the searches, the form shows a page saying so instead of a report.
+Code numbers every source and fences its text off as untrusted. The model
+extracts findings with quotes, and code keeps only the quotes that really are in
+the page. The model writes the report from those findings; code then drops
+citations to unverified sources and sentences that cite nothing, strips HTML and
+links, and adds the source list and a coverage table. With too little evidence,
+or the searches blocked, the form explains why instead of showing a report.
 
 ### How to set up
 
 1. Install `n8n-nodes-duckduckgo-search` under **Settings → Community nodes**.
-2. Add an OpenRouter credential to **OpenRouter model**. It is set to Gemini 3.8
-   Flash on the cheaper flex tier; any model that returns JSON reliably will do.
+2. Add an OpenRouter credential to **OpenRouter model** (Gemini 3.8 Flash by
+   default; any model that returns JSON reliably will do).
 3. Activate the workflow and open the form's production URL.
 
 ### Requirements
 
-Self-hosted n8n, the community node and an OpenRouter account. The form is
-limited to users signed in to your n8n.
+Self-hosted n8n, the community node and an OpenRouter account.
 
 ### How to customize
 
-Change the depth options in the form, or the number of pages read in **Search
-DuckDuckGo**. Keep the wait between searches: DuckDuckGo limits requests per IP
-address. Swap the form ending for email or Slack; the report is plain Markdown
-before it is rendered.
+Change the depth options or the number of pages read per search. Keep the wait
+between searches: DuckDuckGo limits requests per IP address. Swap the form
+ending for email or Slack.
 
 ### What the live runs showed (2026-09-29)
 
