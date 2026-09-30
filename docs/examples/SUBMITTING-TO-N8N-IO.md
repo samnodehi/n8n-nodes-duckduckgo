@@ -224,7 +224,7 @@ is already on that thread, so it reaches a person either way.
 3. **It costs real content.** Template 4's overview was at 298 of the 300
    permitted words, so making room meant cutting text that was doing a job.
 
-All four URLs were checked as publicly reachable: HTTP 200, `image/png`, and the
+All five URLs were checked as publicly reachable on 2026-09-30: HTTP 200, `image/png`, and the
 bytes match the committed file. Retake and re-commit whenever a template changes shape —
 the URL stays the same, so a stale screenshot would silently mislead a reviewer.
 
