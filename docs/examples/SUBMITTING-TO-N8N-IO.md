@@ -93,6 +93,15 @@ which is exactly what a community-node template must carry. What is in the repo
 takes its node names, positions and four-section layout, and keeps our overview
 text re-keyed to the new names.
 
+On template 5 (2026-10-05) it was worse. It kept every node and connection, and
+renamed the nodes in Title Case, rewriting every `$('…')` reference in the Code
+nodes and prompts consistently with the new names. It replaced all six stickies -
+the overview and the five sections - with a single sticky that says the workflow
+"does not contain any nodes" and tells the reader to add a trigger. Do not upload
+it: submit the repo JSON unchanged, with a line in *Additional info* telling the
+human reviewer why. Whatever reads the workflow to write those stickies did not
+see the nodes, even though the JSON it returned still has all of them.
+
 ## The measurement that was wrong
 
 **Read this before trusting any node-count figure elsewhere in this file.**
