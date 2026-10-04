@@ -269,12 +269,13 @@ them run end to end against the real services; the rebuilt template 1 then goes 
 “Implement changes” slot left by the rejection. The news monitor has the
 broadest recurring use after that, and query expansion is the most niche.
 
-**Template 5 (added 2026-09-30) replaces that order.** Given n8n's answer at the
-top of this file, it is the only one of the five that adds something the library
-does not already have, and the creators team said as much before it was
-submitted. It has also been run end to end against the real services, three
-times. Submit it next; leave templates 1-4 as they are unless one is reworked
-into something new.
+**Template 5 (added 2026-09-30) replaces that order.** Against n8n's answer at
+the top of this file, it is the strongest candidate of the five: templates 1-4
+are common patterns, and the creators team described template 5's direction as
+the kind they like to see - without promising an outcome. That it adds
+something the library lacks is our judgement, not theirs. It has also been run
+end to end against the real services, three times. Submit it next; leave
+templates 1-4 as they are unless one is reworked into something new.
 
 ---
 
