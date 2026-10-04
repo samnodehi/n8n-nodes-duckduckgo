@@ -33,6 +33,32 @@ and its [template submission guidelines](https://n8n.notion.site/p/Template-subm
   *How to customize*.
 - No hardcoded credentials, no personal identifiers.
 
+## What "too basic" means — n8n's answer (2026-10-04)
+
+**Read this first; it overrides the node-count reasoning further down.** Asked
+directly after template 4's third refusal, the creators team (Anshul) answered:
+*too basic* is **not** about a minimum number of nodes. They look at whether a
+template is **genuinely useful to a broad audience and adds something new to
+the library**. Template 4 — a scheduled news search, summarised by AI, sent to
+Telegram — is one of the most common patterns they see, with many similar
+templates already published, so however well built, it does not add enough.
+
+Template 5's direction — planning sub-questions, checking every quote against
+its source, citing each claim — they called "real logic that solves a clear
+problem" and "the kind of template we like to see", without promising an
+outcome. They repeated: put the canvas screenshot link at the top of the
+description.
+
+What follows from it:
+
+- Node counts below explain nothing on their own. The measurements stay as a
+  record, but the bar is **novelty and usefulness**, not size.
+- Templates 1-4 are all common patterns (a search brief, query expansion, a
+  news monitor, an AI news digest). Resubmitting them unchanged is unlikely to
+  succeed. Template 5 is the one to submit.
+- A future template should start from a problem the library does not already
+  solve, not from a feature of the node.
+
 ## What the first rejection taught us
 
 Template 1 was submitted on 2026-09-08 and **not published**: *"It is currently
@@ -243,12 +269,12 @@ them run end to end against the real services; the rebuilt template 1 then goes 
 “Implement changes” slot left by the rejection. The news monitor has the
 broadest recurring use after that, and query expansion is the most niche.
 
-**Template 5 (added 2026-09-30) changes that order.** It is the one built to
-the bar measured above rather than below it: 22 nodes, not counting stickies
-and counting its three sub-nodes, against the median of 14 in the one
-non-random batch described above; three model calls, a loop, and two branches that each end in a page the user
-sees. It has also been run end to end against the real services, three times.
-If templates 1 and 4 are still sitting refused as *too basic*, submit 5 next.
+**Template 5 (added 2026-09-30) replaces that order.** Given n8n's answer at the
+top of this file, it is the only one of the five that adds something the library
+does not already have, and the creators team said as much before it was
+submitted. It has also been run end to end against the real services, three
+times. Submit it next; leave templates 1-4 as they are unless one is reworked
+into something new.
 
 ---
 
