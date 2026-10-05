@@ -24,7 +24,7 @@ and its [template submission guidelines](https://n8n.notion.site/p/Template-subm
   exactly one yellow overview sticky in the top-left corner, 100–300 words,
   containing `### How it works` and `### Setup`; white section stickies (under
   50 words) grouping the nodes of any workflow with four or more of them.
-  All five templates in this folder already satisfy this.
+  All six templates in this folder already satisfy this.
 - **Title format**: `Action verb` + the thing being manipulated +
   `to/on/in/from where`, sentence-style capitalisation, no emoji, no hype. The
   `name` field of each JSON is already written in that form.
@@ -37,6 +37,8 @@ and its [template submission guidelines](https://n8n.notion.site/p/Template-subm
 
 **Template 5 was approved on 2026-10-05 and is published** as *Write cited research reports from DuckDuckGo search results with OpenRouter*:
 <https://n8n.io/workflows/20413-write-cited-research-reports-from-duckduckgo-search-results-with-openrouter/>. It was submitted with the repo JSON unchanged, the screenshot link at the top of the description, and the self-hosted line under Requirements. Templates 1 and 4 were refused as *too basic* (see the next section for why); 2 and 3 were never submitted. Two more approved templates would make the account a verified creator.
+
+**Template 6 was built on 2026-10-05 and has not been submitted yet.** See its section at the end of this file.
 
 ## What "too basic" means — n8n's answer (2026-10-04)
 
@@ -234,6 +236,8 @@ verbatim:
 ![Write a daily AI news story to Telegram](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/04-ai-news-writer.png)
 
 ![Write a cited research report from DuckDuckGo results](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/05-cited-research-report.png)
+
+![Find outdated statistics in an article](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/06-outdated-statistics.png)
 ```
 
 If a field strips Markdown or the word counter fights it, fall back to the bare
@@ -272,7 +276,7 @@ the URL stays the same, so a stale screenshot would silently mislead a reviewer.
 
 1. **Put the screenshot at the top of the description, as a Markdown image** —
    see the section above for the exact line. Without it the reviewer has no
-   canvas to look at. All five images are current, taken from a self-hosted n8n
+   canvas to look at. All six images are current, taken from a self-hosted n8n
    with the node installed, on the light theme.
 2. Run it once so the description matches what actually happens.
 3. Submit through the Creator Dashboard at <https://creators.n8n.io/login>.
@@ -284,12 +288,12 @@ them run end to end against the real services; the rebuilt template 1 then goes 
 broadest recurring use after that, and query expansion is the most niche.
 
 **Template 5 (added 2026-09-30) replaces that order.** Against n8n's answer at
-the top of this file, it is the strongest candidate of the five: templates 1-4
+the top of this file, it is the strongest candidate of templates 1-5: templates 1-4
 are common patterns, and the creators team described template 5's direction as
 the kind they like to see - without promising an outcome. That it adds
-something the library lacks is our judgement, not theirs. It has also been run
-end to end against the real services, three times. Submit it next; leave
-templates 1-4 as they are unless one is reworked into something new.
+something the library lacks is our judgement, not theirs. It went first and is
+published (see *Status*). Template 6 is the next submission; leave templates
+1-4 as they are unless one is reworked into something new.
 
 ---
 
@@ -561,3 +565,83 @@ the report is tied to what was read; it does not say the source is right.
   The gate now only stops with fewer than three sources or half the searches
   blocked; whether there is enough to report is decided by the verified quotes,
   and a report needs at least two.
+
+---
+
+## Template 6 — Find outdated statistics in an article with DuckDuckGo and OpenRouter
+
+File: `06-outdated-statistics.json` — 22 real nodes (three of them model and
+output-parser sub-nodes) and six stickies. Needs an OpenRouter credential; the
+search side needs none. Chosen on 2026-10-05 against n8n's bar (*useful to a
+broad audience and new to the library*): a keyword search of the library found
+nothing that checks an article's old figures against newer sources.
+
+> ![Find outdated statistics in an article](images/06-outdated-statistics.png)
+
+The portal now asks for the description in fields. Paste these:
+
+**Quick overview**
+
+```text
+![Workflow canvas](https://raw.githubusercontent.com/samnodehi/n8n-nodes-duckduckgo/main/docs/examples/images/06-outdated-statistics.png)
+
+Paste an article's address; this workflow lists its dated figures and, for each, a later-dated figure from the web, quoted word for word from its source, side by side for you to review. Self-hosted n8n only.
+```
+
+**How it works**
+
+1. A form takes the article's address and, optionally, a region.
+2. The DuckDuckGo node reads the article.
+3. The model lists up to five figures that state the year they refer to; code keeps only those whose sentence is really in the article with the value and the year, and drops forecasts.
+4. One DuckDuckGo search per figure reads the top five pages, with a short wait between searches.
+5. The model proposes later figures; code keeps a candidate only if its quote is on the source page, holds the value and a later year close together, and is not a forecast. A different unit is flagged.
+6. The form shows a review table: the article's sentence next to the later one, with its source. Every way the run can end shows a page.
+
+**Setup**
+
+1. Self-hosted n8n: install `n8n-nodes-duckduckgo-search` under Settings → Community nodes.
+2. Add an OpenRouter credential to OpenRouter model (Gemini 3.8 Flash by default; any model that returns JSON reliably will do).
+3. Activate the workflow and open the form's production URL.
+
+**Requirements**
+
+- Self-hosted n8n only: community nodes cannot be installed on n8n Cloud
+- The community node n8n-nodes-duckduckgo-search
+- An OpenRouter account and API key
+- No API key or account is needed for DuckDuckGo
+
+**Customization**
+
+- Lower the limit of five figures (in Check the figures and the first prompt) for shorter runs; each figure is one DuckDuckGo search
+- Set a region in the form to keep searches to one country or market
+- Swap the OpenRouter model
+- Keep the wait between searches: DuckDuckGo limits requests per IP address
+- Send the table by email or Slack instead of showing it on the form page
+
+**Additional info**
+
+```text
+The canvas preview does not render community nodes, so the full canvas is in the screenshot at the top of the description. The table offers candidates for review, not corrections: a quote shown is word for word on its source page, which does not prove the figure is right or measures the same thing. Source and notes: https://github.com/samnodehi/n8n-nodes-duckduckgo/tree/main/docs/examples
+```
+
+### What the live runs showed (2026-10-05)
+
+Three runs on the author's instance (n8n executions 535232, 535233 and 535234),
+Gemini 3.8 Flash through OpenRouter, one run per article - examples, not rates.
+Time is from the start of the execution to its last node.
+
+| Article | Time | Dated figures checked | Searches | Later-dated figure found |
+|---|---|---|---|---|
+| WHO fact sheet, drinking water | 25 s | 2 | 2 | 1 (people needing preventive treatment for schistosomiasis: 251.4 million for 2021, 253.7 million for 2024) |
+| Wikipedia, *Remote work* | 74 s | 5 | 5 | 1 (EU employed persons usually working from home: 12.3% for 2020, 9% for 2025) |
+| Wikipedia, *Electric car use by country* | 2 s | - | 0 | Not read: the page is 2.7 MB and the node reads at most 2 MB |
+
+- **No candidate was invented.** Where the pages read held no later figure for
+  the same measure, the table says so instead of offering a weaker match.
+- **Most figures had no later-dated figure on the pages a search returned.**
+  Finding more would take more searches per figure, which the five-search budget
+  per run does not allow.
+- **The oversized page** surfaced as a bare `ERR_BAD_RESPONSE`. A plain
+  explanation was added to the template after that run, and is covered by the
+  template's local checks; the node itself should report it plainly - a
+  separate fix.
