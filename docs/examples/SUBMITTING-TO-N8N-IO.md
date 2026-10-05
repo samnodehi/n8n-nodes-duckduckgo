@@ -33,6 +33,11 @@ and its [template submission guidelines](https://n8n.notion.site/p/Template-subm
   *How to customize*.
 - No hardcoded credentials, no personal identifiers.
 
+## Status
+
+**Template 5 was approved on 2026-10-05 and is published** as *Write cited research reports from DuckDuckGo search results with OpenRouter*:
+<https://n8n.io/workflows/20413-write-cited-research-reports-from-duckduckgo-search-results-with-openrouter/>. It was submitted with the repo JSON unchanged, the screenshot link at the top of the description, and the self-hosted line under Requirements. Templates 1 and 4 were refused as *too basic* (see the next section for why); 2 and 3 were never submitted. Two more approved templates would make the account a verified creator.
+
 ## What "too basic" means — n8n's answer (2026-10-04)
 
 **Read this first; it overrides the node-count reasoning further down.** Asked
