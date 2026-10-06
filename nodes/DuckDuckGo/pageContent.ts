@@ -473,6 +473,12 @@ function findEndTag(lower: string, name: string, from: number): number {
  * template still open, would otherwise be read as text. The scan runs
  * forwards, so a string such as '<style>' inside a closed script does not
  * count as an open element.
+ *
+ * This is a heuristic for what a reader would see, not a full HTML
+ * tokenizer: the escaped script states ('<script><!--<script></script>')
+ * are not modelled. Getting one wrong only lets some of the page's own
+ * markup through as text; whoever wrote the page could have put that text
+ * in plain view anyway.
  */
 export function trimCutHtml(html: string): string {
   // ASCII-only lowering keeps every index valid; toLowerCase() can change the
@@ -494,7 +500,17 @@ export function trimCutHtml(html: string): string {
       i = end + 3;
       continue;
     }
-    const tag = /^<(\/?)([a-z][a-z0-9-]*)/.exec(lower.slice(lt, lt + 40));
+    // Inside svg, CDATA is text, and a '</svg>' in it closes nothing.
+    if (lower.startsWith('<![cdata[', lt)) {
+      const end = lower.indexOf(']]>', lt + 9);
+      if (end === -1) {
+        cutAt = lt;
+        break;
+      }
+      i = end + 3;
+      continue;
+    }
+    const tag =/^<(\/?)([a-z][a-z0-9-]*)/.exec(lower.slice(lt, lt + 40));
     if (!tag) {
       i = lt + 1;
       continue;

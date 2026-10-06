@@ -160,6 +160,7 @@ describe('pageContent', () => {
 
     it('drops an svg or template still open at the cut, counting nested ones', () => {
       expect(trimCutHtml('<p>ok</p><svg><svg></svg><text>SECRET</text>')).toBe('<p>ok</p>');
+      expect(trimCutHtml('<p>ok</p><svg><![CDATA[</svg>]]><text>SECRET')).toBe('<p>ok</p>');
       expect(trimCutHtml('<p>ok</p><svg><path d="M0 0"/></svg><p>after')).toBe('<p>ok</p><svg><path d="M0 0"/></svg><p>after');
     });
 
