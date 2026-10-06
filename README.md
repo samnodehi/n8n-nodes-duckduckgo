@@ -301,6 +301,8 @@ Fetches **any URL** (not a search) and extracts its main readable text — usefu
 | `pageContentTimeout` | number | 8000 | Fetch timeout in ms |
 | `includePageMetadata` | boolean | false | Also return title/author/published/excerpt/siteName when the page is an article |
 
+The node downloads at most 2 MB of HTML per page. A bigger page returns empty `content` and an `error` field: `Page is larger than the 2 MB download limit`.
+
 **Sample output:**
 
 ```json
@@ -452,7 +454,7 @@ Cache is in-memory only and is not shared across n8n worker processes or restart
 | `sourceType` | string | Always `"web"` |
 | `pageContent` | string | Extracted main text of the result page (only when **Fetch Page Content** is enabled; empty for results beyond the fetched top-N) |
 | `pageContentTruncated` | boolean | Present and `true` when `pageContent` was cut to `pageContentMaxLength` |
-| `pageContentError` | string | Present only when the page could not be fetched/parsed (e.g. `HTTP 403`, `Timed out after 8000ms`) |
+| `pageContentError` | string | Present only when the page could not be fetched/parsed (e.g. `HTTP 403`, `Timed out after 8000ms`, `Page is larger than the 2 MB download limit`) |
 | `pageTitle` / `pageAuthor` / `pagePublished` / `pageExcerpt` / `pageSiteName` | string | Page metadata — present only when **Include Page Metadata** is enabled and the page is an article |
 
 ### Image Search

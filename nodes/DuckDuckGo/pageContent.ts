@@ -221,6 +221,11 @@ export function truncateText(text: string, maxLength: number): { text: string; t
   return { text: `${cut.trimEnd()}…`, truncated: true };
 }
 
+function formatBytes(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1 ? `${Number(mb.toFixed(1))} MB` : `${Math.round(bytes / 1024)} KB`;
+}
+
 function isHtmlContentType(contentType: unknown): boolean {
   if (typeof contentType !== 'string' || contentType === '') return true; // unknown → attempt anyway
   const ct = contentType.toLowerCase();
@@ -296,6 +301,13 @@ export async function fetchPageContent(
       message = `Timed out after ${timeout}ms`;
     } else if (error?.response?.status) {
       message = `HTTP ${error.response.status}`;
+    } else if (error?.code === 'ERR_BAD_RESPONSE') {
+      // axios uses this one code for several failures, the size cap among them,
+      // so the code alone tells the user nothing.
+      const detail = typeof error.message === 'string' ? error.message : '';
+      message = /maxContentLength size of \d+ exceeded/.test(detail)
+        ? `Page is larger than the ${formatBytes(maxBytes)} download limit`
+        : detail ? `ERR_BAD_RESPONSE: ${detail}` : 'ERR_BAD_RESPONSE';
     } else if (error?.code) {
       message = String(error.code);
     } else {
