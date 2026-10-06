@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A page over the 2 MB download limit reported only `ERR_BAD_RESPONSE`.** Extract Page Content and Fetch Page Content now say `Page is larger than the 2 MB download limit`; any other `ERR_BAD_RESPONSE` keeps the reason the HTTP client gave. Found when template 6 could not read a 2.7 MB Wikipedia article.
 - **The README said a rate-limited search raises an error.** It does not: Web, News, Image and Video searches return an item with `success: false` and an `error` field whatever Error Handling is set to, and Search Suggestions and Extract Page Content do the same under the default Error Handling. The README now says so, and tells you to branch on `error`. The Web Search parser-failure note said the node throws; it returns an error item too.
 
 ---

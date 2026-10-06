@@ -215,6 +215,45 @@ describe('pageContent', () => {
       expect(result.error).toBe('Timed out after 1234ms');
     });
 
+    it('says plainly when a page is over the download limit', async () => {
+      mockedAxios.get = jest.fn().mockRejectedValue({
+        code: 'ERR_BAD_RESPONSE',
+        message: 'maxContentLength size of 2097152 exceeded',
+      });
+      const result = await fetchPageContent('https://big.example.com');
+      expect(result.content).toBe('');
+      expect(result.error).toBe('Page is larger than the 2 MB download limit');
+    });
+
+    it('keeps the reason for any other bad response', async () => {
+      mockedAxios.get = jest.fn().mockRejectedValue({
+        code: 'ERR_BAD_RESPONSE',
+        message: 'unexpected end of file',
+      });
+      const result = await fetchPageContent('https://broken.example.com');
+      expect(result.error).toBe('ERR_BAD_RESPONSE: unexpected end of file');
+    });
+
+    it('still reports the HTTP status when a bad response has one', async () => {
+      mockedAxios.get = jest.fn().mockRejectedValue({
+        code: 'ERR_BAD_RESPONSE',
+        message: 'Request failed with status code 502',
+        response: { status: 502 },
+      });
+      const result = await fetchPageContent('https://down.example.com');
+      expect(result.error).toBe('HTTP 502');
+    });
+
+    it('keeps the reason when a 200 response breaks off mid-body', async () => {
+      mockedAxios.get = jest.fn().mockRejectedValue({
+        code: 'ERR_BAD_RESPONSE',
+        message: 'stream has been aborted',
+        response: { status: 200 },
+      });
+      const result = await fetchPageContent('https://cut.example.com');
+      expect(result.error).toBe('ERR_BAD_RESPONSE: stream has been aborted');
+    });
+
     it('reports an HTTP status error', async () => {
       mockedAxios.get = jest.fn().mockRejectedValue({ response: { status: 404 } });
       const result = await fetchPageContent('https://missing.example.com');

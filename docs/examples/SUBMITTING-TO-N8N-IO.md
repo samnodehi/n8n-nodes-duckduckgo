@@ -668,6 +668,10 @@ Time is from the start of the execution to its last node.
   Finding more would take more searches per figure, which the five-search budget
   per run does not allow.
 - **The oversized page** surfaced as a bare `ERR_BAD_RESPONSE`. A plain
-  explanation was added to the template after that run, and is covered by the
-  template's local checks; the node itself should report it plainly - a
-  separate fix.
+  explanation was added to the template after that run. The node now reports it
+  plainly too (*Page is larger than the 2 MB download limit*, unreleased at the
+  time of writing), and gives the reason for any other `ERR_BAD_RESPONSE`. So
+  the template now treats only the bare code - what older node versions send -
+  as an oversized page and passes every other message through. That one line in
+  *Check the article* is the only difference between the repo JSON and the copy
+  submitted on 2026-10-06; upload the repo JSON if the review asks for changes.

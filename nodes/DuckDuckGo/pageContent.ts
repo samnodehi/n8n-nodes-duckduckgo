@@ -221,6 +221,11 @@ export function truncateText(text: string, maxLength: number): { text: string; t
   return { text: `${cut.trimEnd()}…`, truncated: true };
 }
 
+function formatBytes(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1 ? `${Number(mb.toFixed(1))} MB` : `${Math.round(bytes / 1024)} KB`;
+}
+
 function isHtmlContentType(contentType: unknown): boolean {
   if (typeof contentType !== 'string' || contentType === '') return true; // unknown → attempt anyway
   const ct = contentType.toLowerCase();
@@ -294,8 +299,17 @@ export async function fetchPageContent(
     let message: string;
     if (error?.code === 'ECONNABORTED') {
       message = `Timed out after ${timeout}ms`;
-    } else if (error?.response?.status) {
+    } else if (error?.response?.status && !(error.response.status >= 200 && error.response.status < 300)) {
+      // A body that breaks off mid-read also carries its 2xx response, and
+      // "HTTP 200" would hide the reason; those fall through to the code.
       message = `HTTP ${error.response.status}`;
+    } else if (error?.code === 'ERR_BAD_RESPONSE') {
+      // axios uses this one code for several failures, the size cap among them,
+      // so the code alone tells the user nothing.
+      const detail = typeof error.message === 'string' ? error.message : '';
+      message = /maxContentLength size of \d+ exceeded/.test(detail)
+        ? `Page is larger than the ${formatBytes(maxBytes)} download limit`
+        : detail ? `ERR_BAD_RESPONSE: ${detail}` : 'ERR_BAD_RESPONSE';
     } else if (error?.code) {
       message = String(error.code);
     } else {
