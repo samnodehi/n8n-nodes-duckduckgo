@@ -99,7 +99,7 @@ Searches DuckDuckGo and returns organic web results.
 | `fetchPageContent` | boolean | false | Fetch each result's page and extract its main text (opt-in; see [Page Content Extraction](#-page-content-extraction)) |
 | `pageContentMaxResults` | number | 3 | How many top results to fetch content for (when enabled) |
 | `pageContentMaxLength` | number | 2000 | Truncate extracted text to N characters (0 = no limit) |
-| `pageContentTimeout` | number | 8000 | Per-page fetch timeout in ms |
+| `pageContentTimeout` | number | 8000 | Time allowed for each page's whole download, in ms |
 
 **Example:**
 
@@ -198,7 +198,7 @@ Searches DuckDuckGo news results.
 | `fetchPageContent` | boolean | false | Fetch each article's page and extract its main text (opt-in; see [Page Content Extraction](#-page-content-extraction)) |
 | `pageContentMaxResults` | number | 3 | How many top results to fetch content for (when enabled) |
 | `pageContentMaxLength` | number | 2000 | Truncate extracted text to N characters (0 = no limit) |
-| `pageContentTimeout` | number | 8000 | Per-page fetch timeout in ms |
+| `pageContentTimeout` | number | 8000 | Time allowed for each page's whole download, in ms |
 
 **Example:**
 
@@ -298,10 +298,10 @@ Fetches **any URL** (not a search) and extracts its main readable text — usefu
 |-----------|------|---------|-------------|
 | `url` | string | required | The page URL to fetch and extract |
 | `pageContentMaxLength` | number | 2000 | Truncate extracted text to N characters (0 = no limit) |
-| `pageContentTimeout` | number | 8000 | Fetch timeout in ms |
+| `pageContentTimeout` | number | 8000 | Time allowed for the whole download, in ms |
 | `includePageMetadata` | boolean | false | Also return title/author/published/excerpt/siteName when the page is an article |
 
-The node downloads at most 2 MB of HTML per page. A bigger page returns empty `content` and an `error` field: `Page is larger than the 2 MB download limit`.
+The node reads at most the first 2 MB of a page's HTML. A longer page is read up to there - where the article text normally starts - and the result has `pageContentTruncated: true`. If those 2 MB hold no readable text, `content` is empty and the `error` field says `No readable text in the first 2 MB of the page`.
 
 **Sample output:**
 
@@ -453,8 +453,8 @@ Cache is in-memory only and is not shared across n8n worker processes or restart
 | `hostname` | string | Domain name |
 | `sourceType` | string | Always `"web"` |
 | `pageContent` | string | Extracted main text of the result page (only when **Fetch Page Content** is enabled; empty for results beyond the fetched top-N) |
-| `pageContentTruncated` | boolean | Present and `true` when `pageContent` was cut to `pageContentMaxLength` |
-| `pageContentError` | string | Present only when the page could not be fetched/parsed (e.g. `HTTP 403`, `Timed out after 8000ms`, `Page is larger than the 2 MB download limit`) |
+| `pageContentTruncated` | boolean | Present and `true` when `pageContent` was cut to `pageContentMaxLength`, or the page was longer than 2 MB and only its first 2 MB were read |
+| `pageContentError` | string | Present only when the page could not be fetched/parsed (e.g. `HTTP 403`, `Timed out after 8000ms`, `Page took too long to process (over 10 s)`, `Unsupported content encoding: compress`) |
 | `pageTitle` / `pageAuthor` / `pagePublished` / `pageExcerpt` / `pageSiteName` | string | Page metadata — present only when **Include Page Metadata** is enabled and the page is an article |
 
 ### Image Search
@@ -485,7 +485,7 @@ Cache is in-memory only and is not shared across n8n worker processes or restart
 | `isFallback` | boolean | `true` if result came from fallback path |
 | `sourceType` | string | Always `"news"` |
 | `pageContent` | string | Extracted main text of the article page (only when **Fetch Page Content** is enabled; empty for results beyond the fetched top-N) |
-| `pageContentTruncated` | boolean | Present and `true` when `pageContent` was cut to `pageContentMaxLength` |
+| `pageContentTruncated` | boolean | Present and `true` when `pageContent` was cut to `pageContentMaxLength`, or the page was longer than 2 MB and only its first 2 MB were read |
 | `pageContentError` | string | Present only when the page could not be fetched/parsed |
 | `pageTitle` / `pageAuthor` / `pagePublished` / `pageExcerpt` / `pageSiteName` | string | Page metadata — present only when **Include Page Metadata** is enabled and the page is an article |
 
@@ -866,16 +866,18 @@ To get **more text**, enable **Fetch Page Content** (available on **Web Search**
 | `fetchPageContent` | `false` | Master toggle |
 | `pageContentMaxResults` | `3` | Fetch content for the top N results only (controls speed) |
 | `pageContentMaxLength` | `2000` | Truncate each `pageContent` to N characters (`0` = no limit) |
-| `pageContentTimeout` | `8000` | Per-page fetch timeout in milliseconds |
+| `pageContentTimeout` | `8000` | Time allowed for each page's whole download - connecting, redirects and body - in milliseconds |
 | `includePageMetadata` | `false` | Also add `pageTitle` / `pageAuthor` / `pagePublished` / `pageExcerpt` / `pageSiteName` (when the page is an article) |
 
 **How it works:** extraction is three-tiered — (1) [Mozilla Readability](https://github.com/mozilla/readability) over a lightweight [linkedom](https://github.com/WebReflection/linkedom) DOM pulls the main article text and drops nav/boilerplate; (2) when Readability finds no article, a DOM heuristic removes boilerplate and high link-density blocks (menus not wrapped in `<nav>`); (3) if DOM parsing fails, a dependency-free regex heuristic is the last resort. The result feeds clean text to downstream nodes or AI agents.
+
+Extraction runs in a worker thread, one page at a time, with a 10-second limit per page that is separate from `pageContentTimeout`. Some HTML is slow to parse on purpose or by accident - Readability takes seconds to minutes on a few kilobytes of deeply nested elements, and the regex fallback is quadratic on an unclosed `<script>` flood - so a page that runs over gets `Page took too long to process (over 10 s)` instead of freezing n8n. The worker's heap is capped at 512 MB; a page that runs out of it gets `Page needs too much memory to process`. Other failures inside the worker read `Page could not be processed: …`. If the worker script cannot be loaded at all, extraction runs on the main thread, without the limit, as it did before.
 
 **Important caveats:**
 
 - ⚠️ **Privacy:** when enabled, the node makes HTTP requests to the **third-party result sites** — not only to DuckDuckGo. It is off by default precisely to preserve the DuckDuckGo-only guarantee.
 - **Speed:** each fetched result is one extra HTTP request. Keep `pageContentMaxResults` small (default 3) for fast workflows.
-- **Resilience:** a page that times out, blocks bots, or returns non-HTML does not fail the search — that result gets an empty `pageContent` and a `pageContentError` instead.
+- **Resilience:** a page that times out, blocks bots, takes too long to parse, or returns non-HTML does not fail the search — that result gets an empty `pageContent` and a `pageContentError` instead.
 - **JavaScript-rendered sites:** pages that render content client-side return little text from a raw fetch. Extracting those needs a headless browser, which is out of scope for this node.
 - **Quality:** Readability handles most article pages cleanly; sites it cannot parse fall back to a DOM/heuristic path that may keep a little navigation text. Page metadata (especially `pageAuthor`) is also extracted heuristically and may occasionally be imprecise. For the highest-quality extraction or summarisation, pipe `pageContent` into a downstream LLM node in your workflow.
 

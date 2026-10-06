@@ -10,11 +10,15 @@
 jest.mock('axios');
 
 import axios from 'axios';
+import { Readable } from 'stream';
 
 import { isBlockedHost, getUrlBlockReason, isFetchableUrl } from '../urlGuard';
 import { fetchPageContent } from '../pageContent';
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+// Page bodies are read as a stream, as axios delivers them with responseType stream.
+const bodyOf = (html: string) => Readable.from([Buffer.from(html)]);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -158,13 +162,13 @@ describe('fetchPageContent URL enforcement', () => {
     mockedAxios.get.mockResolvedValueOnce({
       status: 200,
       headers: { 'content-type': 'text/html' },
-      data: `<html><body><article>
+      data: bodyOf(`<html><body><article>
         <p>A sufficiently long article paragraph so that the extractor treats this as
         real content rather than boilerplate navigation, with enough words to pass the
         minimum length threshold used before trusting the parsed result.</p>
         <p>A second paragraph keeps the extracted article comfortably above that
         threshold so the assertion below is stable.</p>
-      </article></body></html>`,
+      </article></body></html>`),
     });
 
     const result = await fetchPageContent('https://example.com/article');
@@ -178,7 +182,7 @@ describe('fetchPageContent URL enforcement', () => {
     mockedAxios.get.mockResolvedValueOnce({
       status: 200,
       headers: { 'content-type': 'text/html' },
-      data: '<html><body><p>ok</p></body></html>',
+      data: bodyOf('<html><body><p>ok</p></body></html>'),
     });
 
     await fetchPageContent('https://example.com/article');
@@ -204,7 +208,7 @@ describe('fetchPageContent URL enforcement', () => {
     mockedAxios.get.mockResolvedValueOnce({
       status: 200,
       headers: { 'content-type': 'text/html' },
-      data: '<html><body><p>ok</p></body></html>',
+      data: bodyOf('<html><body><p>ok</p></body></html>'),
     });
 
     await fetchPageContent('https://example.com/article');

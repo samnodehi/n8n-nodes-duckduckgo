@@ -41,6 +41,8 @@ const FORBIDDEN = [
 const REQUIRED = [
   'dist/nodes/DuckDuckGo/DuckDuckGo.node.js',
   'dist/nodes/DuckDuckGo/duckduckgo.svg',
+  // Extraction runs in this worker; without it pages are parsed with no time limit.
+  'dist/nodes/DuckDuckGo/extractWorker.js',
   'dist/nodes/index.js',
 ];
 

@@ -660,7 +660,7 @@ Time is from the start of the execution to its last node.
 |---|---|---|---|---|
 | WHO fact sheet, drinking water | 25 s | 2 | 2 | 1 (people needing preventive treatment for schistosomiasis: 251.4 million for 2021, 253.7 million for 2024) |
 | Wikipedia, *Remote work* | 74 s | 5 | 5 | 1 (EU employed persons usually working from home: 12.3% for 2020, 9% for 2025) |
-| Wikipedia, *Electric car use by country* | 2 s | - | 0 | Not read: the page is 2.7 MB and the node reads at most 2 MB |
+| Wikipedia, *Electric car use by country* | 2 s | - | 0 | Not read: the page is 2.7 MB, and the node released then (32.16.0) failed on pages over 2 MB |
 
 - **No candidate was invented.** Where the pages read held no later figure for
   the same measure, the table says so instead of offering a weaker match.
@@ -668,9 +668,9 @@ Time is from the start of the execution to its last node.
   Finding more would take more searches per figure, which the five-search budget
   per run does not allow.
 - **The oversized page** surfaced as a bare `ERR_BAD_RESPONSE`. A plain
-  explanation was added to the template after that run. The node now reports it
-  plainly too (*Page is larger than the 2 MB download limit*, unreleased at the
-  time of writing), and gives the reason for any other `ERR_BAD_RESPONSE`. So
+  explanation was added to the template after that run. Newer node versions
+  (unreleased at the time of writing) read the first 2 MB of such a page
+  instead of failing, and give the reason for any other `ERR_BAD_RESPONSE`. So
   the template now treats only the bare code - what older node versions send -
   as an oversized page and passes every other message through. That one line in
   *Check the article* is the only difference between the repo JSON and the copy
