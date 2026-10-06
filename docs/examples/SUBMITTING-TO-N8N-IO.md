@@ -38,7 +38,7 @@ and its [template submission guidelines](https://n8n.notion.site/p/Template-subm
 **Template 5 was approved on 2026-10-05 and is published** as *Write cited research reports from DuckDuckGo search results with OpenRouter*:
 <https://n8n.io/workflows/20413-write-cited-research-reports-from-duckduckgo-search-results-with-openrouter/>. It was submitted with the repo JSON unchanged, the screenshot link at the top of the description, and the self-hosted line under Requirements. Templates 1 and 4 were refused as *too basic* (see the next section for why); 2 and 3 were never submitted. Two more approved templates would make the account a verified creator.
 
-**Template 6 was built on 2026-10-05 and is a draft in the portal (20511), not yet sent for human review.** See its section at the end of this file.
+**Template 6 was submitted on 2026-10-06 and is under review** (portal id 20511; the portal titled it *Find outdated article statistics with DuckDuckGo and OpenRouter*, and *Additional info* asks for the title without the provider). See its section at the end of this file.
 
 **The upload goes through a firewall that reads the code.** Template 6's first upload failed in the portal with *"Failed to fetch"*: the edge firewall in front of `api.n8n.io` answered 403 with an HTML page and no CORS headers, so the browser saw no response at all. Blanking one node at a time found the trigger - the address check in *Check the request*, written as two regex matches of URL patterns; removing either one let the file through. It is now written with plain string steps. Check a file before submitting it: an unauthenticated `POST` of the JSON to `https://api.n8n.io/api/workflows` that reaches n8n gets a JSON `ForbiddenError`; one the firewall stops gets an HTML page.
 
@@ -296,7 +296,7 @@ the top of this file, it is the strongest candidate of templates 1-5: templates 
 are common patterns, and the creators team described template 5's direction as
 the kind they like to see - without promising an outcome. That it adds
 something the library lacks is our judgement, not theirs. It went first and is
-published (see *Status*). Template 6 is the next submission; leave templates
+published (see *Status*). Template 6 followed and is under review; leave templates
 1-4 as they are unless one is reworked into something new.
 
 ---
