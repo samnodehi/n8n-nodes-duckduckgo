@@ -668,9 +668,9 @@ Time is from the start of the execution to its last node.
   Finding more would take more searches per figure, which the five-search budget
   per run does not allow.
 - **The oversized page** surfaced as a bare `ERR_BAD_RESPONSE`. A plain
-  explanation was added to the template after that run. Newer node versions
-  (unreleased at the time of writing) read the first 2 MB of such a page
-  instead of failing, and give the reason for any other `ERR_BAD_RESPONSE`. So
+  explanation was added to the template after that run. From 32.17.0
+  the node reads the first 2 MB of such a page
+  instead of failing, and gives the reason for any other `ERR_BAD_RESPONSE`. So
   the template now treats only the bare code - what older node versions send -
   as an oversized page and passes every other message through. That one line in
   *Check the article* is the only difference between the repo JSON and the copy

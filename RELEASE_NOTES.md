@@ -1,3 +1,102 @@
+# v32.17.0 — Big pages are read, and slow pages are stopped
+
+**Release Date:** 2026-10-06
+
+Extract Page Content and Fetch Page Content (Web and News) get three changes
+that were designed together. **If you use the node as an AI Agent tool,
+update:** two of them close ways a page could hold or freeze n8n. Check
+*What you might notice* below if a workflow reads error texts.
+
+---
+
+## Pages over 2 MB are read
+
+Until now a page over 2 MB returned nothing but `ERR_BAD_RESPONSE`; long
+Wikipedia articles are the common case.
+
+- The node now reads the first 2 MB, extracts from that, and sets
+  `pageContentTruncated: true`.
+- The 2.7 MB Wikipedia article that template 6 could not read now gives its
+  text.
+- The cut can leave markup unfinished. The node drops what would otherwise be
+  read as text: a comment, CDATA or `<script>`, `<style>`, `<noscript>`,
+  `<textarea>`, `<iframe>` or similar raw-text element left open, an `<svg>` or
+  `<template>` still open, and a tag cut in half. Script content in the legacy
+  escaped forms (`<script><!--<script>…`) is not recognised.
+- If the first 2 MB hold no readable text, the error says
+  `No readable text in the first 2 MB of the page`.
+
+## A slow server can no longer hold a fetch open
+
+The HTTP client's timeout was an idle timer that every byte reset. A server
+sending a byte every few hundred milliseconds kept the fetch open
+indefinitely, and the search waited on it.
+
+`pageContentTimeout` now covers the whole download - connecting, redirects and
+body. When it runs out, the error is `Timed out after Nms`.
+
+## A page built to be slow to parse can no longer freeze n8n
+
+Extraction ran on n8n's main thread, and some HTML is very slow to parse. On
+the maintainer's machine:
+
+- 1,000 nested `<div>`s (11 KB) took 5-9 s in Readability;
+- 2,000 took two minutes;
+- an unclosed `<script>` flood of about 1.6 MB took around a minute in the
+  regex fallback.
+
+An AI agent can be steered to such a page.
+
+Extraction now runs in a worker thread, one page at a time.
+
+- It stops after 10 s, separate from `pageContentTimeout`, with
+  `Page took too long to process (over 10 s)`.
+- It stops when the worker's 512 MB old-generation heap limit is hit, with
+  `Page needs too much memory to process`.
+- If the worker script cannot be loaded, extraction runs on the main thread as
+  before, without the time limit.
+
+## What you might notice
+
+- **Timeouts.** A slow page that used to finish because bytes kept arriving can
+  now time out. Raise `pageContentTimeout` if that matters.
+- **Error texts.** Other `ERR_BAD_RESPONSE` errors now include their reason
+  (`ERR_BAD_RESPONSE: <reason>`) where 32.16.0 gave the bare code. A body in an
+  encoding the HTTP client did not decode is refused
+  (`Unsupported content encoding: …`) instead of being read as garbage. A
+  workflow that matches the exact string `ERR_BAD_RESPONSE` needs updating.
+- **Pages that hit the limits.** A page that took more than 10 s or more than
+  512 MB to parse now gets an error, where it used to block n8n until done.
+  Ordinary pages stay well inside both: the 2.7 MB Wikipedia article and three
+  other pages, fetched together, took 2.7 s in all.
+
+## Checked
+
+572 tests across 27 suites. Three of them run the compiled worker, so they need
+`npm run build` first; CI builds before it tests. Those three check that:
+
+- 3,000 nested `<div>`s and an 80,000-tag `<script>` flood are stopped at the
+  deadline while the main thread keeps running;
+- a missing worker script falls back to inline extraction.
+
+Manual checks on the maintainer's machine, with the built package:
+
+- **Local server** (the URL guard bypassed in a scratch script, since it refuses
+  local addresses):
+  - a body sent a byte at a time, plain and gzip, stopped at a 1.5 s deadline;
+  - the server saw the connection close;
+  - a 5 MB page returned its start, marked truncated.
+- **Real pages:** with Max Content Length set to 40,000, the 2.7 MB Wikipedia
+  article returned 40,000 characters - that cap, from the first 2 MB.
+
+Inside a running n8n, this release is checked after publishing, with template 6.
+
+The documentation-only changes in this version - two example workflows and a
+README correction - are listed in the CHANGELOG. `docs/` is not part of the
+package.
+
+---
+
 # v32.16.0 — News and Video fetch more than one page
 
 **Release Date:** 2026-09-25
