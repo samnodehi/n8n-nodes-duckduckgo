@@ -89,7 +89,22 @@ Manual checks on the maintainer's machine, with the built package:
 - **Real pages:** with Max Content Length set to 40,000, the 2.7 MB Wikipedia
   article returned 40,000 characters - that cap, from the first 2 MB.
 
-Inside a running n8n, this release is checked after publishing, with template 6.
+**Inside a running n8n**, checked after publishing on the maintainer's
+self-hosted instance with 32.17.0 installed from npm. A small workflow ran
+Extract Page Content and made no DuckDuckGo request (executions 535236 and
+535239):
+
+- the 2.7 MB Wikipedia article returned 39,997 characters with its title,
+  `pageContentTruncated: true`;
+- a WHO fact sheet returned 9,368 characters, not truncated;
+- a missing Wikipedia page gave `HTTP 404`;
+- a page of 3,000 nested `<div>`s (33 KB), served by a temporary webhook on
+  the same instance, gave `Page took too long to process (over 10 s)`, and
+  the run went on to the next page. On the main thread that page takes well
+  over a minute to parse, so the result shows extraction ran in the worker
+  inside n8n.
+
+The run with the slow page took 12 s from start to finish.
 
 The documentation-only changes in this version - two example workflows and a
 README correction - are listed in the CHANGELOG. `docs/` is not part of the
