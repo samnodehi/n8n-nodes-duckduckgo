@@ -38,7 +38,7 @@ and its [template submission guidelines](https://n8n.notion.site/p/Template-subm
 **Template 5 was approved on 2026-10-05 and is published** as *Write cited research reports from DuckDuckGo search results with OpenRouter*:
 <https://n8n.io/workflows/20413-write-cited-research-reports-from-duckduckgo-search-results-with-openrouter/>. It was submitted with the repo JSON unchanged, the screenshot link at the top of the description, and the self-hosted line under Requirements. Templates 1 and 4 were refused as *too basic* (see the next section for why); 2 and 3 were never submitted. Two more approved templates would make the account a verified creator.
 
-**Template 6 was built on 2026-10-05 and has not been submitted yet.** See its section at the end of this file.
+**Template 6 was built on 2026-10-05 and is a draft in the portal (20511), not yet sent for human review.** See its section at the end of this file.
 
 **The upload goes through a firewall that reads the code.** Template 6's first upload failed in the portal with *"Failed to fetch"*: the edge firewall in front of `api.n8n.io` answered 403 with an HTML page and no CORS headers, so the browser saw no response at all. Blanking one node at a time found the trigger - the address check in *Check the request*, written as two regex matches of URL patterns; removing either one let the file through. It is now written with plain string steps. Check a file before submitting it: an unauthenticated `POST` of the JSON to `https://api.n8n.io/api/workflows` that reaches n8n gets a JSON `ForbiddenError`; one the firewall stops gets an HTML page.
 
@@ -90,8 +90,10 @@ Two more things worth knowing, both measured rather than assumed:
   commonly need 2–5 (`telegramApi` + an LLM, often plus Sheets or Postgres).
   The only credential rule in the guidelines is not to *hardcode* keys.
 - **The portal has no image upload field**, and that is by design — see
-  *The canvas does not render* below. The AI review derives the title from the
-  workflow's `name` and pre-fills the description form from the sticky notes.
+  *The canvas does not render* below. The AI review writes the title itself -
+  starting from the workflow's `name` but free to add to it, and not editable
+  afterwards (see Template 6) - and pre-fills the description form from the
+  sticky notes.
 
 **Diff the AI's rewritten JSON; do not upload it unread.** It has now been seen
 twice. On template 1 it was a regression. On template 4 (2026-09-11) it changed
@@ -490,8 +492,8 @@ the Code node hands on plain fields.
 ## Template 5 — Write a cited research report from DuckDuckGo results with an AI model
 
 File: `05-cited-research-report.json` — 22 real nodes (three of them model and
-output-parser sub-nodes) and six stickies. Needs an OpenRouter credential; the
-search side needs none.
+output-parser sub-nodes) and six stickies. Needs a credential for the AI model
+(OpenRouter by default); the search side needs none.
 
 > ![Write a cited research report from DuckDuckGo results](images/05-cited-research-report.png)
 >
@@ -570,17 +572,36 @@ the report is tied to what was read; it does not say the source is right.
 
 ---
 
-## Template 6 — Find outdated statistics in an article with DuckDuckGo and OpenRouter
+## Template 6 — Find outdated statistics in an article with DuckDuckGo
 
 File: `06-outdated-statistics.json` — 22 real nodes (three of them model and
-output-parser sub-nodes) and six stickies. Needs an OpenRouter credential; the
-search side needs none. Chosen on 2026-10-05 against n8n's bar (*useful to a
+output-parser sub-nodes) and six stickies. Needs a credential for the AI model
+(OpenRouter by default); the search side needs none. The workflow name names
+DuckDuckGo and not the model provider, because the provider is a swappable part.
+
+**The portal's title is not editable** (seen 2026-10-06 on the *Finalize your
+submission* page, draft 20511): its AI writes the title and shows it as plain text.
+It titled this draft "Find outdated article statistics with DuckDuckGo and
+OpenRouter", and it added "with OpenRouter" to template 5 although that workflow's
+name did not contain it - so re-uploading a renamed JSON is not expected to change
+it. Ask for the title in *Additional info* instead (the text below does), and
+rewrite the AI's pre-filled description fields, which also name OpenRouter.
+The draft was created from the JSON on `main` before the rename: upload the
+current `06-outdated-statistics.json` under *Upload updated workflow JSON*, and do
+not copy the AI's rewritten JSON.
+
+While a template sits unfinished and two others wait in *Implement changes*,
+*Share new template* is disabled behind a "Submission limit reached" dialog.
+
+Chosen on 2026-10-05 against n8n's bar (*useful to a
 broad audience and new to the library*): a keyword search of the library found
 nothing that checks an article's old figures against newer sources.
 
 > ![Find outdated statistics in an article](images/06-outdated-statistics.png)
 
-The portal now asks for the description in fields. Paste these:
+The portal now asks for the description in fields, with word counters: Quick
+overview 10-50 words, How it works and Setup 50+ each. Requirements and
+Customization are lists; Enter adds the next row. Paste these:
 
 **Quick overview**
 
@@ -601,29 +622,29 @@ Paste an article's address; this workflow lists its dated figures and, for each,
 
 **Setup**
 
-1. Self-hosted n8n: install `n8n-nodes-duckduckgo-search` under Settings → Community nodes.
-2. Add an OpenRouter credential to OpenRouter model (Gemini 3.8 Flash by default; any model that returns JSON reliably will do).
-3. Activate the workflow and open the form's production URL.
+1. Self-hosted n8n: install `n8n-nodes-duckduckgo-search` under Settings → Community nodes. Searching and reading pages need no API key or account.
+2. Add a credential to the chat-model node, OpenRouter model (Gemini 3.8 Flash by default). Any other chat-model node can replace it; choose a model that returns JSON reliably.
+3. Activate the workflow, open the form's production URL and paste an article's address. The region is optional and keeps the searches to one country or market.
 
 **Requirements**
 
 - Self-hosted n8n only: community nodes cannot be installed on n8n Cloud
 - The community node n8n-nodes-duckduckgo-search
-- An OpenRouter account and API key
+- An API key for the AI model: OpenRouter by default, or any provider with an n8n chat-model node
 - No API key or account is needed for DuckDuckGo
 
 **Customization**
 
 - Lower the limit of five figures (in Check the figures and the first prompt) for shorter runs; each figure is one DuckDuckGo search
 - Set a region in the form to keep searches to one country or market
-- Swap the OpenRouter model
+- Swap the model node for any other chat-model node
 - Keep the wait between searches: DuckDuckGo limits requests per IP address
 - Send the table by email or Slack instead of showing it on the form page
 
 **Additional info**
 
 ```text
-The canvas preview does not render community nodes, so the full canvas is in the screenshot at the top of the description. The table offers candidates for review, not corrections: a quote shown is word for word on its source page, which does not prove the figure is right or measures the same thing. Source and notes: https://github.com/samnodehi/n8n-nodes-duckduckgo/tree/main/docs/examples
+Suggested title: "Find outdated statistics in an article with DuckDuckGo". The AI model is a swappable part (any chat-model node works), so the title names only the search node. The canvas preview does not render community nodes, so the full canvas is in the screenshot at the top of the description. The table offers candidates for review, not corrections: a quote shown is word for word on its source page, which does not prove the figure is right or measures the same thing. Source and notes: https://github.com/samnodehi/n8n-nodes-duckduckgo/tree/main/docs/examples
 ```
 
 ### What the live runs showed (2026-10-05)
