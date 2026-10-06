@@ -304,7 +304,7 @@ export class DuckDuckGo implements INodeType {
             name: 'pageContentTimeout',
             type: 'number',
             default: 8000,
-            description: 'Maximum time in milliseconds to wait for the page to load',
+            description: 'Maximum time in milliseconds for the whole page download, including redirects',
             typeOptions: {
               minValue: 1000,
               maxValue: 60000,
@@ -539,7 +539,7 @@ export class DuckDuckGo implements INodeType {
             name: 'pageContentTimeout',
             type: 'number',
             default: 8000,
-            description: 'Maximum time in milliseconds to wait for each page to load',
+            description: 'Maximum time in milliseconds for each page download, including redirects',
             typeOptions: {
               minValue: 1000,
               maxValue: 60000,
@@ -980,7 +980,7 @@ export class DuckDuckGo implements INodeType {
             name: 'pageContentTimeout',
             type: 'number',
             default: 8000,
-            description: 'Maximum time in milliseconds to wait for each page to load',
+            description: 'Maximum time in milliseconds for each page download, including redirects',
             typeOptions: {
               minValue: 1000,
               maxValue: 60000,
