@@ -579,19 +579,22 @@ output-parser sub-nodes) and six stickies. Needs a credential for the AI model
 (OpenRouter by default); the search side needs none. The workflow name names
 DuckDuckGo and not the model provider, because the provider is a swappable part.
 
-**The portal's title is not editable** (seen 2026-10-06 on the *Finalize your
-submission* page, draft 20511): its AI writes the title and shows it as plain text.
-It titled this draft "Find outdated article statistics with DuckDuckGo and
-OpenRouter", and it added "with OpenRouter" to template 5 although that workflow's
-name did not contain it - so re-uploading a renamed JSON is not expected to change
-it. Ask for the title in *Additional info* instead (the text below does), and
-rewrite the AI's pre-filled description fields, which also name OpenRouter.
-The draft was created from the JSON on `main` before the rename: upload the
-current `06-outdated-statistics.json` under *Upload updated workflow JSON*, and do
-not copy the AI's rewritten JSON.
+**Submitted 2026-10-06 and under review** (portal id 20511). What went in: the
+current `06-outdated-statistics.json`, uploaded over the pre-rename JSON the draft
+was created from, and the description fields below in place of the AI's
+pre-filled ones, which named OpenRouter. The AI's rewritten JSON was not used.
+
+**The portal's title is not editable** (seen on the *Finalize your submission*
+page): its AI writes the title and shows it as plain text. It titled this template
+"Find outdated article statistics with DuckDuckGo and OpenRouter", and it added
+"with OpenRouter" to template 5 although that workflow's name did not contain it -
+so re-uploading a renamed JSON is not expected to change it. The title without the
+provider is asked for in *Additional info* instead; whether it changes is the
+reviewer's call.
 
 While a template sits unfinished and two others wait in *Implement changes*,
-*Share new template* is disabled behind a "Submission limit reached" dialog.
+*Share new template* is disabled behind a "Submission limit reached" dialog
+(seen on the draft; it was still disabled after submission).
 
 Chosen on 2026-10-05 against n8n's bar (*useful to a
 broad audience and new to the library*): a keyword search of the library found
