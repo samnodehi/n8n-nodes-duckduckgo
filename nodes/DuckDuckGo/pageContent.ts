@@ -423,6 +423,24 @@ const SKIP_TO_END_TAG = new Set([
 ]);
 
 /**
+ * Index of the '>' that completes the end tag of `name` at or after `from`,
+ * or -1. Only a whole tag counts: '</scriptx>' is not one, and neither is
+ * '</script' cut off before its '>'.
+ */
+function findEndTag(lower: string, name: string, from: number): number {
+  const open = '</' + name;
+  let at = lower.indexOf(open, from);
+  while (at !== -1) {
+    const next = lower.charAt(at + open.length);
+    if (next === '>' || next === '/' || next === ' ' || next === '\t' || next === '\n' || next === '\r' || next === '\f') {
+      return lower.indexOf('>', at + open.length);
+    }
+    at = lower.indexOf(open, at + 1);
+  }
+  return -1;
+}
+
+/**
  * Drop the unfinished tail of HTML that was cut at the byte limit: a comment,
  * script or similar element left open, or a tag cut in half, would otherwise
  * be read as text. The scan runs forwards, so a string such as '<style>'
@@ -458,12 +476,12 @@ export function trimCutHtml(html: string): string {
     }
     const name = tag[2];
     if (!tag[1] && SKIP_TO_END_TAG.has(name) && lower[gt - 1] !== '/') {
-      const endTag = lower.indexOf('</' + name, gt + 1);
-      if (endTag === -1) {
+      const endTagClose = findEndTag(lower, name, gt + 1);
+      if (endTagClose === -1) {
         cutAt = lt;
         break;
       }
-      i = endTag + 2;
+      i = endTagClose + 1;
       continue;
     }
     i = gt + 1;

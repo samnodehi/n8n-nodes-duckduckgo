@@ -146,6 +146,12 @@ describe('pageContent', () => {
       expect(trimCutHtml(html)).toBe(html);
     });
 
+    it('treats an end tag cut before its > or with a longer name as still open', () => {
+      expect(trimCutHtml('<p>ok</p><script>SECRET</script')).toBe('<p>ok</p>');
+      expect(trimCutHtml('<p>ok</p><script>a = "</scriptx>"; SECRET')).toBe('<p>ok</p>');
+      expect(trimCutHtml('<p>ok</p><script>x()</script ><p>after')).toBe('<p>ok</p><script>x()</script ><p>after');
+    });
+
     it('cuts at the right place after characters whose lower case is longer', () => {
       expect(trimCutHtml('<p>' + 'İ'.repeat(200) + '</p><script>var secret = 1;')).toBe('<p>' + 'İ'.repeat(200) + '</p>');
     });
