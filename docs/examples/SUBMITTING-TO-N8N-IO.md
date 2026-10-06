@@ -40,6 +40,8 @@ and its [template submission guidelines](https://n8n.notion.site/p/Template-subm
 
 **Template 6 was built on 2026-10-05 and has not been submitted yet.** See its section at the end of this file.
 
+**The upload goes through a firewall that reads the code.** Template 6's first upload failed in the portal with *"Failed to fetch"*: the edge firewall in front of `api.n8n.io` answered 403 with an HTML page and no CORS headers, so the browser saw no response at all. Blanking one node at a time found the trigger - the address check in *Check the request*, written as two regex matches of URL patterns; removing either one let the file through. It is now written with plain string steps. Check a file before submitting it: an unauthenticated `POST` of the JSON to `https://api.n8n.io/api/workflows` that reaches n8n gets a JSON `ForbiddenError`; one the firewall stops gets an HTML page.
+
 ## What "too basic" means — n8n's answer (2026-10-04)
 
 **Read this first; it overrides the node-count reasoning further down.** Asked
@@ -268,7 +270,7 @@ is already on that thread, so it reaches a person either way.
 3. **It costs real content.** Template 4's overview was at 298 of the 300
    permitted words, so making room meant cutting text that was doing a job.
 
-All five URLs were checked as publicly reachable on 2026-09-30: HTTP 200, `image/png`, and the
+All six URLs were checked as publicly reachable (1-5 on 2026-09-30, 6 on 2026-10-06): HTTP 200, `image/png`, and the
 bytes match the committed file. Retake and re-commit whenever a template changes shape —
 the URL stays the same, so a stale screenshot would silently mislead a reviewer.
 
