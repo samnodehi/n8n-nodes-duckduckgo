@@ -244,6 +244,16 @@ describe('pageContent', () => {
       expect(result.error).toBe('HTTP 502');
     });
 
+    it('keeps the reason when a 200 response breaks off mid-body', async () => {
+      mockedAxios.get = jest.fn().mockRejectedValue({
+        code: 'ERR_BAD_RESPONSE',
+        message: 'stream has been aborted',
+        response: { status: 200 },
+      });
+      const result = await fetchPageContent('https://cut.example.com');
+      expect(result.error).toBe('ERR_BAD_RESPONSE: stream has been aborted');
+    });
+
     it('reports an HTTP status error', async () => {
       mockedAxios.get = jest.fn().mockRejectedValue({ response: { status: 404 } });
       const result = await fetchPageContent('https://missing.example.com');

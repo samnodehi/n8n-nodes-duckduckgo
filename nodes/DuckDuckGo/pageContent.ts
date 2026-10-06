@@ -299,7 +299,9 @@ export async function fetchPageContent(
     let message: string;
     if (error?.code === 'ECONNABORTED') {
       message = `Timed out after ${timeout}ms`;
-    } else if (error?.response?.status) {
+    } else if (error?.response?.status && !(error.response.status >= 200 && error.response.status < 300)) {
+      // A body that breaks off mid-read also carries its 2xx response, and
+      // "HTTP 200" would hide the reason; those fall through to the code.
       message = `HTTP ${error.response.status}`;
     } else if (error?.code === 'ERR_BAD_RESPONSE') {
       // axios uses this one code for several failures, the size cap among them,
