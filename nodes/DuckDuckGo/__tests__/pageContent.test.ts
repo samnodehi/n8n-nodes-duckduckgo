@@ -152,6 +152,16 @@ describe('pageContent', () => {
       expect(trimCutHtml('<p>ok</p><script>x()</script ><p>after')).toBe('<p>ok</p><script>x()</script ><p>after');
     });
 
+    it('treats a tag cut inside a quoted attribute as cut, even past a > in the value', () => {
+      expect(trimCutHtml('<p>ok</p><div title=">SECRET')).toBe('<p>ok</p>');
+      expect(trimCutHtml('<p>ok</p><a title="a > b" href="/x">link</a><p>more')).toBe('<p>ok</p><a title="a > b" href="/x">link</a><p>more');
+    });
+
+    it('drops an svg or template still open at the cut, counting nested ones', () => {
+      expect(trimCutHtml('<p>ok</p><svg><svg></svg><text>SECRET</text>')).toBe('<p>ok</p>');
+      expect(trimCutHtml('<p>ok</p><svg><path d="M0 0"/></svg><p>after')).toBe('<p>ok</p><svg><path d="M0 0"/></svg><p>after');
+    });
+
     it('cuts at the right place after characters whose lower case is longer', () => {
       expect(trimCutHtml('<p>' + 'İ'.repeat(200) + '</p><script>var secret = 1;')).toBe('<p>' + 'İ'.repeat(200) + '</p>');
     });

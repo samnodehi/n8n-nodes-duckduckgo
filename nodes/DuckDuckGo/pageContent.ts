@@ -414,13 +414,40 @@ async function readUpTo(stream: AsyncIterable<Buffer | string>, maxBytes: number
 }
 
 /**
- * Elements whose content is not page text. Inside one, '<' does not start
- * markup the reader sees, so the scan jumps to the element's end tag.
+ * Elements whose content is raw text: inside one, '<' does not start markup,
+ * so the scan jumps to the element's end tag.
  */
-const SKIP_TO_END_TAG = new Set([
+const RAW_TEXT_ELEMENTS = new Set([
   'script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes',
-  'noscript', 'plaintext', 'template', 'svg',
+  'noscript', 'plaintext',
 ]);
+
+/** Elements whose content is markup but not page text; they can nest. */
+const HIDDEN_CONTAINERS = new Set(['svg', 'template']);
+
+const isSpace = (c: string) => c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f';
+
+/**
+ * Index of the '>' that ends the tag whose name ends just before `from`, or
+ * -1. A '>' inside a quoted attribute value does not end the tag.
+ */
+function findTagEnd(s: string, from: number): number {
+  let j = from;
+  while (j < s.length) {
+    const c = s[j];
+    if (c === '>') return j;
+    j++;
+    if (c !== '=') continue;
+    while (j < s.length && isSpace(s[j])) j++;
+    const quote = s[j];
+    if (quote === '"' || quote === "'") {
+      const close = s.indexOf(quote, j + 1);
+      if (close === -1) return -1;
+      j = close + 1;
+    }
+  }
+  return -1;
+}
 
 /**
  * Index of the '>' that completes the end tag of `name` at or after `from`,
@@ -432,7 +459,7 @@ function findEndTag(lower: string, name: string, from: number): number {
   let at = lower.indexOf(open, from);
   while (at !== -1) {
     const next = lower.charAt(at + open.length);
-    if (next === '>' || next === '/' || next === ' ' || next === '\t' || next === '\n' || next === '\r' || next === '\f') {
+    if (next === '>' || next === '/' || isSpace(next)) {
       return lower.indexOf('>', at + open.length);
     }
     at = lower.indexOf(open, at + 1);
@@ -442,14 +469,17 @@ function findEndTag(lower: string, name: string, from: number): number {
 
 /**
  * Drop the unfinished tail of HTML that was cut at the byte limit: a comment,
- * script or similar element left open, or a tag cut in half, would otherwise
- * be read as text. The scan runs forwards, so a string such as '<style>'
- * inside a script that is closed does not count as an open element.
+ * script or similar element left open, a tag cut in half, or an svg or
+ * template still open, would otherwise be read as text. The scan runs
+ * forwards, so a string such as '<style>' inside a closed script does not
+ * count as an open element.
  */
 export function trimCutHtml(html: string): string {
   // ASCII-only lowering keeps every index valid; toLowerCase() can change the
   // length of a string ('İ' becomes two characters).
   const lower = html.replace(/[A-Z]+/g, (s) => s.toLowerCase());
+  // Start positions of the svg and template elements still open, per name.
+  const openContainers = new Map<string, number[]>();
   let cutAt = html.length;
   let i = 0;
   for (;;) {
@@ -469,13 +499,17 @@ export function trimCutHtml(html: string): string {
       i = lt + 1;
       continue;
     }
-    const gt = lower.indexOf('>', lt);
+    const gt = findTagEnd(lower, lt + tag[0].length);
     if (gt === -1) {
       cutAt = lt;
       break;
     }
+    const closing = tag[1] === '/';
     const name = tag[2];
-    if (!tag[1] && SKIP_TO_END_TAG.has(name) && lower[gt - 1] !== '/') {
+    const selfClosing = lower[gt - 1] === '/';
+    if (closing) {
+      openContainers.get(name)?.pop();
+    } else if (!selfClosing && RAW_TEXT_ELEMENTS.has(name)) {
       const endTagClose = findEndTag(lower, name, gt + 1);
       if (endTagClose === -1) {
         cutAt = lt;
@@ -483,8 +517,15 @@ export function trimCutHtml(html: string): string {
       }
       i = endTagClose + 1;
       continue;
+    } else if (!selfClosing && HIDDEN_CONTAINERS.has(name)) {
+      const starts = openContainers.get(name) ?? [];
+      starts.push(lt);
+      openContainers.set(name, starts);
     }
     i = gt + 1;
+  }
+  for (const starts of openContainers.values()) {
+    if (starts.length > 0) cutAt = Math.min(cutAt, starts[0]);
   }
   // A multi-byte character split at the cut decodes as U+FFFD.
   let end = cutAt;
