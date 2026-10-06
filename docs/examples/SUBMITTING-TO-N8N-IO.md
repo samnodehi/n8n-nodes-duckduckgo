@@ -38,7 +38,7 @@ and its [template submission guidelines](https://n8n.notion.site/p/Template-subm
 **Template 5 was approved on 2026-10-05 and is published** as *Write cited research reports from DuckDuckGo search results with OpenRouter*:
 <https://n8n.io/workflows/20413-write-cited-research-reports-from-duckduckgo-search-results-with-openrouter/>. It was submitted with the repo JSON unchanged, the screenshot link at the top of the description, and the self-hosted line under Requirements. Templates 1 and 4 were refused as *too basic* (see the next section for why); 2 and 3 were never submitted. Two more approved templates would make the account a verified creator.
 
-**Template 6 was built on 2026-10-05 and is a draft in the portal (20511), not yet sent for human review.** See its section at the end of this file.
+**Template 6 was submitted on 2026-10-06 and is under review** (portal id 20511; the portal titled it *Find outdated article statistics with DuckDuckGo and OpenRouter*, and *Additional info* asks for the title without the provider). See its section at the end of this file.
 
 **The upload goes through a firewall that reads the code.** Template 6's first upload failed in the portal with *"Failed to fetch"*: the edge firewall in front of `api.n8n.io` answered 403 with an HTML page and no CORS headers, so the browser saw no response at all. Blanking one node at a time found the trigger - the address check in *Check the request*, written as two regex matches of URL patterns; removing either one let the file through. It is now written with plain string steps. Check a file before submitting it: an unauthenticated `POST` of the JSON to `https://api.n8n.io/api/workflows` that reaches n8n gets a JSON `ForbiddenError`; one the firewall stops gets an HTML page.
 
@@ -296,7 +296,7 @@ the top of this file, it is the strongest candidate of templates 1-5: templates 
 are common patterns, and the creators team described template 5's direction as
 the kind they like to see - without promising an outcome. That it adds
 something the library lacks is our judgement, not theirs. It went first and is
-published (see *Status*). Template 6 is the next submission; leave templates
+published (see *Status*). Template 6 followed and is under review; leave templates
 1-4 as they are unless one is reworked into something new.
 
 ---
@@ -579,19 +579,22 @@ output-parser sub-nodes) and six stickies. Needs a credential for the AI model
 (OpenRouter by default); the search side needs none. The workflow name names
 DuckDuckGo and not the model provider, because the provider is a swappable part.
 
-**The portal's title is not editable** (seen 2026-10-06 on the *Finalize your
-submission* page, draft 20511): its AI writes the title and shows it as plain text.
-It titled this draft "Find outdated article statistics with DuckDuckGo and
-OpenRouter", and it added "with OpenRouter" to template 5 although that workflow's
-name did not contain it - so re-uploading a renamed JSON is not expected to change
-it. Ask for the title in *Additional info* instead (the text below does), and
-rewrite the AI's pre-filled description fields, which also name OpenRouter.
-The draft was created from the JSON on `main` before the rename: upload the
-current `06-outdated-statistics.json` under *Upload updated workflow JSON*, and do
-not copy the AI's rewritten JSON.
+**Submitted 2026-10-06 and under review** (portal id 20511). What went in: the
+current `06-outdated-statistics.json`, uploaded over the pre-rename JSON the draft
+was created from, and the description fields below in place of the AI's
+pre-filled ones, which named OpenRouter. The AI's rewritten JSON was not used.
+
+**The portal's title is not editable** (seen on the *Finalize your submission*
+page): its AI writes the title and shows it as plain text. It titled this template
+"Find outdated article statistics with DuckDuckGo and OpenRouter", and it added
+"with OpenRouter" to template 5 although that workflow's name did not contain it -
+so re-uploading a renamed JSON is not expected to change it. The title without the
+provider is asked for in *Additional info* instead; whether it changes is the
+reviewer's call.
 
 While a template sits unfinished and two others wait in *Implement changes*,
-*Share new template* is disabled behind a "Submission limit reached" dialog.
+*Share new template* is disabled behind a "Submission limit reached" dialog
+(seen on the draft; it was still disabled after submission).
 
 Chosen on 2026-10-05 against n8n's bar (*useful to a
 broad audience and new to the library*): a keyword search of the library found
