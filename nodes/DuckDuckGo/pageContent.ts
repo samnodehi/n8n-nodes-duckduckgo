@@ -460,7 +460,7 @@ function findEndTag(lower: string, name: string, from: number): number {
   while (at !== -1) {
     const next = lower.charAt(at + open.length);
     if (next === '>' || next === '/' || isSpace(next)) {
-      return lower.indexOf('>', at + open.length);
+      return findTagEnd(lower, at + open.length);
     }
     at = lower.indexOf(open, at + 1);
   }

@@ -150,6 +150,7 @@ describe('pageContent', () => {
       expect(trimCutHtml('<p>ok</p><script>SECRET</script')).toBe('<p>ok</p>');
       expect(trimCutHtml('<p>ok</p><script>a = "</scriptx>"; SECRET')).toBe('<p>ok</p>');
       expect(trimCutHtml('<p>ok</p><script>x()</script ><p>after')).toBe('<p>ok</p><script>x()</script ><p>after');
+      expect(trimCutHtml('<p>ok</p><script>SECRET</script x=">')).toBe('<p>ok</p>');
     });
 
     it('treats a tag cut inside a quoted attribute as cut, even past a > in the value', () => {
