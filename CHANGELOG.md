@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A seventh example workflow: find alternatives to a software product.** `docs/examples/07-software-alternatives.json` takes a product name from a form, searches DuckDuckGo once, reads the top result pages, and shows a table of alternatives: for each, the separate sites that list it and a sentence quoted from one of them. Code keeps pages that list alternatives, leaves out the product's own site and uses one page per site; it keeps a name the model proposes only if its sentence is copied from that page, and does not count a site's vote for its own tool. It needs a credential for the AI model (OpenRouter by default); the search side needs none.
+
+### Fixed
+
+- **The README linked example workflow 6 with an address that no longer exists.** n8n retitled the template, which changed its address, and the old one answers 404. The links to examples 5 and 6 now use the number-only address, which n8n redirects to the current one whatever the title.
+
 ---
 
 ## [32.17.0] - 2026-10-06
