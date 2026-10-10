@@ -20,7 +20,7 @@
     {
       "parameters": {
         "content": "## 1. Check the request\nThe name is cleaned of quotes and search operators. A name that is not accepted ends the run with a page that says so.",
-        "width": 600,
+        "width": 648,
         "height": 300,
         "color": 7
       },
@@ -29,15 +29,15 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -40,
-        60
+        -48,
+        64
       ]
     },
     {
       "parameters": {
         "content": "## 2. Search and read\nOne DuckDuckGo search reads the top result pages. A page counts only if it was read: a search snippet is never used as evidence.",
-        "width": 300,
-        "height": 300,
+        "width": 252,
+        "height": 348,
         "color": 7
       },
       "id": "82356d5e-1c65-4668-8f4b-c1042d3d9172",
@@ -45,15 +45,15 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        600,
-        60
+        624,
+        0
       ]
     },
     {
       "parameters": {
         "content": "## 3. Choose the sources\nCode keeps pages that list alternatives, leaves out the product's own site, and uses one page per site. If none qualifies, or DuckDuckGo blocked the search, the run ends with a page that says why.",
-        "width": 400,
-        "height": 300,
+        "width": 448,
+        "height": 348,
         "color": 7
       },
       "id": "e7ed3bd2-2e55-443e-861d-152509ad88e2",
@@ -61,15 +61,15 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        920,
-        60
+        896,
+        0
       ]
     },
     {
       "parameters": {
         "content": "## 4. Name the alternatives\nThe model lists the tools each page offers as alternatives, with a sentence from the page. It sees only the numbered sources.",
-        "width": 520,
-        "height": 460,
+        "width": 392,
+        "height": 476,
         "color": 7
       },
       "id": "5721924d-4c5c-4b57-857d-0b9d4e88f242",
@@ -77,15 +77,15 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -40,
-        480
+        272,
+        400
       ]
     },
     {
       "parameters": {
         "content": "## 5. Verify and show\nCode keeps a name only if the quoted sentence is on that page, with the name as a whole word, and the page names the tool at least twice. The table counts separate sites, not a site's vote for its own tool.",
-        "width": 620,
-        "height": 460,
+        "width": 652,
+        "height": 476,
         "color": 7
       },
       "id": "689c5a69-9c02-4c90-8e2c-2847dc3fb1da",
@@ -93,8 +93,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        500,
-        480
+        688,
+        400
       ]
     },
     {
@@ -131,7 +131,7 @@
       "typeVersion": 2.6,
       "position": [
         0,
-        200
+        208
       ],
       "webhookId": "c73ae9cc-9a20-43cd-8c7f-7d6c5955f66d"
     },
@@ -146,8 +146,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
-        200
+        224,
+        208
       ]
     },
     {
@@ -178,8 +178,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        440,
-        200
+        448,
+        208
       ]
     },
     {
@@ -203,8 +203,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
       "position": [
-        700,
-        200
+        704,
+        192
       ],
       "onError": "continueRegularOutput"
     },
@@ -220,7 +220,7 @@
       "typeVersion": 2,
       "position": [
         960,
-        200
+        192
       ]
     },
     {
@@ -251,8 +251,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1180,
-        200
+        1184,
+        192
       ]
     },
     {
@@ -274,8 +274,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        200,
-        600
+        368,
+        544
       ],
       "onError": "continueRegularOutput",
       "retryOnFail": true,
@@ -291,8 +291,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        320,
-        800
+        528,
+        736
       ]
     },
     {
@@ -312,8 +312,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        180,
-        800
+        352,
+        736
       ]
     },
     {
@@ -327,8 +327,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        520,
-        600
+        720,
+        704
       ]
     },
     {
@@ -342,8 +342,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        740,
-        600
+        944,
+        704
       ]
     },
     {
@@ -357,8 +357,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        740,
-        800
+        944,
+        544
       ]
     },
     {
@@ -372,8 +372,8 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        960,
-        600
+        1152,
+        704
       ],
       "webhookId": "b0f47986-48a7-4dca-8e45-5f710efdf792"
     }
