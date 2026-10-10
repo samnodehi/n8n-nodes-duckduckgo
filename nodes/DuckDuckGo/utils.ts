@@ -155,6 +155,24 @@ export function makeDebugLogger(logger: Logger, enabled: boolean): DebugLogger |
 }
 
 /**
+ * True when the message names `status` as an HTTP status: "status code 403",
+ * "status 403", "statusCode=403", "HTTP 403", "403 Forbidden".
+ *
+ * A bare `includes('403')` also matched a number that is part of something
+ * else - an OpenSSL thread id, a port, a longer code - and gave an unrelated
+ * failure the "access denied" message, which callers read as a block. Only the
+ * forms this node and axios write are recognised; any other wording of a
+ * status falls through to the generic message.
+ */
+function mentionsHttpStatus(message: string, status: number): boolean {
+  // The gaps are bounded: the message can echo text a user or a model wrote, and
+  // an unbounded `\s*` pair backtracks quadratically on a long run of spaces.
+  const named = new RegExp(`\\b(?:status(?:\\s{0,3}code)?|http)[\\s:=]{0,8}${status}(?!\\w|\\.\\d)`, 'i');
+  const withReason = new RegExp(`(?<!\\w)${status}\\s{1,8}(?:forbidden|too many requests|bad request)`, 'i');
+  return named.test(message) || withReason.test(message);
+}
+
+/**
  * Parses an API error to provide more meaningful information
  *
  * @param error - The error object from API request
@@ -173,17 +191,17 @@ export function parseApiError(error: Error, operation: string): string {
   }
 
   // Handle rate limiting
-  if (error.message.includes('429') || error.message.includes('too many requests')) {
+  if (mentionsHttpStatus(error.message, 429) || error.message.includes('too many requests')) {
     return `DuckDuckGo rate limit reached. Please wait before making more requests.`;
   }
 
   // Handle specific API errors for different operations
   if (operation.includes('search')) {
-    if (error.message.includes('400')) {
+    if (mentionsHttpStatus(error.message, 400)) {
       return `Invalid search query or parameters. Please check your input and try again.`;
     }
 
-    if (error.message.includes('403')) {
+    if (mentionsHttpStatus(error.message, 403)) {
       return `Access denied. DuckDuckGo may have detected unusual search patterns.`;
     }
   }
