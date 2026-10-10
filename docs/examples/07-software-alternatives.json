@@ -83,7 +83,7 @@
     },
     {
       "parameters": {
-        "content": "## 5. Verify and show\nCode keeps a name only if the sentence the model quoted is on that page (spacing, curly quotes and accents aside), the name stands in it as a whole word, and the page names the tool at least twice and not only as a contrast. The table shows that passage, finished to the end of its sentence. It counts separate sites, without a site's vote for its own tool.",
+        "content": "## 5. Verify and show\nCode keeps a name only if the quoted sentence is on that page, with the name as a whole word, and the page names the tool at least twice. The table counts separate sites, not a site's vote for its own tool.",
         "width": 620,
         "height": 460,
         "color": 7
