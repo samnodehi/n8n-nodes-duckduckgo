@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **The README linked example workflow 6 with an address that no longer exists.** n8n retitled the template, which changed its address, and the old one answers 404. The links to examples 5 and 6 now use the number-only address, which n8n redirects to the current one whatever the title.
+- **Examples 5 and 6 discarded findings whose source id was not exactly `S1`, and did not recognise an "Access denied" search failure as a block.** The id was matched as the exact string, so a model that wrote `S1 k3j9x2` (the marker's per-run code), `[S1]` or `Source 1` had every finding from that source discarded; the number is now read from the start of the id. A search that failed with `Access denied. DuckDuckGo may have detected unusual search patterns.` (what the node reports for an HTTP 403) was reported as a search that found nothing (example 5: "nothing usable found", with advice to rephrase the question; example 6: "No later-dated figure found in 0 pages read"); it is now recognised as a block, like the bot-detection and rate-limit messages. The repo files change; copies already imported into n8n, including the ones published on n8n.io, keep the old behaviour until they are replaced.
 
 ---
 
