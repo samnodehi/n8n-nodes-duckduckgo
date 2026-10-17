@@ -1,3 +1,89 @@
+# v32.17.1 — An error text is a 403 only when it says so
+
+**Release Date:** 2026-10-17
+
+A small fix in how the node words a failed search, a seventh example workflow,
+and corrections to examples 5 and 6. **Nothing needs updating.** Check *What
+you might notice* below if a workflow reads error texts.
+
+---
+
+## An error message is a 400, 403 or 429 only when it names that status
+
+When a search failed, the node looked for the bare digits `400`, `403` and
+`429` in the error message to choose its wording. A failure that merely
+contained those digits got the wrong wording: an OpenSSL error with a thread id
+such as `140403288340288`, a longer code such as `14030`, or a port number was
+reported as `Access denied. DuckDuckGo may have detected unusual search
+patterns.` (or as a rate limit, or as a bad request). A workflow that branches
+on that text, the example workflows among them, takes the first of these for a
+block by DuckDuckGo.
+
+The digits now count only when the message names them as a status: after
+`status`, `status code` or `HTTP`, or before `Forbidden`, `Too Many Requests`
+or `Bad Request`. The gaps in those patterns are bounded, because the message
+can repeat text a user or a model typed.
+
+Every message that this node and axios write with the status in it (`status
+code 403`, `(HTTP 429)`, `403 Forbidden`) is still recognised and gets the same
+wording as before. The node's own web and image search texts for 429 (`Too
+many requests. ...`) carry no status number; they were not recognised before
+and are not now.
+
+## Example workflows
+
+These files are in `docs/examples/` and are not part of the npm package; the
+README that npm shows is.
+
+- **A seventh example: find alternatives to a software product**
+  (`docs/examples/07-software-alternatives.json`, published in n8n's template
+  library as n8n.io/workflows/20738). One Web Search reads the top result
+  pages, a model lists the tools each page offers, and code keeps a tool only
+  if the sentence the model quoted is on the page, then counts how many
+  separate sites list it, without a site's vote for its own tool.
+- **Examples 5 and 6** read the source id the model writes more loosely
+  (`S1 k3j9x2`, `[S1]` and `Source 1` used to discard every finding from that
+  source) and treat the `Access denied` search failure as a block. Copies
+  already imported into n8n, including the published templates, keep the old
+  behaviour until they are replaced.
+- **README:** examples 6 and 7 link to their templates in n8n's library, and
+  the link to example 5 uses the number-only n8n.io address, which keeps
+  working when n8n changes a title; the row for example 5 says that a quote may
+  also come from a search snippet when the page could not be read.
+
+## What you might notice
+
+- **Error texts.** A status written another way - `HTTP error 403`,
+  `Error 403`, `Forbidden (403)`, `HTTP/2 403` - is no longer recognised and
+  the item's `error` reads `Error during <operation>: <message>`. Neither this
+  node nor axios writes those forms, so this matters only if a proxy or a
+  different HTTP library puts its own wording in the message.
+- Nothing else about the node changes. The two development dependencies that
+  were updated (`@typescript-eslint/parser` 8.71.1, `prettier` 3.9.10) are not
+  part of the published package.
+
+## Checked
+
+601 tests across 27 suites, `eslint` and `tsc` clean. The tests for this
+version cover the texts that are recognised, the ones that are not (13 of the
+new cases fail on 32.17.0), the cooldown message that ends in a number of
+seconds, and a long run of spaces after a keyword.
+
+A reviewer built the node's real errors with the installed `axios` and
+`n8n-workflow` - 400, 403, 429 and 500 for web, image, news and video search,
+and the page that holds no search token - and the old and the new function
+gave the same wording for every error it built (22 in all; the script is not
+in the repository).
+
+**Not checked inside a running n8n:** this version has not been installed on
+an n8n instance. The changes to the examples were checked with the same Code
+nodes run outside n8n, and example 7 was run live on the maintainer's instance
+before it was submitted to n8n.
+
+The CHANGELOG lists every change of this version.
+
+---
+
 # v32.17.0 — Big pages are read, and slow pages are stopped
 
 **Release Date:** 2026-10-06
