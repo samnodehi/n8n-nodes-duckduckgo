@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Example 6 could accept a copyright year, or a sentence about another measure.** It kept a later figure when the sentence held the new value and a later year within 80 characters, so footer text such as "© 2025 Example Corp. ... 45% ...", or a sentence that merely had a number, could pass if the model proposed it. A year written right after `©`, `(c)` or `copyright` no longer counts, and a quote that contains `©` or "all rights reserved" is refused. A sentence with no word that begins like a word of the article's measure is still shown, with a note in the table ("The sentence does not name the same measure as the article ..."), because code cannot know that two sentences measure the same thing but can see when they share nothing. When the model returns several later figures for one measure, the one with fewer warnings (a different unit, a measure not named) is kept, and among equals the latest year; before, the latest year always won. The prompt now also tells the model that the year must be the one the value refers to. A date such as "Updated March 2025" is not recognised by code: it could belong to a real sentence. The repo file changes; the published template and copies already imported into n8n keep the old behaviour until they are replaced.
+
 ---
 
 ## [32.17.1] - 2026-10-17
