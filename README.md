@@ -629,19 +629,30 @@ This allows downstream nodes and AI Agents to detect and handle fallback results
 
 ## ⚠️ Error Behavior
 
-The node surfaces specific, actionable error messages rather than generic failures. Where this section says the node throws, the Web, News, Image and Video searches catch that error themselves and return it as an item with `success: false` and the message in `error`, rather than failing the execution — see [Ready-made workflows](#ready-made-workflows) for branching on it.
+The node surfaces specific, actionable error messages rather than generic failures. The Web, News, Image and Video searches catch a failure themselves and return one item with `success: false` and the message in `error`, rather than failing the execution — see [Ready-made workflows](#ready-made-workflows) for branching on it. The messages below are what `error` contains.
+
+### Rate limit and refusals (HTTP 429, 403, 400)
+
+| DuckDuckGo answers | `error` |
+|---|---|
+| a bot-detection page (HTTP 202; News and Video also recognise it on a 403, and Image on the results request) | the [challenge text](#bot-detection-challenge-rate-limiting) below |
+| HTTP 429 | `DuckDuckGo rate limit reached. Please wait before making more requests.` |
+| HTTP 403 | `Access denied. DuckDuckGo may have detected unusual search patterns.` |
+| HTTP 400 | `Invalid search query or parameters. Please check your input and try again.` |
+
+Most other failures keep their own description after `Error during <operation>:` — for example `Error during web search: DuckDuckGo server error. Please try again later.` for an HTTP 5xx on Web Search. The 429, 403 and 400 wording above is the same in all four searches; News and Video Search try their HTML fallback first, so these appear in the item only when the fallback finds nothing either. Wait before retrying a 429 or a 403: DuckDuckGo is refusing requests from this IP address, and an immediate retry only adds to them.
 
 ### Bot-detection challenge (rate limiting)
 
 DuckDuckGo answers a client it considers automated with a human-verification page instead of results. That page is served with **HTTP 202**, which ordinary HTTP clients treat as success — so earlier versions parsed it, found no result blocks, and returned an **empty array with no error at all**.
 
-The node now detects that page and throws:
+The node now detects that page and returns, in `error` (Web and Image Search on the request that meets it):
 
 > `DuckDuckGo served a bot-detection challenge instead of results. This blocks the IP address your n8n instance sends requests from, typically for tens of minutes. Wait before retrying, and reduce how frequently this node runs — shared or cloud IP addresses are affected sooner.`
 
 **What triggers it:** roughly fifteen or more requests from the same IP within a few minutes. The block is tied to the **IP address** — not to your account, query or region — lasts tens of minutes, and is not cleared by retrying or by changing User-Agent. The node therefore marks this error **non-retryable**: an immediate retry only prolongs the block.
 
-**Automatic back-off.** Once a challenge is seen, the node refuses further DuckDuckGo requests locally for about a minute instead of sending them, and says how many seconds remain. Every request made during a block is wasted and prolongs it, so this protects the shared IP rather than your workflow's throughput — requests resume on their own.
+**Automatic back-off.** Once a challenge is seen, the node refuses further DuckDuckGo requests locally for about a minute instead of sending them, and says how many seconds remain: `DuckDuckGo served a bot-detection challenge moments ago, so this request was not sent. ... Requests resume automatically in 42s; reduce how frequently this node runs.` That is also what a News or Video Search item carries when the challenge arrives, because its HTML fallback is refused by the back-off the challenge just started. Every request made during a block is wasted and prolongs it, so this protects the shared IP rather than your workflow's throughput — requests resume on their own.
 
 **If you hit it regularly:**
 
@@ -653,31 +664,31 @@ The node now detects that page and throws:
 
 ### Image Search: VQD token missing
 
-If DuckDuckGo's image search page does not return a valid VQD token (a session token required to query image results), the node throws:
+If DuckDuckGo's image search page does not return a valid VQD token (a session token required to query image results), the result item carries:
 
-> `DuckDuckGo image search token (VQD) could not be extracted. Image search may be temporarily unavailable. Please try again later.`
+> `Error during image search: Image search failed: DuckDuckGo image search token (VQD) could not be extracted. Image search may be temporarily unavailable. Please try again later.`
 
-No fake or placeholder image URLs are produced. The result item carries the error message.
+No fake or placeholder image URLs are produced.
 
 ### Image Search: 403 Forbidden
 
-If the image results endpoint (`i.js`) returns HTTP 403, the node throws:
+If the image results endpoint (`i.js`) returns HTTP 403 and the body is not a bot-detection page, the result item carries:
 
-> `DuckDuckGo image search returned 403 Forbidden. The search token (VQD) may have expired or the request was blocked. Please try again.`
+> `Access denied. DuckDuckGo may have detected unusual search patterns.`
 
-This typically indicates a VQD token expiry or a temporary block by DuckDuckGo.
+DuckDuckGo refused the request, usually as a temporary block. A VQD token that has expired is refetched and retried once before a 403 is reported, so an expired token is not the usual cause. With **Debug Mode** on, `errorDetails` holds the stack trace, whose first line is the longer text the node raised: `DuckDuckGo image search returned 403 Forbidden. The search token (VQD) may have expired or the request was blocked. Please try again.`
 
 ### Web Search: Parser failure
 
 If `directWebSearch` receives an HTTP 200 response with a large body but cannot parse any result blocks from it (indicating DuckDuckGo may have changed its HTML structure), the node returns an error item (`success: false`) with this message in `error`:
 
-> `DuckDuckGo web search response could not be parsed. The page structure may have changed. Please try again later.`
+> `Error during web search: DuckDuckGo web search response could not be parsed. The page structure may have changed. Please try again later.`
 
 This is distinct from a genuine no-results response, which returns an empty array without an error.
 
 ### Extract Page Content: refused address
 
-**Extract Page Content** and **Fetch Page Content** retrieve a URL supplied by the caller — and when the node runs as an AI Agent tool, the agent chooses that URL. The node therefore refuses any address that is not publicly routable:
+**Extract Page Content** and **Fetch Page Content** retrieve a URL supplied by the caller — and when the node runs as an AI Agent tool, the agent chooses that URL. The node therefore refuses any address that is not publicly routable. **Extract Page Content** puts the reason in the item's `error` field (with an empty `content`, and no `success` field); the **Fetch Page Content** option of a search puts it in that result's `pageContentError`:
 
 > `Refused to fetch a private, loopback or link-local address`
 > `Refused to fetch a non-HTTP(S) URL (file)`
@@ -709,7 +720,7 @@ This node supports `usableAsTool: true`, making it available as a tool inside n8
 
 - Output fields are consistent and predictable, suitable for LLM processing
 - `isFallback: true` on news/video results signals lower-confidence data to downstream logic
-- Specific error messages (VQD missing, 403, parser failure) help agents self-diagnose and retry
+- Specific error messages (VQD missing, 403, parser failure) help agents self-diagnose
 - Some older n8n versions may require the environment variable `N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true` to expose community nodes as agent tools
 
 ---
@@ -835,9 +846,9 @@ Before v32.10.0 this condition returned an empty result list with no error, whic
 
 DuckDuckGo image search requires a session token (VQD) extracted from an initial page load. If this extraction fails, retry the request. This is a temporary DuckDuckGo availability issue.
 
-### Image search fails with 403
+### Search returns "rate limit reached" or "Access denied"
 
-The VQD token may have expired or DuckDuckGo has temporarily rate-limited requests from your IP. Wait a short period and retry.
+DuckDuckGo answered the request with HTTP 429 or 403 (see [Rate limit and refusals](#rate-limit-and-refusals-http-429-403-400)). Treat it like the [bot-detection challenge](#search-returns-a-bot-detection-challenge-error): wait, and reduce how often the node runs — an immediate retry only adds to the requests DuckDuckGo is refusing.
 
 ### Web search returns parser failure error
 

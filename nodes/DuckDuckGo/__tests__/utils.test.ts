@@ -1,4 +1,5 @@
 import { parseApiError } from '../utils';
+import { DuckDuckGoError, DuckDuckGoErrorType } from '../errors';
 
 describe('parseApiError', () => {
   describe('network errors', () => {
@@ -120,7 +121,8 @@ describe('parseApiError', () => {
       expect(parseApiError(new Error('Request failed with status code 429'), 'extract content')).toContain('rate limit');
     });
 
-    // The cooldown message ends with a number of seconds, which can be 403 or 429.
+    // The cooldown message ends with a number of seconds, which can be 403 or 429. (The real
+    // cooldown error is a DuckDuckGoError and is returned as it is; this is the same text as a plain Error.)
     it.each(['403s', '429s', '1429s'])('does not read "resume automatically in %s" as a status', (seconds) => {
       const message = `DuckDuckGo showed a bot-detection challenge moments ago, so this request was not sent. Requests resume automatically in ${seconds}.`;
       expect(parseApiError(new Error(message), 'web search')).toBe(`Error during web search: ${message}`);
@@ -135,6 +137,35 @@ describe('parseApiError', () => {
         expect(parseApiError(new Error(message), 'web search')).toBe(`Error during web search: ${message}`);
       }
       expect(Date.now() - start).toBeLessThan(1000);
+    });
+  });
+
+  describe('errors the node worded itself', () => {
+    it('returns the guidance of a bot-detection challenge, whatever numbers it contains', () => {
+      const challenge = new DuckDuckGoError('DuckDuckGo returned a bot-detection challenge instead of web search results.', DuckDuckGoErrorType.BOT_CHALLENGE);
+      expect(parseApiError(challenge, 'web search')).toBe(challenge.userMessage);
+      expect(challenge.userMessage).toContain('typically for tens of minutes');
+
+      const cooldown = 'DuckDuckGo served a bot-detection challenge moments ago, so this request was not sent. Requests resume automatically in 403s.';
+      const cooling = new DuckDuckGoError(cooldown, DuckDuckGoErrorType.BOT_CHALLENGE, { userMessage: cooldown });
+      expect(parseApiError(cooling, 'image search')).toBe(cooldown);
+    });
+
+    it('does not replace the message of any other DuckDuckGoError', () => {
+      const other = new DuckDuckGoError('Search failed for a reason of its own', DuckDuckGoErrorType.VQD_TOKEN_ERROR);
+      expect(parseApiError(other, 'web search')).toBe('Error during web search: Search failed for a reason of its own');
+    });
+  });
+
+  // The generic catch passes the operation id, not a label.
+  describe('operation ids', () => {
+    it.each(['search', 'searchImages', 'searchNews', 'searchVideos'])('%s gets the search-specific 403 message', (operation) => {
+      expect(parseApiError(new Error('Request failed with status code 403'), operation)).toContain('Access denied');
+    });
+
+    it.each(['extractContent', 'instantAnswer', 'autocomplete'])('%s does not', (operation) => {
+      expect(parseApiError(new Error('Request failed with status code 403'), operation))
+        .toBe(`Error during ${operation}: Request failed with status code 403`);
     });
   });
 

@@ -25,7 +25,7 @@ describe('search failures are reported as n8n errors', () => {
       expect(error).toBeInstanceOf(NodeApiError);
       expect(error.httpCode).toBe('429');
       // The node's own wording survives; NodeApiError does not overwrite it.
-      expect(error.message).toBe('Too many requests. Please wait a moment before trying again.');
+      expect(error.message).toBe('Too many requests (HTTP 429). Please wait a moment before trying again.');
     });
 
     it('reports a 5xx as a NodeApiError carrying the status code', async () => {

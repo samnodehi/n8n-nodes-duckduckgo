@@ -3,6 +3,7 @@
  */
 
 import type { Logger, LogMetadata } from 'n8n-workflow';
+import { DuckDuckGoError, DuckDuckGoErrorType } from './errors';
 
 /**
  * HTML entity mapping for decoding
@@ -180,6 +181,12 @@ function mentionsHttpStatus(message: string, status: number): boolean {
  * @returns A user-friendly error message
  */
 export function parseApiError(error: Error, operation: string): string {
+  // A bot-detection challenge, or the local back-off after one, is already worded for the user
+  // (how long it lasts, what to change). Re-wording it would drop that guidance.
+  if (error instanceof DuckDuckGoError && error.errorType === DuckDuckGoErrorType.BOT_CHALLENGE) {
+    return error.userMessage;
+  }
+
   // Handle network errors
   if (error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
     return `Unable to connect to DuckDuckGo servers. Please check your internet connection and try again.`;
