@@ -63,6 +63,14 @@ describe('example 5: passages under each cited source', () => {
     expect(passageLines(report)[4]).toBe('    - _+2 more verified_');
   });
 
+  it('counts passages that share their first 300 characters as different passages', () => {
+    const prefix = 'x'.repeat(320) + ' ';
+    const quotes = ['a', 'b', 'c', 'd', 'e'].map((w) => ({ sourceId: 'S1', quote: prefix + 'ends with ' + w }));
+    const report = buildReport([{ id: 'S1', url: 'https://a.example/x', title: 'One' }], quotes, 'A [S1].');
+    expect(passageLines(report)).toHaveLength(5);
+    expect(passageLines(report)[4]).toBe('    - _+1 more verified_');
+  });
+
   it('cuts a long passage at 300 characters without leaving half a surrogate pair', () => {
     const report = buildReport(
       [{ id: 'S1', url: 'https://a.example/x', title: 'One' }],
