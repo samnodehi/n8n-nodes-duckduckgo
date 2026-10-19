@@ -225,7 +225,7 @@ export async function directWebSearch(node: INode, query: string, options: {
     } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
       message = 'Unable to connect to DuckDuckGo. Please check your internet connection.';
     } else if (status === 429) {
-      message = 'Too many requests. Please wait a moment before trying again.';
+      message = 'Too many requests (HTTP 429). Please wait a moment before trying again.';
     } else if (status >= 500) {
       message = 'DuckDuckGo server error. Please try again later.';
     } else {
@@ -399,7 +399,7 @@ export async function directImageSearch(node: INode, query: string, options: {
     } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
       message = 'Unable to connect to DuckDuckGo for image search. Please check your internet connection.';
     } else if (status === 429) {
-      message = 'Too many image search requests. Please wait a moment before trying again.';
+      message = 'Too many image search requests (HTTP 429). Please wait a moment before trying again.';
     } else if (status === 403) {
       message =
         'DuckDuckGo image search returned 403 Forbidden. ' +
