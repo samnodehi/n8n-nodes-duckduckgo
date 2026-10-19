@@ -1,3 +1,110 @@
+# v32.17.2 — A rate limit is reported as one in every search
+
+**Release Date:** 2026-10-19
+
+The `error` field of a failed Web or Image Search now reads like the one of News
+and Video Search and like the README, and the example workflows treat text from
+web pages as text. **Nothing in the node needs updating.** Check *What you
+might notice* below if a workflow reads error texts.
+
+---
+
+## The `error` field says what the README says
+
+The README quoted messages that the result item does not hold. Checked against
+the built node with real axios errors, three things differed:
+
+- **HTTP 429 in Web and Image Search** came back as `Error during web search:
+  Too many requests. ...`, never as a rate limit, because the node's own text
+  for it carried no status for the classifier to read. News and Video Search
+  already said `DuckDuckGo rate limit reached. Please wait before making more
+  requests.` All four searches now say that. The node's two texts name the
+  status (`Too many requests (HTTP 429). ...`).
+- **A bot-detection challenge in Web and Image Search** came back as
+  `Error during web search: DuckDuckGo returned a bot-detection challenge
+  instead of web search results.`, without the advice (the block lasts tens of
+  minutes; reduce how often the node runs) that the README quotes. The same
+  goes for the local back-off that follows one. Both now carry the node's own
+  wording, without the prefix. A News or Video item that meets a challenge
+  still carries the back-off text, because its HTML fallback is refused by the
+  back-off the challenge just started.
+- **The README's Error Behavior and Troubleshooting sections** now list what
+  `error` really contains for a challenge, 429, 403 and 400, the VQD and
+  parser failures, and where a refused address in Extract Page Content
+  (`error`) and in Fetch Page Content (`pageContentError`) appears. Image
+  Search's 403 text never reached `error`; it reads `Access denied. ...`, and
+  the longer text is in `errorDetails` with Debug Mode on.
+
+## Example workflows
+
+These files are in `docs/examples/` and are not part of the npm package; the
+README that npm shows is. Copies already imported into n8n, including the
+published template of example 5 (n8n.io/workflows/20413), keep the old
+behaviour until they are replaced.
+
+- **Example 5 shows the passages behind a citation.** Under each cited source
+  it lists up to four of the passages that were verified in it, with the day
+  they were read.
+- **Examples 1 and 5 treated text from a page as markup.** In example 5 the
+  report's Markdown escaped `<` with a backslash and the converter still
+  emitted the tag, so a page title such as `<img src=x onerror=...>` became a
+  live element, and a page address containing `)` could end its own link and
+  add another. n8n's form completion page renders the report as HTML (read in
+  the source of n8n 2.27.3; only a content-security sandbox applies), so the
+  Code node was the only protection. Example 1 put a page's title, extract and
+  address into its Markdown brief as they were. Both now make page text inert:
+  one line, entities for `<` and `>`, escaped brackets, links only for
+  http(s) with the characters that end a link encoded. If you imported
+  example 1 or 5 earlier, import the file again.
+- **Example 6** no longer accepts a year written after a copyright mark or a
+  quote with `©` or "all rights reserved", and shows a note when the later
+  sentence does not name the same measure as the article. When the model
+  proposes several later values for one figure, the one with fewer warnings is
+  kept (before, the latest year always won), and the prompt says the year must
+  be the one the value refers to. The published template of example 6
+  (n8n.io/workflows/20511) keeps the old behaviour too.
+
+## What you might notice
+
+- **Error texts.** A workflow that matched the old text of these items needs
+  updating: `Error during web search: Too many requests. Please wait a moment
+  before trying again.` and `Error during image search: Too many image search
+  requests. ...` (Web and Image Search, HTTP 429) now
+  read `DuckDuckGo rate limit reached. Please wait before making more
+  requests.`; `Error during web search: DuckDuckGo returned a bot-detection
+  challenge instead of web search results.` (and the same for image search)
+  and the back-off text with its `Error during ...:` prefix now read as the
+  README quotes them. The example workflows match on "challenge",
+  "bot-detection", "rate limit" and "access denied", which every one of the new
+  texts contains.
+- Nothing else about the node changes.
+
+## Checked
+
+660 tests across 30 suites, `eslint` and `tsc` clean. `itemErrors.test.ts`
+runs the error each search throws through the function that makes the item's
+text, for Web, Image and News Search (5 of its 15 cases fail on 32.17.1).
+`exampleReport.test.ts` and `exampleBrief.test.ts` run the Code nodes of
+examples 5 and 1 from the JSON against hostile page text; they fail on the
+previous files.
+
+The item texts were also read off the built node with real axios errors from a
+local server (HTTP 400, 403, 429 and 500, a timeout, a failed lookup, a
+challenge page; web, image and news; the script is not in the repository). The
+rendered reports and briefs were checked outside the repository with showdown
+2.1.0, the converter n8n's Markdown node uses, and an HTML parser, against
+dozens of hostile strings (example 1 in four converter configurations). On
+2026-10-19 the new example 5 file was accepted by the firewall in front of the
+n8n template API (an unauthenticated request got n8n's JSON answer, not the
+firewall's HTML page; nothing was uploaded).
+
+**Not checked inside a running n8n:** this version has not been installed on an
+n8n instance, and the Code nodes of the examples were run outside n8n.
+
+The CHANGELOG lists every change of this version.
+
+---
+
 # v32.17.1 — An error text is a 403 only when it says so
 
 **Release Date:** 2026-10-17
