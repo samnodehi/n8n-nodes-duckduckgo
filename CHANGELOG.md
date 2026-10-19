@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [32.17.2] - 2026-10-19
+
 ### Added
 
 - **Example 5 shows the passages behind a citation.** The report cited sources but not the words that backed them, so a reader could not see what a citation rested on or check it later. Each cited source in "Sources" now lists up to four of the passages that were verified in it (one line each, cut at 300 characters, with "+N more verified" when there are more), under a note that they were found in the source text (the page, or the search snippet when the page could not be read) as read on the day of the run, that capitals, quote marks, dashes and ellipses may differ, that they are not matched to single sentences, and that the page may have changed since. The prompts and the verification are unchanged, and the page now wraps long unbroken text. The repo file changes; the published template (n8n.io/workflows/20413) and copies already imported into n8n keep the old behaviour until they are replaced.
