@@ -158,6 +158,52 @@ describe('example 8: the request', () => {
   });
 });
 
+describe('example 8: the redirect of the page itself', () => {
+  const look = (response: Json) =>
+    run('Look at the page answer', [response], { 'Check the request': { url: 'http://example.com/blog', max: 30 } })[0];
+
+  it('follows one redirect, to a name that looks public', () => {
+    expect(look({ statusCode: 301, headers: { location: 'https://www.example.com/blog/' }, data: '' }).next).toBe(
+      'https://www.example.com/blog/',
+    );
+    expect(look({ statusCode: 302, headers: { location: '/en/blog' }, data: '' }).next).toBe('http://example.com/en/blog');
+  });
+
+  it('does not follow a redirect to a private, local or unusual address, to itself, or a page that did not redirect', () => {
+    for (const location of [
+      'http://127.0.0.1/admin',
+      'http://169.254.169.254/latest',
+      'http://localhost:5678/',
+      'http://internal.corp/',
+      'https://example.com:22/',
+      'http://127.0.0.1\\@example.com/',
+      'http://example.com/blog',
+    ]) {
+      expect(look({ statusCode: 302, headers: { location }, data: '' }).next).toBe('');
+    }
+    expect(look({ statusCode: 200, headers: {}, data: '<a href="/x">x</a>' }).next).toBe('');
+    expect(look({ error: { message: 'getaddrinfo ENOTFOUND example.com' } }).next).toBe('');
+  });
+
+  it('passes the answer on unchanged', () => {
+    const answer = look({ statusCode: 200, headers: { 'content-type': 'text/html' }, data: '<a href="/x">x</a>' });
+    expect(answer).toMatchObject({ statusCode: 200, data: '<a href="/x">x</a>' });
+  });
+
+  it('is wired so that the page is read again only when it moved, and both paths reach the same collection', () => {
+    expect(example.connections['Read the page'].main[0].map((c) => c.node)).toEqual(['Look at the page answer']);
+    expect(example.connections['Did the page move?'].main.map((b) => b.map((c) => c.node))).toEqual([
+      ['Read the moved page'],
+      ['Collect the links'],
+    ]);
+    expect(example.connections['Read the moved page'].main[0].map((c) => c.node)).toEqual(['Collect the links']);
+    for (const name of ['Read the page', 'Read the moved page']) {
+      const node = example.nodes.find((n) => n.name === name)!;
+      expect(JSON.stringify(node.parameters)).toContain('"followRedirects":false');
+    }
+  });
+});
+
 describe('example 8: collecting the links', () => {
   const html = `<html><body>
 <a href="/about">About us</a> <a href='https://other.example/page?id=1&amp;x=2#frag'>Other <b>site</b></a>
@@ -167,10 +213,25 @@ describe('example 8: collecting the links', () => {
 <a class="x" HREF=unquoted.html>unquoted</a> <a name="anchor">no href</a> <a href="https://example.com/blog/post">self</a>
 <a href="/cdn-cgi/l/email-protection#abc">protected mail</a> <a href="http://127.0.0.1\\@evil.example/x">backslash</a> <a href="http://exa&#9;mple.org/t">tab</a> <a href="https://web.archive.org/web/2020/x">archive</a> <a href="https://example.org/a b">space</a>
 </body></html>`;
-  const collect = (response: Json, max = 30) =>
+  const collect = (response: Json, max = 30, next = '') =>
     run('Collect the links', [response], {
       'Check the request': { url: 'https://example.com/blog/post', max },
+      'Look at the page answer': { next },
     });
+
+  it('reads the page from the address its redirect led to, and resolves relative links against it', () => {
+    const [link] = collect({ statusCode: 200, data: '<a href="intro.html">i</a>' }, 30, 'https://www.example.com/docs/');
+    expect(link).toMatchObject({ url: 'https://www.example.com/docs/intro.html', page: 'https://www.example.com/docs/' });
+  });
+
+  it('says where the page redirects to when it was not followed, and shows nothing but text', () => {
+    const [notice] = collect({ statusCode: 302, headers: { location: 'http://127.0.0.1/<b>x</b>' }, data: '' });
+    expect(notice.ok).toBe(false);
+    expect(notice.error).toContain('http://127.0.0.1/<b>x</b>');
+    expect(notice.error).toContain('Only one redirect');
+    const shown = run('Explain why there is nothing to check', [notice])[0];
+    expect(shown.html).not.toContain('<b>');
+  });
 
   it('resolves, cleans and de-duplicates the links of the page', () => {
     const links = collect({ statusCode: 200, data: html });

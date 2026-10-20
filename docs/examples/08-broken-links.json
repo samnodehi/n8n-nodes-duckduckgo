@@ -19,10 +19,10 @@
     },
     {
       "parameters": {
-        "content": "## 1. Read the page\nThe address must look like a public web page. The page is downloaded and every link to another page in its source is collected, up to the number you ask for (30 by default, at most 50). Links made by JavaScript are not seen.",
+        "content": "## 1. Read the page\nThe address must look like a public web page. It is downloaded (one redirect is followed, to a public address only) and its links to other pages are collected: 30 by default, 50 at most. Links made by JavaScript are not seen.",
         "color": 7,
-        "width": 1280,
-        "height": 300
+        "width": 2000,
+        "height": 380
       },
       "id": "084aed95-7da2-4822-8fa3-2a37a31d75cf",
       "name": "Section - read the page",
@@ -37,7 +37,7 @@
       "parameters": {
         "content": "## 2. Check each link\nEach link is asked without following redirects. A redirect that only changes the scheme, www. or a closing slash is asked once more. A page that says \"not found\" counts as broken. Only 12 problems get a closer look.",
         "color": 7,
-        "width": 1700,
+        "width": 1740,
         "height": 380
       },
       "id": "e53f5c68-7348-4ee5-83a8-fe475284dc05",
@@ -45,7 +45,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1260,
+        1960,
         60
       ]
     },
@@ -69,7 +69,7 @@
       "parameters": {
         "content": "## 4. Show the result\nCode builds one table: what is wrong, the saved copy, and a replacement: verified when its own title contains the old title, Possible when a same-site page has nearly the same words. Text from pages is escaped.",
         "color": 7,
-        "width": 420,
+        "width": 520,
         "height": 300
       },
       "id": "891f5ed7-b2ba-42ab-8eba-a8086ae272e4",
@@ -77,7 +77,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        3000,
+        3700,
         60
       ]
     },
@@ -188,7 +188,12 @@
               "responseFormat": "text"
             }
           },
-          "timeout": 15000
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
         }
       },
       "id": "23aab8ad-f1c5-4840-85eb-1edaee3a2171",
@@ -205,14 +210,100 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Collects the links of the page, resolves them against the page address and keeps at most the number asked for.\nconst request = $('Check the request').first().json;\nconst res = $input.first().json;\nconst fail = (error) => [{ json: { ok: false, error, url: request.url } }];\n\nif (res.error) return fail('The page could not be reached: ' + String((res.error && res.error.message) || res.error).slice(0, 160));\nconst status = Number(res.statusCode) || 200;\nif (status >= 400) return fail('The page answered HTTP ' + status + ', so there are no links to check.');\nconst html = String(res.data || '');\nif (!html.trim()) return fail('The page is empty.');\n\n// Character references: the common named ones, and numbers (an old page may write a number from the Windows code page, such as &#146;).\nconst NAMED = {\n  amp: '&', quot: '\"', apos: \"'\", lt: '<', gt: '>', nbsp: ' ', mdash: '-', ndash: '-', rsquo: '\\u2019', lsquo: '\\u2018', ldquo: '\\u201c', rdquo: '\\u201d',\n  hellip: '\\u2026', copy: '\\u00a9', reg: '\\u00ae', trade: '\\u2122', eacute: '\\u00e9', egrave: '\\u00e8', agrave: '\\u00e0', aacute: '\\u00e1',\n  auml: '\\u00e4', ouml: '\\u00f6', uuml: '\\u00fc', szlig: '\\u00df', ccedil: '\\u00e7', ntilde: '\\u00f1',\n};\nconst WINDOWS = { 0x80: 0x20ac, 0x85: 0x2026, 0x91: 0x2018, 0x92: 0x2019, 0x93: 0x201c, 0x94: 0x201d, 0x96: 0x2013, 0x97: 0x2014, 0x99: 0x2122 };\nconst decode = (s) => String(s).replace(/&(#x[0-9a-f]+|#\\d+|[a-z]+);/gi, (m, e) => {\n  if (e[0] === '#') {\n    const n = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : Number(e.slice(1));\n    const c = WINDOWS[n] || n;\n    return c > 0 && c < 0x110000 ? String.fromCodePoint(c) : ' ';\n  }\n  const v = NAMED[e.toLowerCase()];\n  return v === undefined ? m : v;\n});\n// The joiners U+200C and U+200D stay: Persian and other scripts need them inside words.\nconst oneLine = (s) => decode(String(s).replace(/<[^<>]*>/g, ' ')).replace(/[\\u0001-\\u001f\\u007f-\\u009f\\u200b\\u200e\\u200f\\u202a-\\u202e\\u2060-\\u206f\\ufeff]/g, ' ').replace(/\\s+/g, ' ').trim();\n\n// Comments, scripts, styles and templates are not links of the page, even when they hold text that looks like one.\n// A lower-case copy of the page, letter by letter so that every position still matches (a letter such as \"I with a dot\" would\n// change the length of the whole text), is what the tags are searched in.\nconst low = Array.from(html, (ch) => { const l = ch.toLowerCase(); return l.length === ch.length ? l : ch; }).join('');\nconst SKIP = [['<!--', '-->'], ['<script', '</script'], ['<style', '</style'], ['<template', '</template']];\nconst markup = (() => {\n  const next = SKIP.map(() => -2);\n  let out = '';\n  let from = 0;\n  while (from < html.length) {\n    let best = -1;\n    let kind = null;\n    SKIP.forEach((k, i) => {\n      if (next[i] !== -1 && next[i] < from) next[i] = low.indexOf(k[0], from);\n      if (next[i] >= 0 && (best < 0 || next[i] < best)) { best = next[i]; kind = k; }\n    });\n    if (best < 0) break;\n    const after = best + kind[0].length;\n    const isComment = kind[0] === '<!--';\n    // An opening tag has the whole name (\"<script>\", \"<script src=...>\", not \"<scripts>\").\n    if (!isComment && !/[\\s>\\/]/.test(html.charAt(after))) { out += html.slice(from, after); from = after; continue; }\n    // A closing tag has the whole name too (\"</script>\", not \"</scripts-element>\").\n    let close = low.indexOf(kind[1], after);\n    while (!isComment && close >= 0 && !/[\\s>\\/]/.test(html.charAt(close + kind[1].length))) close = low.indexOf(kind[1], close + kind[1].length);\n    if (close < 0) {\n      // A comment that is never closed runs to the end of the page; a tag that is never closed is just text (it may sit in an attribute).\n      if (isComment) { out += html.slice(from, best); from = html.length; break; }\n      out += html.slice(from, after);\n      from = after;\n      continue;\n    }\n    out += html.slice(from, best);\n    from = close + kind[1].length;\n  }\n  return out + html.slice(from);\n})();\n\n// A function that resolves a link against an address.\nconst makeResolver = (baseUrl) => {\n  const scheme = baseUrl.slice(0, baseUrl.indexOf(':'));\n  const afterScheme = baseUrl.slice(baseUrl.indexOf('//') + 2);\n  const authorityEnd = afterScheme.search(/[\\/?#]/);\n  const origin = scheme + '://' + (authorityEnd < 0 ? afterScheme : afterScheme.slice(0, authorityEnd));\n  const slashAt = afterScheme.indexOf('/');\n  const pathAndQuery = slashAt < 0 ? '/' : afterScheme.slice(slashAt);\n  const pathOnly = pathAndQuery.split('#')[0].split('?')[0];\n  const dir = pathOnly.slice(0, pathOnly.lastIndexOf('/') + 1);\n  const dotted = (p) => {\n    const cut = p.search(/[?#]/);\n    const path = cut < 0 ? p : p.slice(0, cut);\n    const rest = cut < 0 ? '' : p.slice(cut);\n    const out = [];\n    for (const seg of path.split('/')) {\n      if (seg === '..') { if (out.length > 1) out.pop(); } else if (seg !== '.') out.push(seg);\n    }\n    return out.join('/') + rest;\n  };\n  return (href) => {\n    const h = decode(href).trim();\n    if (!h || h.startsWith('#')) return '';\n    if (/^[a-z][a-z0-9+.-]*:/i.test(h)) return /^https?:/i.test(h) ? h.split('#')[0] : '';\n    if (h.startsWith('//')) return (scheme + ':' + h).split('#')[0];\n    if (h.startsWith('/')) return (origin + dotted(h)).split('#')[0];\n    if (h.startsWith('?')) return (origin + pathOnly + h).split('#')[0];\n    return (origin + dotted(dir + h)).split('#')[0];\n  };\n};\n// Relative links are resolved against the page address, or against the address a <base> tag gives.\nconst page = request.url;\nconst baseTag = markup.match(/<base\\s[^<>]*?href\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s\"'>]+))/i);\nconst baseAddress = baseTag ? makeResolver(page)(baseTag[1] !== undefined ? baseTag[1] : baseTag[2] !== undefined ? baseTag[2] : baseTag[3]) : '';\nconst resolve = makeResolver(/^https?:\\/\\/[^\\s\\\\]+$/i.test(baseAddress) ? baseAddress : page);\n\nconst authority = (u) => {\n  let h = u.slice(u.indexOf('//') + 2);\n  let end = h.length;\n  for (const mark of ['/', '?', '#']) { const at = h.indexOf(mark); if (at >= 0 && at < end) end = at; }\n  h = h.slice(0, end);\n  if (h.indexOf('@') >= 0) h = h.slice(h.lastIndexOf('@') + 1);\n  // Look-alike forms of letters (full-width, mathematical) are read as the plain letters, as the HTTP client will read them.\n  return h.normalize('NFKC').toLowerCase();\n};\nconst hostOf = (u) => { const a = authority(u); const i = a.lastIndexOf(':'); return (i > 0 ? a.slice(0, i) : a).replace(/\\.$/, ''); };\nconst portOf = (u) => { const a = authority(u); const i = a.lastIndexOf(':'); return i > 0 ? a.slice(i + 1) : ''; };\n// A name that looks public (letters in its last part: no IP numbers in any notation, no local names) on a usual web port.\nconst LOCAL = ['localhost', 'local', 'internal', 'lan', 'home', 'corp', 'intranet', 'test', 'invalid', 'svc', 'localdomain', 'private', 'cluster', 'arpa', 'docker'];\nconst reachable = (u) => {\n  const h = hostOf(u);\n  const last = h.slice(h.lastIndexOf('.') + 1);\n  return /^[\\p{L}\\p{M}\\p{N}_\\u200c\\u200d-]+(\\.[\\p{L}\\p{M}\\p{N}_\\u200c\\u200d-]+)+$/u.test(h) && /^([\\p{L}\\p{M}]{2,}|xn--[a-z0-9-]+)$/u.test(last) && !LOCAL.includes(last) && ['', '80', '443', '8080', '8443'].includes(portOf(u));\n};\n// Sites that turn away automatic checks, so their answer would say nothing about the link.\nconst REFUSE = ['linkedin.com', 'facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com', 'pinterest.com', 'web.archive.org'];\nconst refuses = (h) => REFUSE.some((d) => h === d || h.endsWith('.' + d));\n// The same page under http and https, or with a closing slash, is one link; the name of the host is not case sensitive, the path is.\nconst keyOf = (u) => {\n  const rest = u.slice(u.indexOf('//') + 2);\n  const cut = rest.search(/[\\/?#]/);\n  return (cut < 0 ? rest : rest.slice(0, cut)).toLowerCase() + (cut < 0 ? '' : rest.slice(cut)).replace(/\\/+$/, '');\n};\n// The end of an <a ...> tag, not counting a \">\" inside a quoted value.\nconst tagEnd = (s) => {\n  let quote = '';\n  const max = Math.min(s.length, 4000);\n  for (let i = 0; i < max; i++) {\n    const c = s[i];\n    if (quote) { if (c === quote) quote = ''; } else if (c === '\"' || c === \"'\") quote = c; else if (c === '>') return i;\n  }\n  return -1;\n};\n\nconst parts = markup.split(/<a[\\s]/i);\nconst seen = new Set();\nconst links = [];\nlet skippedPrivate = 0;\nlet skippedSocial = 0;\nfor (let i = 1; i < parts.length; i++) {\n  const part = parts[i];\n  const gt = tagEnd(part);\n  if (gt < 0) continue;\n  const found = part.slice(0, gt).match(/(?:^|[\\s\"'])href\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s\"'>]+))/i);\n  if (!found) continue;\n  let url = resolve(found[1] !== undefined ? found[1] : found[2] !== undefined ? found[2] : found[3]);\n  if (!url) continue;\n  url = url.split(' ').join('%20');\n  // Plumbing of the host (such as Cloudflare's hidden e-mail links), an address with a backslash or a line break in it, or a very long one.\n  if (url.indexOf('/cdn-cgi/') >= 0 || /[\\\\\\t\\n\\r]/.test(url) || url.length > 2000) continue;\n  if (!reachable(url)) { skippedPrivate += 1; continue; }\n  if (refuses(hostOf(url))) { skippedSocial += 1; continue; }\n  const key = keyOf(url);\n  if (seen.has(key) || key === keyOf(page)) continue;\n  seen.add(key);\n  const end = part.indexOf('</a', gt);\n  const text = oneLine(part.slice(gt + 1, end < 0 ? gt + 400 : end)).slice(0, 90);\n  links.push({ url, text: text || '(no text)' });\n}\n\nif (!links.length) return fail('The page has no links to other pages that can be checked.');\nconst chosen = links.slice(0, request.max);\nreturn chosen.map((l, i) => ({ json: { ok: true, idx: i, url: l.url, text: l.text, page, found: links.length, checked: chosen.length, skippedPrivate, skippedSocial } }));\n"
+        "jsCode": "// The page may answer with a redirect. One redirect is followed, and only to a name that looks public, so that the page is never\n// sent anywhere unchecked. The answer goes on as it is, with the address to ask next (or none).\nconst request = $('Check the request').first().json;\nconst res = $input.first().json;\n\nconst sameUrl = (a, b) => a.split('#')[0] === b.split('#')[0];\nconst pathOf = (u) => {\n  const rest = u.slice(u.indexOf('//') + 2);\n  const slash = rest.indexOf('/');\n  return slash < 0 ? '' : rest.slice(slash).split('#')[0].split('?')[0];\n};\n// \".\" and \"..\" segments of a path are resolved; the query stays as it is.\nconst dotted = (p) => {\n  const cut = p.search(/[?#]/);\n  const path = cut < 0 ? p : p.slice(0, cut);\n  const rest = cut < 0 ? '' : p.slice(cut);\n  const out = [];\n  for (const seg of path.split('/')) {\n    if (seg === '..') { if (out.length > 1) out.pop(); } else if (seg !== '.') out.push(seg);\n  }\n  return out.join('/') + rest;\n};\nconst resolveLocation = (from, loc) => {\n  const l = String(loc).trim();\n  if (/^https?:\\/\\//i.test(l)) return l;\n  const scheme = from.slice(0, from.indexOf(':'));\n  if (l.startsWith('//')) return scheme + ':' + l;\n  const rest = from.slice(from.indexOf('//') + 2);\n  const cut = rest.search(/[\\/?#]/);\n  const origin = scheme + '://' + (cut < 0 ? rest : rest.slice(0, cut));\n  if (l.startsWith('/')) return origin + dotted(l);\n  if (l.startsWith('?')) return origin + (pathOf(from) || '/') + l;\n  if (l.startsWith('#')) return from.split('#')[0];\n  const dir = pathOf(from).slice(0, pathOf(from).lastIndexOf('/') + 1) || '/';\n  return origin + dotted(dir + l);\n};\nconst authority = (u) => {\n  let h = u.slice(u.indexOf('//') + 2);\n  let end = h.length;\n  for (const mark of ['/', '?', '#']) { const at = h.indexOf(mark); if (at >= 0 && at < end) end = at; }\n  h = h.slice(0, end);\n  if (h.indexOf('@') >= 0) h = h.slice(h.lastIndexOf('@') + 1);\n  // Look-alike forms of letters (full-width, mathematical) are read as the plain letters, as the HTTP client will read them.\n  return h.normalize('NFKC').toLowerCase();\n};\nconst hostOf = (u) => { const a = authority(u); const i = a.lastIndexOf(':'); return (i > 0 ? a.slice(0, i) : a).replace(/\\.$/, ''); };\nconst portOf = (u) => { const a = authority(u); const i = a.lastIndexOf(':'); return i > 0 ? a.slice(i + 1) : ''; };\n// A name that looks public (letters in its last part: no IP numbers in any notation, no local names) on a usual web port.\nconst LOCAL = ['localhost', 'local', 'internal', 'lan', 'home', 'corp', 'intranet', 'test', 'invalid', 'svc', 'localdomain', 'private', 'cluster', 'arpa', 'docker'];\nconst reachable = (u) => {\n  const h = hostOf(u);\n  const last = h.slice(h.lastIndexOf('.') + 1);\n  return u.indexOf('\\\\') < 0 && /^[\\p{L}\\p{M}\\p{N}_\\u200c\\u200d-]+(\\.[\\p{L}\\p{M}\\p{N}_\\u200c\\u200d-]+)+$/u.test(h) && /^([\\p{L}\\p{M}]{2,}|xn--[a-z0-9-]+)$/u.test(last) && !LOCAL.includes(last) && ['', '80', '443', '8080', '8443'].includes(portOf(u));\n};\n\nlet next = '';\nconst status = Number(res.statusCode) || 0;\nconst location = res.headers && res.headers.location;\nif ([301, 302, 303, 307, 308].includes(status) && location) {\n  const target = resolveLocation(request.url, location);\n  if (reachable(target) && !sameUrl(target, request.url)) next = target;\n}\nreturn [{ json: Object.assign({}, res, { next }) }];\n"
+      },
+      "id": "de6240c4-2406-4baf-81e2-7bade5b03636",
+      "name": "Look at the page answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.next }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b97afd64-c9b7-464b-81ae-6f4c1dbe7129",
+      "name": "Did the page move?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.next }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        }
+      },
+      "id": "992f75c0-51cb-4a39-8ef8-532a17baaf10",
+      "name": "Read the moved page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1320,
+        340
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Collects the links of the page, resolves them against the page address and keeps at most the number asked for.\nconst request = $('Check the request').first().json;\n// The page is read from the address typed, or from the one its redirect led to.\nconst page = $('Look at the page answer').first().json.next || request.url;\nconst res = $input.first().json;\nconst fail = (error) => [{ json: { ok: false, error, url: page } }];\n\nif (res.error) return fail('The page could not be reached: ' + String((res.error && res.error.message) || res.error).slice(0, 160));\nconst status = Number(res.statusCode) || 200;\nif (status >= 300 && status < 400) {\n  const where = String((res.headers && res.headers.location) || '').replace(/\\s+/g, ' ').slice(0, 200);\n  return fail('The page redirects' + (where ? ' to ' + where : '') + '. Only one redirect, to a public address, is followed, so type the address that it finally leads to.');\n}\nif (status >= 400) return fail('The page answered HTTP ' + status + ', so there are no links to check.');\nconst html = String(res.data || '');\nif (!html.trim()) return fail('The page is empty.');\n\n// Character references: the common named ones, and numbers (an old page may write a number from the Windows code page, such as &#146;).\nconst NAMED = {\n  amp: '&', quot: '\"', apos: \"'\", lt: '<', gt: '>', nbsp: ' ', mdash: '-', ndash: '-', rsquo: '\\u2019', lsquo: '\\u2018', ldquo: '\\u201c', rdquo: '\\u201d',\n  hellip: '\\u2026', copy: '\\u00a9', reg: '\\u00ae', trade: '\\u2122', eacute: '\\u00e9', egrave: '\\u00e8', agrave: '\\u00e0', aacute: '\\u00e1',\n  auml: '\\u00e4', ouml: '\\u00f6', uuml: '\\u00fc', szlig: '\\u00df', ccedil: '\\u00e7', ntilde: '\\u00f1',\n};\nconst WINDOWS = { 0x80: 0x20ac, 0x85: 0x2026, 0x91: 0x2018, 0x92: 0x2019, 0x93: 0x201c, 0x94: 0x201d, 0x96: 0x2013, 0x97: 0x2014, 0x99: 0x2122 };\nconst decode = (s) => String(s).replace(/&(#x[0-9a-f]+|#\\d+|[a-z]+);/gi, (m, e) => {\n  if (e[0] === '#') {\n    const n = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : Number(e.slice(1));\n    const c = WINDOWS[n] || n;\n    return c > 0 && c < 0x110000 ? String.fromCodePoint(c) : ' ';\n  }\n  const v = NAMED[e.toLowerCase()];\n  return v === undefined ? m : v;\n});\n// The joiners U+200C and U+200D stay: Persian and other scripts need them inside words.\nconst oneLine = (s) => decode(String(s).replace(/<[^<>]*>/g, ' ')).replace(/[\\u0001-\\u001f\\u007f-\\u009f\\u200b\\u200e\\u200f\\u202a-\\u202e\\u2060-\\u206f\\ufeff]/g, ' ').replace(/\\s+/g, ' ').trim();\n\n// Comments, scripts, styles and templates are not links of the page, even when they hold text that looks like one.\n// A lower-case copy of the page, letter by letter so that every position still matches (a letter such as \"I with a dot\" would\n// change the length of the whole text), is what the tags are searched in.\nconst low = Array.from(html, (ch) => { const l = ch.toLowerCase(); return l.length === ch.length ? l : ch; }).join('');\nconst SKIP = [['<!--', '-->'], ['<script', '</script'], ['<style', '</style'], ['<template', '</template']];\nconst markup = (() => {\n  const next = SKIP.map(() => -2);\n  let out = '';\n  let from = 0;\n  while (from < html.length) {\n    let best = -1;\n    let kind = null;\n    SKIP.forEach((k, i) => {\n      if (next[i] !== -1 && next[i] < from) next[i] = low.indexOf(k[0], from);\n      if (next[i] >= 0 && (best < 0 || next[i] < best)) { best = next[i]; kind = k; }\n    });\n    if (best < 0) break;\n    const after = best + kind[0].length;\n    const isComment = kind[0] === '<!--';\n    // An opening tag has the whole name (\"<script>\", \"<script src=...>\", not \"<scripts>\").\n    if (!isComment && !/[\\s>\\/]/.test(html.charAt(after))) { out += html.slice(from, after); from = after; continue; }\n    // A closing tag has the whole name too (\"</script>\", not \"</scripts-element>\").\n    let close = low.indexOf(kind[1], after);\n    while (!isComment && close >= 0 && !/[\\s>\\/]/.test(html.charAt(close + kind[1].length))) close = low.indexOf(kind[1], close + kind[1].length);\n    if (close < 0) {\n      // A comment that is never closed runs to the end of the page; a tag that is never closed is just text (it may sit in an attribute).\n      if (isComment) { out += html.slice(from, best); from = html.length; break; }\n      out += html.slice(from, after);\n      from = after;\n      continue;\n    }\n    out += html.slice(from, best);\n    from = close + kind[1].length;\n  }\n  return out + html.slice(from);\n})();\n\n// A function that resolves a link against an address.\nconst makeResolver = (baseUrl) => {\n  const scheme = baseUrl.slice(0, baseUrl.indexOf(':'));\n  const afterScheme = baseUrl.slice(baseUrl.indexOf('//') + 2);\n  const authorityEnd = afterScheme.search(/[\\/?#]/);\n  const origin = scheme + '://' + (authorityEnd < 0 ? afterScheme : afterScheme.slice(0, authorityEnd));\n  const slashAt = afterScheme.indexOf('/');\n  const pathAndQuery = slashAt < 0 ? '/' : afterScheme.slice(slashAt);\n  const pathOnly = pathAndQuery.split('#')[0].split('?')[0];\n  const dir = pathOnly.slice(0, pathOnly.lastIndexOf('/') + 1);\n  const dotted = (p) => {\n    const cut = p.search(/[?#]/);\n    const path = cut < 0 ? p : p.slice(0, cut);\n    const rest = cut < 0 ? '' : p.slice(cut);\n    const out = [];\n    for (const seg of path.split('/')) {\n      if (seg === '..') { if (out.length > 1) out.pop(); } else if (seg !== '.') out.push(seg);\n    }\n    return out.join('/') + rest;\n  };\n  return (href) => {\n    const h = decode(href).trim();\n    if (!h || h.startsWith('#')) return '';\n    if (/^[a-z][a-z0-9+.-]*:/i.test(h)) return /^https?:/i.test(h) ? h.split('#')[0] : '';\n    if (h.startsWith('//')) return (scheme + ':' + h).split('#')[0];\n    if (h.startsWith('/')) return (origin + dotted(h)).split('#')[0];\n    if (h.startsWith('?')) return (origin + pathOnly + h).split('#')[0];\n    return (origin + dotted(dir + h)).split('#')[0];\n  };\n};\n// Relative links are resolved against the page address, or against the address a <base> tag gives.\nconst baseTag = markup.match(/<base\\s[^<>]*?href\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s\"'>]+))/i);\nconst baseAddress = baseTag ? makeResolver(page)(baseTag[1] !== undefined ? baseTag[1] : baseTag[2] !== undefined ? baseTag[2] : baseTag[3]) : '';\nconst resolve = makeResolver(/^https?:\\/\\/[^\\s\\\\]+$/i.test(baseAddress) ? baseAddress : page);\n\nconst authority = (u) => {\n  let h = u.slice(u.indexOf('//') + 2);\n  let end = h.length;\n  for (const mark of ['/', '?', '#']) { const at = h.indexOf(mark); if (at >= 0 && at < end) end = at; }\n  h = h.slice(0, end);\n  if (h.indexOf('@') >= 0) h = h.slice(h.lastIndexOf('@') + 1);\n  // Look-alike forms of letters (full-width, mathematical) are read as the plain letters, as the HTTP client will read them.\n  return h.normalize('NFKC').toLowerCase();\n};\nconst hostOf = (u) => { const a = authority(u); const i = a.lastIndexOf(':'); return (i > 0 ? a.slice(0, i) : a).replace(/\\.$/, ''); };\nconst portOf = (u) => { const a = authority(u); const i = a.lastIndexOf(':'); return i > 0 ? a.slice(i + 1) : ''; };\n// A name that looks public (letters in its last part: no IP numbers in any notation, no local names) on a usual web port.\nconst LOCAL = ['localhost', 'local', 'internal', 'lan', 'home', 'corp', 'intranet', 'test', 'invalid', 'svc', 'localdomain', 'private', 'cluster', 'arpa', 'docker'];\nconst reachable = (u) => {\n  const h = hostOf(u);\n  const last = h.slice(h.lastIndexOf('.') + 1);\n  return /^[\\p{L}\\p{M}\\p{N}_\\u200c\\u200d-]+(\\.[\\p{L}\\p{M}\\p{N}_\\u200c\\u200d-]+)+$/u.test(h) && /^([\\p{L}\\p{M}]{2,}|xn--[a-z0-9-]+)$/u.test(last) && !LOCAL.includes(last) && ['', '80', '443', '8080', '8443'].includes(portOf(u));\n};\n// Sites that turn away automatic checks, so their answer would say nothing about the link.\nconst REFUSE = ['linkedin.com', 'facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com', 'pinterest.com', 'web.archive.org'];\nconst refuses = (h) => REFUSE.some((d) => h === d || h.endsWith('.' + d));\n// The same page under http and https, or with a closing slash, is one link; the name of the host is not case sensitive, the path is.\nconst keyOf = (u) => {\n  const rest = u.slice(u.indexOf('//') + 2);\n  const cut = rest.search(/[\\/?#]/);\n  return (cut < 0 ? rest : rest.slice(0, cut)).toLowerCase() + (cut < 0 ? '' : rest.slice(cut)).replace(/\\/+$/, '');\n};\n// The end of an <a ...> tag, not counting a \">\" inside a quoted value.\nconst tagEnd = (s) => {\n  let quote = '';\n  const max = Math.min(s.length, 4000);\n  for (let i = 0; i < max; i++) {\n    const c = s[i];\n    if (quote) { if (c === quote) quote = ''; } else if (c === '\"' || c === \"'\") quote = c; else if (c === '>') return i;\n  }\n  return -1;\n};\n\nconst parts = markup.split(/<a[\\s]/i);\nconst seen = new Set();\nconst links = [];\nlet skippedPrivate = 0;\nlet skippedSocial = 0;\nfor (let i = 1; i < parts.length; i++) {\n  const part = parts[i];\n  const gt = tagEnd(part);\n  if (gt < 0) continue;\n  const found = part.slice(0, gt).match(/(?:^|[\\s\"'])href\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s\"'>]+))/i);\n  if (!found) continue;\n  let url = resolve(found[1] !== undefined ? found[1] : found[2] !== undefined ? found[2] : found[3]);\n  if (!url) continue;\n  url = url.split(' ').join('%20');\n  // Plumbing of the host (such as Cloudflare's hidden e-mail links), an address with a backslash or a line break in it, or a very long one.\n  if (url.indexOf('/cdn-cgi/') >= 0 || /[\\\\\\t\\n\\r]/.test(url) || url.length > 2000) continue;\n  if (!reachable(url)) { skippedPrivate += 1; continue; }\n  if (refuses(hostOf(url))) { skippedSocial += 1; continue; }\n  const key = keyOf(url);\n  if (seen.has(key) || key === keyOf(page)) continue;\n  seen.add(key);\n  const end = part.indexOf('</a', gt);\n  const text = oneLine(part.slice(gt + 1, end < 0 ? gt + 400 : end)).slice(0, 90);\n  links.push({ url, text: text || '(no text)' });\n}\n\nif (!links.length) return fail('The page has no links to other pages that can be checked.');\nconst chosen = links.slice(0, request.max);\nreturn chosen.map((l, i) => ({ json: { ok: true, idx: i, url: l.url, text: l.text, page, found: links.length, checked: chosen.length, skippedPrivate, skippedSocial } }));\n"
       },
       "id": "b62ca26d-ba11-43de-801d-191272acb169",
       "name": "Collect the links",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
+        1540,
         200
       ]
     },
@@ -244,7 +335,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1100,
+        1760,
         200
       ]
     },
@@ -293,7 +384,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1320,
+        1980,
         200
       ],
       "onError": "continueRegularOutput"
@@ -309,7 +400,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1540,
+        2200,
         200
       ]
     },
@@ -340,7 +431,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1760,
+        2420,
         200
       ]
     },
@@ -389,7 +480,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1980,
+        2640,
         340
       ],
       "onError": "continueRegularOutput"
@@ -405,7 +496,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2200,
+        2860,
         340
       ]
     },
@@ -419,7 +510,7 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2420,
+        3080,
         200
       ]
     },
@@ -434,7 +525,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2640,
+        3300,
         200
       ]
     },
@@ -448,7 +539,7 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        2860,
+        3520,
         200
       ]
     },
@@ -830,7 +921,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3080,
+        3740,
         200
       ]
     },
@@ -860,7 +951,7 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        3300,
+        3960,
         200
       ],
       "webhookId": "e7a84b4f-d49e-443c-8cfe-93f5f1f3f06c"
@@ -913,6 +1004,46 @@
       ]
     },
     "Read the page": {
+      "main": [
+        [
+          {
+            "node": "Look at the page answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look at the page answer": {
+      "main": [
+        [
+          {
+            "node": "Did the page move?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Did the page move?": {
+      "main": [
+        [
+          {
+            "node": "Read the moved page",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Collect the links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the moved page": {
       "main": [
         [
           {
