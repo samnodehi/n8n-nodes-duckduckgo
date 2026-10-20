@@ -72,14 +72,17 @@ describe('example 5: passages under each cited source', () => {
     expect(passageLines(report)).toEqual(['    - “A passage here”']);
   });
 
-  it('keeps the joiner of scripts that need one, such as the Persian half-space', () => {
+  it('keeps a zero-width non-joiner and text in other scripts', () => {
+    const joiner = String.fromCharCode(0x200c);
+    const title = 're' + joiner + 'use';
+    const quote = 'Солнечные панели превращают свет в электричество' + joiner + ' и работают много лет';
     const report = buildReport(
-      [{ id: 'S1', url: 'https://a.example/x', title: 'می‌شود' }],
-      [{ sourceId: 'S1', quote: 'نمی‌دانم که این چگونه کار می‌کند' }],
+      [{ id: 'S1', url: 'https://a.example/x', title }],
+      [{ sourceId: 'S1', quote }],
       'A [S1].',
     );
-    expect(report).toContain('[می‌شود]');
-    expect(passageLines(report)).toEqual(['    - “نمی‌دانم که این چگونه کار می‌کند”']);
+    expect(report).toContain('[' + title + ']');
+    expect(passageLines(report)).toEqual(['    - “' + quote + '”']);
   });
 
   it('counts passages that share their first 300 characters as different passages', () => {

@@ -124,7 +124,7 @@ describe('example 8: the request', () => {
     expect(request({ address: 'https://xn--bcher-kva.de/' }).ok).toBe(true);
     expect(request({ address: 'https://example.com./docs' }).ok).toBe(true);
     expect(request({ address: 'https://my_site.example.com/' }).ok).toBe(true);
-    expect(request({ address: 'https://مثال.ایران/' }).ok).toBe(true);
+    expect(request({ address: 'https://пример.рф/' }).ok).toBe(true);
   });
 
   it.each([
@@ -435,7 +435,7 @@ describe('example 8: reading and sorting the answers', () => {
     ['404: This page could not be found.', true],
     ['Page Unavailable', true],
     ['Seite nicht gefunden', true],
-    ['صفحه یافت نشد', true],
+    ['Страница не найдена', true],
   ])('judges the title %j (broken: %s)', (title, broken) => {
     const row = sort(firstRecords([{ __url: 'https://a.example/t', statusCode: 200, data: page(title) }]))[0];
     expect(row.kind).toBe(broken ? 'dead' : 'ok');
@@ -747,9 +747,9 @@ describe('example 8: the saved copy and the name of the old page', () => {
   });
 
   it('searches for a title in another script', () => {
-    const r = name({ kind: 'dead', url: 'http://a.example/x', text: '' }, '<title>راهنمای کامل نصب و راه‌اندازی داکر | سایت</title>');
+    const r = name({ kind: 'dead', url: 'http://a.example/x', text: '' }, '<title>Полное руководство по установке и настройке Docker | Сайт</title>');
     expect(r).toMatchObject({ phraseOk: true, search: true });
-    expect(r.phrase).toBe('راهنمای کامل نصب و راه‌اندازی داکر');
+    expect(r.phrase).toBe('Полное руководство по установке и настройке Docker');
   });
 
   it('says that a saved copy could not be read, instead of calling the title too general', () => {

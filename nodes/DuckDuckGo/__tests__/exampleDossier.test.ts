@@ -209,7 +209,7 @@ describe('example 9: the request', () => {
   });
 
   it('accepts a topic in another script', () => {
-    expect(request({ topic: 'انرژی خورشیدی چگونه کار می‌کند' }).ok).toBe(true);
+    expect(request({ topic: 'Как работает солнечная энергия' }).ok).toBe(true);
     expect(request({ topic: '太阳能是如何工作的' }).ok).toBe(true);
   });
 });
@@ -317,15 +317,19 @@ describe('example 9: the verified findings', () => {
     expect(v.sources[0].title).toBe('A read page');
   });
 
-  it('compares quotes in a plain form: case, spacing, joiners and the forms of Arabic letters and digits do not break a true quote', () => {
-    const fa = 'انرژی خورشیدی از نور خورشید برق می‌سازد و در سال ۱۴۰۲ سهم آن حدود ۵ درصد بود.';
-    const faPage = { url: 'https://fa.example/a', pageContent: fa + ' ' + 'صفحه‌های خورشیدی حدود سی سال کار می‌کنند و ارزان‌تر می‌شوند.', title: 'خورشیدی' };
-    const arabic = 'انرژي خورشيدي از نور خورشيد برق ميسازد و در سال ١٤٠٢ سهم آن حدود ٥ درصد بود.';
+  it('compares quotes in a plain form: case, spacing and joiners do not break a true quote', () => {
+    const joiner = String.fromCharCode(0x200c);
+    const ruPage = { url: 'https://ru.example/a', pageContent: 'Солнечные панели превращают свет в электричество. Панели служат около тридцати лет и дешевеют с каждым годом.', title: 'Солнечные панели' };
     const v = verify(
-      [finding(arabic, 'x', faPage.url), finding('صفحه‌های خورشیدی حدود سی سال کار می‌کنند و ارزان‌تر می‌شوند.', 'x', faPage.url), finding('  SOLAR   power is the conversion of energy from sunlight into ELECTRICITY ', 'x', page.url), finding('Photovoltaic cells convert light directly.', 'x', page.url)],
-      [faPage, page],
+      [finding('СОЛНЕЧНЫЕ  ПАНЕЛИ превращают свет в электричество.', 'x', ruPage.url), finding('Панели служат около тридцати лет и дешевеют с каждым годом.', 'x', ruPage.url), finding('  SOLAR   power is the conversion of energy from sunlight into ELECTRICITY ', 'x', page.url), finding('Photovoltaic cells convert light directly.', 'x', page.url)],
+      [ruPage, page],
     );
     expect(v.points.map((p: Json) => p.n)).toEqual([1, 1, 2, 2]);
+    // a joiner inside a word is not part of the comparison, on either side
+    const sentence = 'The renewable energy sector grew strongly last year in many regions.';
+    const joined = { url: 'https://co.example/a', pageContent: 'The re' + joiner + 'newable energy sector grew strongly last year in many regions.' };
+    expect(verify([finding(sentence, 'x', joined.url)], [joined]).points).toHaveLength(1);
+    expect(verify([finding('The re' + joiner + 'newable energy sector grew strongly last year in many regions.', 'x', 'https://co.example/b')], [{ url: 'https://co.example/b', pageContent: sentence }]).points).toHaveLength(1);
     // a Latin accent is a letter of its own, not a variant
     const cafe = verify([finding('The café on the corner serves the best coffee in town.', 'x', 'https://c.example/a')], [{ url: 'https://c.example/a', pageContent: 'The cafe on the corner serves the best coffee in town.' }]);
     expect(cafe.points).toEqual([]);
@@ -369,13 +373,14 @@ describe('example 9: the verified findings', () => {
     });
 
     it('does not accept a cut-out next to a word like not or only in other languages', () => {
-      const other = { url: 'https://num.example/b', pageContent: 'El medicamento no es seguro para los niños menores de doce años. Das Gerät in der Garage kann nicht im Freien benutzt werden bei starkem Regen. دارو برای کودکان زیر دوازده سال بی خطر نیست و باید دور از دسترس بماند.', title: 'o' };
+      const other = { url: 'https://num.example/b', pageContent: 'El medicamento no es seguro para los niños menores de doce años. Das Gerät in der Garage kann nicht im Freien benutzt werden bei starkem Regen. Лекарство не безопасно для детей младше двенадцати лет и должно храниться отдельно.', title: 'o' };
       const tryQuote = (quote: string) => verify([finding(quote, 'x', other.url)], [other]).points.length === 1;
       expect(tryQuote('es seguro para los niños menores de doce años.')).toBe(false);
       expect(tryQuote('El medicamento no es seguro para los niños menores de doce años.')).toBe(true);
       expect(tryQuote('Das Gerät in der Garage kann nicht im Freien benutzt werden bei starkem Regen.')).toBe(true);
       expect(tryQuote('Das Gerät in der Garage kann')).toBe(false);
-      expect(tryQuote('دارو برای کودکان زیر دوازده سال بی خطر')).toBe(false);
+      expect(tryQuote('безопасно для детей младше двенадцати лет и должно храниться отдельно.')).toBe(false);
+      expect(tryQuote('Лекарство не безопасно для детей младше двенадцати лет и должно храниться отдельно.')).toBe(true);
     });
   });
 
@@ -873,7 +878,7 @@ describe('example 9: the page', () => {
     const urls = [
       'javascript:alert(1)', 'data:text/html,x', 'vbscript:x', '//evil.example/x', 'https://evil.example@good.example/x', 'http://localhost', 'ftp://x.example/', 'file:///etc/passwd',
       // a name that is not what a browser reads: another script, a look-alike, a number written another way, a port out of range
-      'https://аpple.com/', 'https://①.com/', 'http://0x7f.1/', 'http://127.0.0.1/admin', 'https://good.example:99999/', 'https://مثال.ایران/',
+      'https://аpple.com/', 'https://①.com/', 'http://0x7f.1/', 'http://127.0.0.1/admin', 'https://good.example:99999/', 'https://пример.рф/',
       'https://a.example/ok', 'http://b.example:8080/ok', 'https://xn--bcher-kva.example/ok', 'https://medium.com/@name/post',
     ];
     const html = build(
@@ -937,9 +942,9 @@ describe('example 9: the page', () => {
   });
 
   it('writes the label above a quotation itself, in the language of the page, whatever the writer says', () => {
-    const fa = build(D({ language: 'fa', labels: { quote: 'Confirmed by regulators' } })).html as string;
-    expect(fa).toContain('نقل قول از صفحه');
-    expect(fa).not.toContain('Confirmed by regulators');
+    const ru = build(D({ language: 'ru', labels: { quote: 'Confirmed by regulators' } })).html as string;
+    expect(ru).toContain('Цитата со страницы');
+    expect(ru).not.toContain('Confirmed by regulators');
     for (const language of ['en', 'xx', 'zz-ZZ', 'toString']) expect(build(D({ language })).html).toContain('Quoted from the page');
     expect(build(D({ language: 'de' })).html).toContain('Zitat von der Seite');
   });
@@ -951,10 +956,11 @@ describe('example 9: the page', () => {
     expect(html).toContain('Another sentence.');
   });
 
-  it('keeps the joiners of Persian words, drops the marks that reverse the direction, and sets the direction by the text', () => {
-    const html = build(D({ language: 'fa', title: 'انرژی خورشیدی می‌سازد‮', subtitle: '‏زیرنویس' })).html as string;
-    expect(html).toContain('lang="fa"');
-    expect(html).toContain('می‌سازد');
+  it('keeps the joiners of words, drops the marks that reverse the direction, and sets the direction by the text', () => {
+    const joiner = String.fromCharCode(0x200c);
+    const html = build(D({ language: 'ru', title: 'Co' + joiner + 'op Солнечная энергия' + String.fromCharCode(0x202e), subtitle: String.fromCharCode(0x200f) + 'Подзаголовок' })).html as string;
+    expect(html).toContain('lang="ru"');
+    expect(html).toContain('Co' + joiner + 'op');
     expect(html).not.toMatch(/[‪-‮‎‏⁦-⁩]/);
     expect(html).toContain('<h1 class="title" dir="auto">');
   });
@@ -1010,7 +1016,7 @@ describe('example 9: the page', () => {
   it('is the same file for the same input, and a file name without a path, a space or a script', () => {
     const a = build(D()).html;
     expect(build(D()).html).toBe(a);
-    for (const topic of ['../../etc/passwd', 'a b\\c:d*e?"f<g>h|i', 'انرژی خورشیدی', '', 'x'.repeat(300)]) {
+    for (const topic of ['../../etc/passwd', 'a b\\c:d*e?"f<g>h|i', 'Солнечная энергия', '', 'x'.repeat(300)]) {
       const name = build(D({ topic })).filename as string;
       expect(name).toMatch(/^dossier-([a-z0-9]+(-[a-z0-9]+)*-)?2026-10-21\.html$/);
       expect(name.length).toBeLessThan(80);
