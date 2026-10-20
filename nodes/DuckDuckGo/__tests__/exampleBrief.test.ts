@@ -66,10 +66,13 @@ describe('example 1: the brief for an ordinary page', () => {
     expect(brief).toContain('## 2. Untitled\n2025-03-01\n');
   });
 
-  it('keeps text in other scripts whole, including the joiner the Persian half-space needs', () => {
-    const brief = buildBrief([{ ...normal, title: 'می‌شود', pageContent: 'نمی‌دانم که این چگونه کار می‌کند و چرا' }]);
-    expect(brief).toContain('## 1. می‌شود');
-    expect(brief).toContain('> نمی‌دانم که این چگونه کار می‌کند و چرا');
+  it('keeps text in other scripts whole, including a zero-width non-joiner', () => {
+    const joiner = String.fromCharCode(0x200c);
+    const title = 're' + joiner + 'use';
+    const body = 'Солнечные панели превращают свет в электричество' + joiner + ' и работают много лет';
+    const brief = buildBrief([{ ...normal, title, pageContent: body }]);
+    expect(brief).toContain('## 1. ' + title);
+    expect(brief).toContain('> ' + body);
   });
 
   it('cuts a long extract at 700 characters, never in the middle of a surrogate pair', () => {
