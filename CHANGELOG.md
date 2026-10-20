@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **An eighth example workflow: find broken links on a web page.** `docs/examples/08-broken-links.json` takes a page address from a form (kept behind n8n login), collects the links to other pages in its source and asks each one without following redirects, so a redirect that loses the page is seen; a redirect that only changes the scheme, `www.` or a closing slash is asked once more, because the link's real answer is behind it. For broken links and for redirects that lose the page it takes the old title from the Wayback Machine's newest saved copy, compares a redirect with it, and uses one Web Search per gone page for the exact title to look for a page that still has it. The result is a table with what is wrong, a link to the saved copy when the Wayback Machine has one, and a replacement: verified when its own title contains the old title, marked Possible when a page on the same site has nearly the same words. Only the first 12 problems get this closer look, and a replacement is found for only some of the broken links. The page itself is read without following redirects blindly: one redirect is followed, to a public address only. Links made by JavaScript are not seen, and links to social networks are left out. It needs no credential at all, and runs only on self-hosted n8n, like every workflow that uses this node. Keep its form behind n8n login: it downloads the pages a page links to, and it cannot tell a public name from one that points to a private address.
+
 ---
 
 ## [32.17.2] - 2026-10-19
