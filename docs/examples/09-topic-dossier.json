@@ -5,80 +5,80 @@
       "parameters": {
         "content": "## Create a topic dossier as one HTML file\n\nType a topic and get one HTML file: an overview in which each paragraph cites a source, key points with quotes that code checked against the pages, the latest news, an instant answer and what people search for next, and, if you ask for them, videos and pictures. It uses **every operation of the DuckDuckGo node** and needs **no search API key**.\n\n**Self-hosted n8n only** - community nodes do not run on n8n Cloud.\n\n### How it works\n1. A model plans the searches. An AI agent reads pages with the node as its tools (it is asked to search three times at most).\n2. Code keeps a finding only if its quote is in the text or search snippet of a page. A second model writes the overview from those findings alone.\n3. News, videos, pictures, the instant answer and the search ideas are one search each.\n4. A design agent writes a style sheet for the topic; a checker tool and the code accept only a short list of CSS properties and readable colours.\n5. Code builds the HTML: all text is escaped and the file has no script.\n\n### Setup\n1. **Settings > Community nodes**: install `n8n-nodes-duckduckgo-search` (32.17 or later, which keeps a slow or crafted page from freezing n8n).\n2. Add an OpenRouter credential to **OpenRouter model** and to **Check the pictures**. The model is `deepseek/deepseek-v4.1-flash-1017`, with the `inference-net/fp8` provider preferred; to change it, change both places.\n3. Activate, open the form's production URL and type a topic. The form only opens for people signed in to this n8n.\n\nA run takes one to two minutes and typically uses 5 to 7 DuckDuckGo searches. DuckDuckGo limits searches per IP address, so leave a few minutes between runs.",
         "color": 1,
-        "width": 520,
-        "height": 1000
+        "width": 1304,
+        "height": 424
       },
       "id": "01cbd9a2-5421-4a3b-8665-1e5b8779b717",
       "name": "Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -560,
-        -60
+        -32,
+        960
       ]
     },
     {
       "parameters": {
         "content": "## 1. Plan and research\nA model turns the topic into short queries. An agent searches the web and reads pages with the node as its tool. Code keeps only the findings whose quotes are in the pages.",
         "color": 7,
-        "width": 1720,
-        "height": 640
+        "width": 2184,
+        "height": 432
       },
       "id": "9e274a25-3847-420f-87f2-1bbff67f06c8",
       "name": "Section - plan and research",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -40,
-        60
+        -32,
+        96
       ]
     },
     {
       "parameters": {
         "content": "## 2. The other searches\nNews, videos, pictures, the instant answer and the search ideas: one search each, with waits between the first three. If you ask for thumbnails, a model looks at them and only the ones that fit the topic and look safe are kept.",
         "color": 7,
-        "width": 3680,
-        "height": 760
+        "width": 3280,
+        "height": 392
       },
       "id": "7ab9b953-bede-4414-8054-3f3f5cadb73b",
       "name": "Section - the other searches",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1740,
-        60
+        -32,
+        544
       ]
     },
     {
       "parameters": {
         "content": "## 3. Write and design\nA model writes the overview from the verified findings. A design agent, which sees only the topic, writes a style sheet that a checker tool and code must accept.",
         "color": 7,
-        "width": 900,
-        "height": 640
+        "width": 1092,
+        "height": 432
       },
       "id": "bfe42460-09fc-4377-8009-7cb97831356d",
       "name": "Section - write and design",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        5440,
-        60
+        1520,
+        944
       ]
     },
     {
       "parameters": {
         "content": "## 4. Build the file\nCode builds one HTML file and returns it for download. Text is escaped, there is no script, and a policy in the file allows only its own style and the picture hosts it uses.",
         "color": 7,
-        "width": 700,
-        "height": 640
+        "width": 620,
+        "height": 272
       },
       "id": "d5c2ac72-6c77-4ce7-8303-06f85a043750",
       "name": "Section - build the file",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        6360,
-        60
+        2624,
+        944
       ]
     },
     {
@@ -128,7 +128,7 @@
       "typeVersion": 2.6,
       "position": [
         0,
-        200
+        208
       ],
       "webhookId": "297d3abc-b182-4375-8957-0ae7b458af38"
     },
@@ -143,8 +143,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
-        200
+        192,
+        208
       ]
     },
     {
@@ -175,8 +175,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        440,
-        200
+        384,
+        208
       ]
     },
     {
@@ -198,8 +198,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        660,
-        200
+        576,
+        192
       ],
       "onError": "continueRegularOutput"
     },
@@ -213,8 +213,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        700,
-        440
+        768,
+        384
       ]
     },
     {
@@ -228,8 +228,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
-        200
+        896,
+        192
       ]
     },
     {
@@ -247,8 +247,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        1100,
-        200
+        1088,
+        192
       ],
       "onError": "continueRegularOutput"
     },
@@ -273,8 +273,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGoTool",
       "typeVersion": 1,
       "position": [
-        1060,
-        440
+        1200,
+        384
       ]
     },
     {
@@ -294,8 +294,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGoTool",
       "typeVersion": 1,
       "position": [
-        1260,
-        440
+        1328,
+        384
       ]
     },
     {
@@ -309,8 +309,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1320,
-        200
+        1408,
+        192
       ]
     },
     {
@@ -341,8 +341,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1540,
-        200
+        1600,
+        192
       ]
     },
     {
@@ -361,8 +361,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
       "position": [
-        1760,
-        200
+        16,
+        720
       ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true,
@@ -379,8 +379,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1980,
-        200
+        208,
+        720
       ]
     },
     {
@@ -394,8 +394,8 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        2200,
-        200
+        400,
+        720
       ],
       "webhookId": "37be6873-5b70-416d-88e7-9d52a3bcaa38"
     },
@@ -427,8 +427,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2420,
-        200
+        592,
+        720
       ]
     },
     {
@@ -447,8 +447,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
       "position": [
-        2640,
-        480
+        784,
+        640
       ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true,
@@ -465,8 +465,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2860,
-        480
+        976,
+        640
       ]
     },
     {
@@ -480,8 +480,8 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        3080,
-        480
+        1168,
+        640
       ],
       "webhookId": "b764a7c1-f16f-446b-8b38-87b43068fc22"
     },
@@ -501,8 +501,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
       "position": [
-        3300,
-        480
+        1360,
+        640
       ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true,
@@ -519,8 +519,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3520,
-        480
+        1552,
+        640
       ]
     },
     {
@@ -534,8 +534,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3740,
-        480
+        1744,
+        640
       ]
     },
     {
@@ -566,8 +566,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3960,
-        480
+        1936,
+        640
       ]
     },
     {
@@ -588,8 +588,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        4180,
-        620
+        2128,
+        608
       ],
       "onError": "continueRegularOutput"
     },
@@ -604,8 +604,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4400,
-        620
+        2320,
+        608
       ]
     },
     {
@@ -619,8 +619,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
       "position": [
-        4620,
-        200
+        2512,
+        752
       ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true,
@@ -637,8 +637,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4840,
-        200
+        2704,
+        752
       ]
     },
     {
@@ -656,8 +656,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
       "position": [
-        5060,
-        200
+        2896,
+        752
       ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true,
@@ -674,8 +674,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5280,
-        200
+        3088,
+        752
       ]
     },
     {
@@ -689,8 +689,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5500,
-        200
+        1616,
+        1040
       ]
     },
     {
@@ -712,8 +712,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        5720,
-        200
+        1808,
+        1040
       ],
       "onError": "continueRegularOutput"
     },
@@ -727,8 +727,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        5760,
-        440
+        1984,
+        1248
       ]
     },
     {
@@ -742,8 +742,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5940,
-        200
+        2128,
+        1040
       ]
     },
     {
@@ -760,8 +760,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        6160,
-        200
+        2320,
+        1040
       ],
       "onError": "continueRegularOutput"
     },
@@ -776,8 +776,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolCode",
       "typeVersion": 1.3,
       "position": [
-        6180,
-        440
+        2496,
+        1248
       ]
     },
     {
@@ -791,8 +791,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6380,
-        200
+        2688,
+        1056
       ]
     },
     {
@@ -810,8 +810,8 @@
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
-        6600,
-        200
+        2880,
+        1056
       ]
     },
     {
@@ -827,8 +827,8 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        6820,
-        200
+        3072,
+        1056
       ],
       "webhookId": "7aca8cb9-6616-437b-83e3-03c91c0e8d6b"
     },
@@ -843,8 +843,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1540,
-        -120
+        1792,
+        224
       ]
     },
     {
@@ -858,8 +858,8 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        1760,
-        -120
+        1984,
+        224
       ],
       "webhookId": "959e7548-5620-4af2-8beb-dae454dacf8c"
     },
@@ -882,8 +882,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        3000,
-        900
+        1360,
+        1296
       ]
     }
   ],
