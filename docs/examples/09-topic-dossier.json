@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Create a topic dossier as one HTML file\n\nType a topic and get one HTML file: an overview in which each paragraph cites a source, key points with quotes that code checked against the pages, the latest news, an instant answer and what people search for next, and, if you ask for them, videos and pictures. It uses **every operation of the DuckDuckGo node** and needs **no search API key**.\n\n**Self-hosted n8n only** - community nodes do not run on n8n Cloud.\n\n### How it works\n1. A model plans the searches. An AI agent reads pages with the node as its tools (it is asked to search three times at most).\n2. Code keeps a finding only if its quote is in the text or search snippet of a page. A second model writes the overview from those findings alone.\n3. News, videos, pictures, the instant answer and the search ideas are one search each.\n4. A design agent writes a style sheet for the topic; a checker tool and the code accept only a short list of CSS properties and readable colours.\n5. Code builds the HTML: all text is escaped and the file has no script.\n\n### Setup\n1. **Settings > Community nodes**: install `n8n-nodes-duckduckgo-search` (32.17 or later, which keeps a slow or crafted page from freezing n8n).\n2. Add an OpenRouter credential to **OpenRouter model** and to **Check the pictures**. The model is `deepseek/deepseek-v4.1-flash-1017`, with the `inference-net/fp8` provider preferred; to change it, change both places.\n3. Activate, open the form's production URL and type a topic. The form only opens for people signed in to this n8n.\n\nA run takes one to two minutes and typically uses 5 to 7 DuckDuckGo searches. DuckDuckGo limits searches per IP address, so leave a few minutes between runs.",
+        "content": "## Create a topic dossier as one HTML file\n\nType a topic and get one HTML file: an overview in which each paragraph cites a source, key points with quotes that code checked against the pages, the latest news, an instant answer and what people search for next, and, if you ask for them, videos and pictures. It uses **every operation of the DuckDuckGo node** and needs **no search API key**.\n\n**Self-hosted n8n only** - community nodes do not run on n8n Cloud.\n\n### How it works\n1. A model plans the searches. An AI agent reads pages with the node as its tools (it is asked to search three times at most).\n2. Code keeps a finding only if its quote is in the text or search snippet of a page. A second model writes the overview from those findings alone.\n3. News, videos, pictures, the instant answer and the search ideas are one search each.\n4. A design agent writes a style sheet for the topic; a checker tool and the code accept only a short list of CSS properties and readable colours.\n5. Code builds the HTML (all text escaped, no script); the form shows it with a Download button.\n\n### Setup\n1. **Settings > Community nodes**: install `n8n-nodes-duckduckgo-search` (32.17 or later, which keeps a slow or crafted page from freezing n8n).\n2. Add an OpenRouter credential to **OpenRouter model** and to **Check the pictures**. The model is `deepseek/deepseek-v4.1-flash-1017`, with the `inference-net/fp8` provider preferred; to change it, change both places.\n3. Activate, open the form's production URL and type a topic. The form only opens for people signed in to this n8n.\n\nA run takes one to two minutes and typically uses 5 to 7 DuckDuckGo searches. DuckDuckGo limits searches per IP address, so leave a few minutes between runs.",
         "color": 1,
         "width": 1304,
         "height": 424
@@ -67,7 +67,7 @@
     },
     {
       "parameters": {
-        "content": "## 4. Build the file\nCode builds one HTML file and returns it for download. Text is escaped, there is no script, and a policy in the file allows only its own style and the picture hosts it uses.",
+        "content": "## 4. Build the file\nCode builds one HTML file; the form shows it with a Download button and a preview. Text is escaped, there is no script, and a policy in the file allows only its own style and the picture hosts it uses.",
         "color": 7,
         "width": 620,
         "height": 272
@@ -797,18 +797,14 @@
     },
     {
       "parameters": {
-        "operation": "toText",
-        "sourceProperty": "html",
-        "binaryPropertyName": "data",
-        "options": {
-          "fileName": "={{ $json.filename }}",
-          "encoding": "utf8"
-        }
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Makes the page that the form shows when the dossier is ready: a Download button and a preview of the same file. The form's own \"return a\n// file\" ending downloads on page load with no click, which a browser may block while the page still says \"downloaded\"; a click on a link is\n// a user action that is always allowed, and the preview shows the result on the spot.\n// The file travels in the link as base64 and in the preview as an escaped attribute, so nothing that came from the web is read as markup\n// here, and the preview is sandboxed: no script and no form, and its links open in a new tab.\nconst item = $input.first().json || {};\nconst html = typeof item.html === 'string' ? item.html : '';\nif (!html) throw new Error('There is no page to show.');\nconst esc = (s) => String(s == null ? '' : s).replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' })[c]);\nconst filename = String(item.filename || '').replace(/[^A-Za-z0-9._-]+/g, '-').slice(0, 80) || 'dossier.html';\nconst base64 = Buffer.from(html, 'utf8').toString('base64');\n// A preview takes the address of the form page as its base, so a citation link (#s1) would load the form page again inside the preview\n// instead of scrolling. In the preview copy only, the in-page links point at the preview itself; text from the web cannot contain\n// the literal href=\"#s because its quotes are escaped.\nconst preview = html.replace(/href=\"#s/g, 'href=\"about:srcdoc#s');\nconst missing = Array.isArray(item.missing) && item.missing.length ? ' Missing this time: ' + item.missing.join(', ') + '.' : '';\nconst page = '<style>body{max-width:960px;margin:auto;font:16px/1.6 system-ui,sans-serif;padding:24px;color:#222;overflow-wrap:anywhere}'\n  + 'h1{font-size:1.4rem;margin:0 0 12px}.bar{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:0 0 16px}'\n  + '.btn{display:inline-block;padding:10px 18px;background:#15803d;color:#fff;border-radius:6px;text-decoration:none;font-weight:600}'\n  + '.muted{color:#666;font-size:.9em}iframe{display:block;width:100%;height:75vh;min-height:420px;border:1px solid #ccc;border-radius:6px;background:#fff}</style>'\n  + '<h1>Your dossier is ready</h1>'\n  + '<div class=\"bar\"><a class=\"btn\" download=\"' + esc(filename) + '\" href=\"data:text/html;charset=utf-8;base64,' + base64 + '\">Download ' + esc(filename) + '</a>'\n  + '<span class=\"muted\">One HTML file with no script; open it in any browser.' + esc(missing) + '</span></div>'\n  + '<iframe title=\"Preview of the dossier\" sandbox=\"allow-popups allow-popups-to-escape-sandbox\" referrerpolicy=\"no-referrer\" srcdoc=\"' + esc(preview) + '\"></iframe>';\nreturn [{ json: { page, filename } }];\n"
       },
       "id": "8e914e97-a788-4e7b-8456-b7a5bd428bc1",
-      "name": "Make the file",
-      "type": "n8n-nodes-base.convertToFile",
-      "typeVersion": 1.1,
+      "name": "Make the download page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         2880,
         1056
@@ -817,20 +813,18 @@
     {
       "parameters": {
         "operation": "completion",
-        "respondWith": "returnBinary",
-        "inputDataFieldName": "data",
-        "completionTitle": "Your dossier is ready",
-        "completionMessage": "={{ 'The file ' + $('Build the page').first().json.filename + ' was downloaded. Open it in a browser.' + ($('Build the page').first().json.missing.length ? ' Missing this time: ' + $('Build the page').first().json.missing.join(', ') + '.' : '') }}"
+        "respondWith": "showText",
+        "responseText": "={{ $('Make the download page').first().json.page }}"
       },
       "id": "bdf43822-e891-48e3-8aea-d70a0bb30cb6",
-      "name": "Return the file",
+      "name": "Show the dossier",
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
+      "webhookId": "7aca8cb9-6616-437b-83e3-03c91c0e8d6b",
       "position": [
         3072,
         1056
-      ],
-      "webhookId": "7aca8cb9-6616-437b-83e3-03c91c0e8d6b"
+      ]
     },
     {
       "parameters": {
@@ -851,7 +845,7 @@
       "parameters": {
         "operation": "completion",
         "respondWith": "showText",
-        "responseText": "=<style>body{max-width:720px;margin:auto;font:16px/1.6 system-ui,sans-serif;padding:24px;color:#222;overflow-wrap:anywhere}.muted{color:#666;font-size:.9em}</style>{{ $json.html }}"
+        "responseText": "=<style>body{max-width:720px;margin:auto;font:16px/1.6 system-ui,sans-serif;padding:24px;color:#222;overflow-wrap:anywhere}.muted{color:#666;font-size:.9em}</style>{{ $('Explain why there is no dossier').first().json.html }}"
       },
       "id": "0d0ae0c4-a1bd-473d-843e-614042bf4099",
       "name": "Show the notice",
@@ -1244,18 +1238,7 @@
       "main": [
         [
           {
-            "node": "Make the file",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Make the file": {
-      "main": [
-        [
-          {
-            "node": "Return the file",
+            "node": "Make the download page",
             "type": "main",
             "index": 0
           }
@@ -1349,6 +1332,17 @@
           {
             "node": "Design the page",
             "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make the download page": {
+      "main": [
+        [
+          {
+            "node": "Show the dossier",
+            "type": "main",
             "index": 0
           }
         ]

@@ -3,7 +3,7 @@
  * Its logic is in Code nodes whose source lives in the JSON file, and it turns text from web pages and from models into a file that a
  * person opens in a browser, so what the nodes do is pinned here by running their own code on small cases: the request check, the plan
  * check, the verification of quotes, the five "keep" nodes, the picture check, the assembly of the input, the text check, the style
- * checker and the builder of the page.
+ * checker, the builder of the page and the page that shows it with a download link and a preview.
  */
 
 import { readFileSync } from 'fs';
@@ -160,18 +160,19 @@ describe('example 9: the workflow file', () => {
     expect([...operations].sort()).toEqual(['autocomplete', 'extractContent', 'instantAnswer', 'search', 'searchImages', 'searchNews', 'searchVideos']);
   });
 
-  it('makes the file with Convert to File and returns it from the form', () => {
-    const make = nodeOf('Make the file').parameters;
-    expect(make.operation).toBe('toText');
-    expect(make.sourceProperty).toBe('html');
-    expect(make.options.fileName).toBe('={{ $json.filename }}');
-    // Convert to File puts nothing in json (its output is the file), so the completion text must take the name from the builder
-    expect(JSON.stringify(make.options)).not.toContain('mimeType');
-    const done = nodeOf('Return the file').parameters;
-    expect(done.respondWith).toBe('returnBinary');
-    expect(done.inputDataFieldName).toBe(make.binaryPropertyName);
-    expect(done.completionMessage).toContain("$('Build the page').first().json.filename");
-    expect(done.completionMessage).not.toContain('$json');
+  it('shows the dossier on the form page and does not rely on an automatic download', () => {
+    const done = nodeOf('Show the dossier').parameters;
+    expect(done.operation).toBe('completion');
+    expect(done.respondWith).toBe('showText');
+    // a finished run has no $json when the page is loaded again (a reload, the back button), so the ending names the node it reads
+    expect(done.responseText).toBe("={{ $('Make the download page').first().json.page }}");
+    expect(nodeOf('Show the notice').parameters.responseText).toContain("{{ $('Explain why there is no dossier').first().json.html }}");
+    for (const name of ['Show the dossier', 'Show the notice']) expect(nodeOf(name).parameters.responseText).not.toContain('$json');
+    expect(example.connections['Build the page'].main[0][0].node).toBe('Make the download page');
+    expect(example.connections['Make the download page'].main[0][0].node).toBe('Show the dossier');
+    // the form's own file ending downloads on load with no click, which a browser may block while the page still says "downloaded"
+    expect(example.nodes.some((n) => n.parameters && n.parameters.respondWith === 'returnBinary')).toBe(false);
+    expect(example.nodes.some((n) => n.type === 'n8n-nodes-base.convertToFile')).toBe(false);
   });
 
   it('shares one style checker between the tool and the builder', () => {
@@ -1090,5 +1091,99 @@ describe('example 9: hostile text does not stall n8n', () => {
     expect(page.html).not.toContain('\u0000');
     expect(run('Keep the news', [{ title: 'a\u0000b', url: 'https://a.example/x' }])[0].items[0].title).toBe('a b');
     expect(run('Check the text', [{ output: { title: 'a\u0000b', overview: [] } }], { 'Prepare the dossier input': { topic: 't', notes: [], sources: [] } })[0].title).toBe('a b');
+  });
+});
+
+describe('example 9: the download page', () => {
+  const page = (item: Json) => run('Make the download page', [item])[0].page as string;
+  const linkBytes = (html: string) => {
+    const m = /href="data:text\/html;charset=utf-8;base64,([A-Za-z0-9+/=]*)"/.exec(html);
+    return m ? Buffer.from(m[1], 'base64').toString('utf8') : null;
+  };
+  const previewOf = (html: string) => {
+    const m = /srcdoc="([^"]*)"/.exec(html);
+    if (!m) return null;
+    const entities: Record<string, string> = { '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&amp;': '&' };
+    const text = m[1].replace(/&(?:lt|gt|quot|#39|amp);/g, (e) => entities[e]);
+    // the preview points its in-page links at itself; undo that to compare it with the file
+    return text.split('href="about:srcdoc#s').join('href="#s');
+  };
+  const dossier = '<!doctype html><html><head><meta charset="utf-8"><title>Cafe</title></head><body><h1>café — “quoted” 日本語</h1><p>a &amp; b &lt;i&gt;</p></body></html>';
+
+  it('carries the file twice, as the download link and as the preview, byte for byte', () => {
+    const html = page({ html: dossier, filename: 'dossier-solar-2026-10-21.html', missing: [] });
+    expect(linkBytes(html)).toBe(dossier);
+    expect(previewOf(html)).toBe(dossier);
+    expect(html).toContain('download="dossier-solar-2026-10-21.html"');
+    expect(html).toContain('Download dossier-solar-2026-10-21.html');
+  });
+
+  it('points the citation links of the preview at the preview, and leaves the file as it is', () => {
+    const withCitations = '<!doctype html><body><p>Claim <a class="cite" href="#s1">[1]</a></p><ol><li id="s1"><a href="https://a.example/x">A</a></li></ol></body>';
+    const html = page({ html: withCitations, filename: 'dossier-a.html', missing: [] });
+    const raw = /srcdoc="([^"]*)"/.exec(html)![1];
+    expect(raw).toContain('href=&quot;about:srcdoc#s1&quot;');
+    expect(raw).not.toContain('href=&quot;#s1&quot;');
+    expect(linkBytes(html)).toBe(withCitations);
+    expect(html).not.toContain('href="#s');
+  });
+
+  it('carries a large file whole', () => {
+    const big = '<!doctype html><body>' + 'lorem ipsum café '.repeat(40000) + '</body>';
+    const html = page({ html: big, filename: 'dossier-a.html', missing: [] });
+    expect(linkBytes(html)).toBe(big);
+    expect(previewOf(html)).toBe(big);
+  });
+
+  it('keeps a file name that is not plain out of the markup', () => {
+    const html = page({ html: dossier, filename: '"><script>alert(1)</script>.html', missing: [] });
+    expect(html).not.toContain('<script');
+    expect(/download="([^"]*)"/.exec(html)![1]).toMatch(/^[A-Za-z0-9._-]+$/);
+    expect(/download="([^"]*)"/.exec(page({ html: dossier, filename: '', missing: [] }))![1]).toBe('dossier.html');
+  });
+
+  it('keeps a page that tries to break out of the preview inside it', () => {
+    const hostile = '"></iframe><script>alert(1)</script><iframe srcdoc="x';
+    const html = page({ html: hostile, filename: 'dossier-a.html', missing: [] });
+    expect(html.match(/<iframe/g)).toHaveLength(1);
+    expect(html).not.toContain('<script');
+    expect(previewOf(html)).toBe(hostile);
+    expect(linkBytes(html)).toBe(hostile);
+  });
+
+  it('sandboxes the preview: no script, no form, no way into the form page, and links open in a new tab', () => {
+    const html = page({ html: dossier, filename: 'dossier-a.html', missing: [] });
+    const sandbox = /sandbox="([^"]*)"/.exec(html)![1].split(' ');
+    expect(sandbox.sort()).toEqual(['allow-popups', 'allow-popups-to-escape-sandbox']);
+    expect(html).toContain('referrerpolicy="no-referrer"');
+  });
+
+  it('says what is missing, as text', () => {
+    const html = page({ html: dossier, filename: 'dossier-a.html', missing: ['News', '<b>Videos</b>'] });
+    expect(html).toContain('Missing this time: News, &lt;b&gt;Videos&lt;/b&gt;.');
+    expect(page({ html: dossier, filename: 'dossier-a.html', missing: [] })).not.toContain('Missing this time');
+    expect(page({ html: dossier, filename: 'dossier-a.html' })).not.toContain('Missing this time');
+  });
+
+  it('refuses to show an empty page', () => {
+    expect(() => page({ html: '', filename: 'dossier-a.html', missing: [] })).toThrow('There is no page to show.');
+    expect(() => page({ filename: 'dossier-a.html' })).toThrow('There is no page to show.');
+  });
+
+  it('shows what the builder made', () => {
+    // the real builder output goes through the real page: the file in the link is the file that was built
+    const built = run(
+      'Build the page',
+      [{ output: '' }],
+      {
+        'Check the text': {
+          topic: 'Solar power', title: 'Solar power', subtitle: '', language: 'en', date: '2026-10-21', media: 'none', notes: [],
+          sources: [{ n: 1, title: 'A page', url: 'https://a.example/x' }], points: [], overview: [{ text: 'Solar panels turn light into power.', cites: [1] }],
+        },
+      },
+    )[0];
+    const html = page({ html: built.html, filename: built.filename, missing: built.missing });
+    expect(linkBytes(html)).toBe(built.html);
+    expect(previewOf(html)).toBe(built.html);
   });
 });
