@@ -83,6 +83,8 @@ describe('example 9: the workflow file', () => {
     expect(overview).toHaveLength(1);
     expect(overview[0].parameters.content).toContain('### How it works');
     expect(overview[0].parameters.content).toContain('### Setup');
+    // before n8n 2.18 the form page's sandbox does not let a link of the preview open in a normal tab
+    expect(overview[0].parameters.content).toContain('n8n 2.18 or later');
     expect(words(overview[0].parameters.content)).toBeGreaterThanOrEqual(100);
     expect(words(overview[0].parameters.content)).toBeLessThanOrEqual(300);
     for (const note of notes.filter((n) => n.parameters.color !== 1)) expect(words(note.parameters.content)).toBeLessThan(50);
