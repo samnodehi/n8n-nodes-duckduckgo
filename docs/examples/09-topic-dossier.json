@@ -5,23 +5,23 @@
       "parameters": {
         "content": "## Create a topic dossier as one HTML file\n\nType a topic and get one HTML file: an overview in which each paragraph cites a source, key points with quotes that code checked against the pages, the latest news, an instant answer and what people search for next, and, if you ask for them, videos and pictures. It uses **every operation of the DuckDuckGo node** and needs **no search API key**.\n\n**Self-hosted n8n only** - community nodes do not run on n8n Cloud.\n\n### How it works\n1. A model plans the searches. An AI agent reads pages with the node as its tools (three searches at most).\n2. Code keeps a finding only if its quote is in the text or search snippet of a page. A second model writes the overview from those findings alone.\n3. News, videos, pictures, the instant answer and the search ideas are one search each.\n4. A design agent writes a style sheet for the topic; a checker tool and the code accept only a short list of CSS properties and readable colours.\n5. Code builds the HTML (all text escaped, no script); the form shows it with a Download button.\n\n### Setup\n1. **Settings > Community nodes**: install `n8n-nodes-duckduckgo-search` 32.17 or later, on **n8n 2.18 or later** (older versions open preview links in a restricted tab).\n2. Add an OpenRouter credential to **OpenRouter model** and to **Check the pictures**. The model is `deepseek/deepseek-v4.1-flash-1017`, with the `inference-net/fp8` provider preferred; to change it, change both places.\n3. Activate, open the form's production URL and type a topic. The form only opens for people signed in to this n8n.\n\nA run takes one to two minutes and uses 5 to 7 DuckDuckGo searches. DuckDuckGo limits searches per IP address, so leave a few minutes between runs.",
         "color": 1,
-        "width": 1304,
-        "height": 424
+        "width": 1096,
+        "height": 456
       },
       "id": "01cbd9a2-5421-4a3b-8665-1e5b8779b717",
       "name": "Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -32,
-        960
+        2080,
+        80
       ]
     },
     {
       "parameters": {
         "content": "## 1. Plan and research\nA model turns the topic into short queries. An agent searches the web and reads pages with the node as its tool. Code keeps only the findings whose quotes are in the pages.",
         "color": 7,
-        "width": 2184,
+        "width": 1992,
         "height": 432
       },
       "id": "9e274a25-3847-420f-87f2-1bbff67f06c8",
@@ -29,7 +29,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -32,
+        -48,
         96
       ]
     },
@@ -37,7 +37,7 @@
       "parameters": {
         "content": "## 2. The other searches\nNews, videos, pictures, the instant answer and the search ideas: one search each, with waits between the first three. If you ask for thumbnails, a model looks at them and only the ones that fit the topic and look safe are kept.",
         "color": 7,
-        "width": 3280,
+        "width": 3296,
         "height": 392
       },
       "id": "7ab9b953-bede-4414-8054-3f3f5cadb73b",
@@ -45,7 +45,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -32,
+        -48,
         544
       ]
     },
@@ -53,7 +53,7 @@
       "parameters": {
         "content": "## 3. Write and design\nA model writes the overview from the verified findings. A design agent, which sees only the topic, writes a style sheet that a checker tool and code must accept.",
         "color": 7,
-        "width": 1092,
+        "width": 1060,
         "height": 432
       },
       "id": "bfe42460-09fc-4377-8009-7cb97831356d",
@@ -61,24 +61,24 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1520,
-        944
+        976,
+        960
       ]
     },
     {
       "parameters": {
         "content": "## 4. Build the file\nCode builds one HTML file; the form shows it with a Download button and a preview (or the reason). Text is escaped, there is no script, and a policy in the file allows only its own style and the picture hosts it uses.",
         "color": 7,
-        "width": 620,
-        "height": 272
+        "width": 636,
+        "height": 352
       },
       "id": "d5c2ac72-6c77-4ce7-8303-06f85a043750",
       "name": "Section - build the file",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2624,
-        944
+        2064,
+        960
       ]
     },
     {
@@ -589,7 +589,7 @@
       "typeVersion": 4.4,
       "position": [
         2128,
-        608
+        576
       ],
       "onError": "continueRegularOutput"
     },
@@ -605,7 +605,7 @@
       "typeVersion": 2,
       "position": [
         2320,
-        608
+        576
       ]
     },
     {
@@ -689,8 +689,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1616,
-        1040
+        1040,
+        1056
       ]
     },
     {
@@ -712,8 +712,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        1808,
-        1040
+        1232,
+        1056
       ],
       "onError": "continueRegularOutput"
     },
@@ -727,8 +727,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        1984,
-        1248
+        1408,
+        1264
       ]
     },
     {
@@ -742,8 +742,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2128,
-        1040
+        1552,
+        1056
       ]
     },
     {
@@ -760,8 +760,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        2320,
-        1040
+        1744,
+        1056
       ],
       "onError": "continueRegularOutput"
     },
@@ -776,8 +776,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolCode",
       "typeVersion": 1.3,
       "position": [
-        2496,
-        1248
+        1920,
+        1264
       ]
     },
     {
@@ -791,8 +791,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2688,
-        1056
+        2128,
+        1104
       ]
     },
     {
@@ -806,8 +806,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2880,
-        1056
+        2320,
+        1088
       ]
     },
     {
@@ -822,8 +822,8 @@
       "typeVersion": 2.5,
       "webhookId": "7aca8cb9-6616-437b-83e3-03c91c0e8d6b",
       "position": [
-        3072,
-        1056
+        2512,
+        1088
       ]
     },
     {
@@ -860,8 +860,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1360,
-        1296
+        832,
+        1280
       ]
     }
   ],
