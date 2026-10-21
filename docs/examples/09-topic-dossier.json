@@ -5,23 +5,23 @@
       "parameters": {
         "content": "## Create a topic dossier as one HTML file\n\nType a topic and get one HTML file: an overview in which each paragraph cites a source, key points with quotes that code checked against the pages, the latest news, an instant answer and what people search for next, and, if you ask for them, videos and pictures. It uses **every operation of the DuckDuckGo node** and needs **no search API key**.\n\n**Self-hosted n8n only** - community nodes do not run on n8n Cloud.\n\n### How it works\n1. A model plans the searches. An AI agent reads pages with the node as its tools (three searches at most).\n2. Code keeps a finding only if its quote is in the text or search snippet of a page. A second model writes the overview from those findings alone.\n3. News, videos, pictures, the instant answer and the search ideas are one search each.\n4. A design agent writes a style sheet for the topic; a checker tool and the code accept only a short list of CSS properties and readable colours.\n5. Code builds the HTML (all text escaped, no script); the form shows it with a Download button.\n\n### Setup\n1. **Settings > Community nodes**: install `n8n-nodes-duckduckgo-search` 32.17 or later, on **n8n 2.18 or later** (older versions open preview links in a restricted tab).\n2. Add an OpenRouter credential to **OpenRouter model** and to **Check the pictures**. The model is `deepseek/deepseek-v4.1-flash-1017`, with the `inference-net/fp8` provider preferred; to change it, change both places.\n3. Activate, open the form's production URL and type a topic. The form only opens for people signed in to this n8n.\n\nA run takes one to two minutes and uses 5 to 7 DuckDuckGo searches. DuckDuckGo limits searches per IP address, so leave a few minutes between runs.",
         "color": 1,
-        "width": 1304,
-        "height": 424
+        "width": 1096,
+        "height": 456
       },
       "id": "01cbd9a2-5421-4a3b-8665-1e5b8779b717",
       "name": "Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -32,
-        960
+        2080,
+        80
       ]
     },
     {
       "parameters": {
         "content": "## 1. Plan and research\nA model turns the topic into short queries. An agent searches the web and reads pages with the node as its tool. Code keeps only the findings whose quotes are in the pages.",
         "color": 7,
-        "width": 2184,
+        "width": 1992,
         "height": 432
       },
       "id": "9e274a25-3847-420f-87f2-1bbff67f06c8",
@@ -29,7 +29,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -32,
+        -48,
         96
       ]
     },
@@ -37,7 +37,7 @@
       "parameters": {
         "content": "## 2. The other searches\nNews, videos, pictures, the instant answer and the search ideas: one search each, with waits between the first three. If you ask for thumbnails, a model looks at them and only the ones that fit the topic and look safe are kept.",
         "color": 7,
-        "width": 3280,
+        "width": 3296,
         "height": 392
       },
       "id": "7ab9b953-bede-4414-8054-3f3f5cadb73b",
@@ -45,7 +45,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -32,
+        -48,
         544
       ]
     },
@@ -53,7 +53,7 @@
       "parameters": {
         "content": "## 3. Write and design\nA model writes the overview from the verified findings. A design agent, which sees only the topic, writes a style sheet that a checker tool and code must accept.",
         "color": 7,
-        "width": 1092,
+        "width": 1060,
         "height": 432
       },
       "id": "bfe42460-09fc-4377-8009-7cb97831356d",
@@ -61,24 +61,24 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1520,
-        944
+        976,
+        960
       ]
     },
     {
       "parameters": {
-        "content": "## 4. Build the file\nCode builds one HTML file; the form shows it with a Download button and a preview. Text is escaped, there is no script, and a policy in the file allows only its own style and the picture hosts it uses.",
+        "content": "## 4. Build the file\nCode builds one HTML file; the form shows it with a Download button and a preview (or the reason). Text is escaped, there is no script, and a policy in the file allows only its own style and the picture hosts it uses.",
         "color": 7,
-        "width": 620,
-        "height": 272
+        "width": 636,
+        "height": 352
       },
       "id": "d5c2ac72-6c77-4ce7-8303-06f85a043750",
       "name": "Section - build the file",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2624,
-        944
+        2064,
+        960
       ]
     },
     {
@@ -589,7 +589,7 @@
       "typeVersion": 4.4,
       "position": [
         2128,
-        608
+        576
       ],
       "onError": "continueRegularOutput"
     },
@@ -605,7 +605,7 @@
       "typeVersion": 2,
       "position": [
         2320,
-        608
+        576
       ]
     },
     {
@@ -689,8 +689,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1616,
-        1040
+        1040,
+        1056
       ]
     },
     {
@@ -712,8 +712,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        1808,
-        1040
+        1232,
+        1056
       ],
       "onError": "continueRegularOutput"
     },
@@ -727,8 +727,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        1984,
-        1248
+        1408,
+        1264
       ]
     },
     {
@@ -742,8 +742,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2128,
-        1040
+        1552,
+        1056
       ]
     },
     {
@@ -760,8 +760,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        2320,
-        1040
+        1744,
+        1056
       ],
       "onError": "continueRegularOutput"
     },
@@ -776,8 +776,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolCode",
       "typeVersion": 1.3,
       "position": [
-        2496,
-        1248
+        1920,
+        1264
       ]
     },
     {
@@ -791,46 +791,46 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2688,
-        1056
+        2128,
+        1104
       ]
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Makes the page that the form shows when the dossier is ready: a Download button and a preview of the same file. The form's own \"return a\n// file\" ending downloads on page load with no click, which a browser may block while the page still says \"downloaded\"; a click on a link is\n// a user action that is always allowed, and the preview shows the result on the spot.\n// The file travels in the link as base64 and in the preview as an escaped attribute, so nothing that came from the web is read as markup\n// here, and the preview is sandboxed: no script and no form, and its links open in a new tab.\nconst item = $input.first().json || {};\nconst html = typeof item.html === 'string' ? item.html : '';\nif (!html) throw new Error('There is no page to show.');\nconst esc = (s) => String(s == null ? '' : s).replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' })[c]);\nconst filename = String(item.filename || '').replace(/[^A-Za-z0-9._-]+/g, '-').slice(0, 80) || 'dossier.html';\nconst base64 = Buffer.from(html, 'utf8').toString('base64');\n// A preview takes the address of the form page as its base, so a citation link (#s1) would load the form page again inside the preview\n// instead of scrolling. In the preview copy only, the in-page links point at the preview itself; text from the web cannot contain\n// the literal href=\"#s because its quotes are escaped.\nconst preview = html.replace(/href=\"#s/g, 'href=\"about:srcdoc#s');\nconst missing = Array.isArray(item.missing) && item.missing.length ? ' Missing this time: ' + item.missing.join(', ') + '.' : '';\nconst page = '<style>body{max-width:960px;margin:auto;font:16px/1.6 system-ui,sans-serif;padding:24px;color:#222;overflow-wrap:anywhere}'\n  + 'h1{font-size:1.4rem;margin:0 0 12px}.bar{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:0 0 16px}'\n  + '.btn{display:inline-block;padding:10px 18px;background:#15803d;color:#fff;border-radius:6px;text-decoration:none;font-weight:600}'\n  + '.muted{color:#666;font-size:.9em}iframe{display:block;width:100%;height:75vh;min-height:420px;border:1px solid #ccc;border-radius:6px;background:#fff}</style>'\n  + '<h1>Your dossier is ready</h1>'\n  + '<div class=\"bar\"><a class=\"btn\" download=\"' + esc(filename) + '\" href=\"data:text/html;charset=utf-8;base64,' + base64 + '\">Download ' + esc(filename) + '</a>'\n  + '<span class=\"muted\">One HTML file with no script; open it in any browser.' + esc(missing) + '</span></div>'\n  + '<iframe title=\"Preview of the dossier\" sandbox=\"allow-popups allow-popups-to-escape-sandbox\" referrerpolicy=\"no-referrer\" srcdoc=\"' + esc(preview) + '\"></iframe>';\nreturn [{ json: { page, filename } }];\n"
+        "jsCode": "// Makes the one page that the form shows at the end, whatever the outcome: the dossier (a Download button and a preview of the same file) or,\n// when there is none, the reason. The form's own \"return a file\" ending downloads on page load with no click, which a browser may block while\n// the page still says \"downloaded\"; a click on a link is a user action that is always allowed, and the preview shows the result on the spot.\n// The file travels in the link as base64 and in the preview as an escaped attribute, so nothing that came from the web is read as markup\n// here, and the preview is sandboxed: no script and no form, and its links open in a new tab.\nconst item = $input.first().json || {};\nconst html = typeof item.html === 'string' ? item.html : '';\nif (!html) throw new Error('There is no page to show.');\n// The reason that \"Explain why there is no dossier\" wrote is marked `notice`; everything else is a dossier.\nif (item.notice === true) {\n  const style = '<style>body{max-width:720px;margin:auto;font:16px/1.6 system-ui,sans-serif;padding:24px;color:#222;overflow-wrap:anywhere}.muted{color:#666;font-size:.9em}</style>';\n  return [{ json: { page: style + html } }];\n}\nconst esc = (s) => String(s == null ? '' : s).replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' })[c]);\nconst filename = String(item.filename || '').replace(/[^A-Za-z0-9._-]+/g, '-').slice(0, 80) || 'dossier.html';\nconst base64 = Buffer.from(html, 'utf8').toString('base64');\n// A preview takes the address of the form page as its base, so a citation link (#s1) would load the form page again inside the preview\n// instead of scrolling. In the preview copy only, the in-page links point at the preview itself; text from the web cannot contain\n// the literal href=\"#s because its quotes are escaped.\nconst preview = html.replace(/href=\"#s/g, 'href=\"about:srcdoc#s');\nconst missing = Array.isArray(item.missing) && item.missing.length ? ' Missing this time: ' + item.missing.join(', ') + '.' : '';\nconst page = '<style>body{max-width:960px;margin:auto;font:16px/1.6 system-ui,sans-serif;padding:24px;color:#222;overflow-wrap:anywhere}'\n  + 'h1{font-size:1.4rem;margin:0 0 12px}.bar{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:0 0 16px}'\n  + '.btn{display:inline-block;padding:10px 18px;background:#15803d;color:#fff;border-radius:6px;text-decoration:none;font-weight:600}'\n  + '.muted{color:#666;font-size:.9em}iframe{display:block;width:100%;height:75vh;min-height:420px;border:1px solid #ccc;border-radius:6px;background:#fff}</style>'\n  + '<h1>Your dossier is ready</h1>'\n  + '<div class=\"bar\"><a class=\"btn\" download=\"' + esc(filename) + '\" href=\"data:text/html;charset=utf-8;base64,' + base64 + '\">Download ' + esc(filename) + '</a>'\n  + '<span class=\"muted\">One HTML file with no script; open it in any browser.' + esc(missing) + '</span></div>'\n  + '<iframe title=\"Preview of the dossier\" sandbox=\"allow-popups allow-popups-to-escape-sandbox\" referrerpolicy=\"no-referrer\" srcdoc=\"' + esc(preview) + '\"></iframe>';\nreturn [{ json: { page, filename } }];\n"
       },
       "id": "8e914e97-a788-4e7b-8456-b7a5bd428bc1",
-      "name": "Make the download page",
+      "name": "Make the result page",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2880,
-        1056
+        2320,
+        1088
       ]
     },
     {
       "parameters": {
         "operation": "completion",
         "respondWith": "showText",
-        "responseText": "={{ $('Make the download page').first().json.page }}"
+        "responseText": "={{ $('Make the result page').first().json.page }}"
       },
       "id": "bdf43822-e891-48e3-8aea-d70a0bb30cb6",
-      "name": "Show the dossier",
+      "name": "Show the result",
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "webhookId": "7aca8cb9-6616-437b-83e3-03c91c0e8d6b",
       "position": [
-        3072,
-        1056
+        2512,
+        1088
       ]
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// The page shown when there is no dossier: the request was not accepted, or too little could be found and verified.\nconst item = $input.first().json || {};\nconst esc = (s) => String(s == null ? '' : s).replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' })[c]);\nconst reason = String(item.error || item.why || 'Nothing could be made.').replace(/\\s+/g, ' ').slice(0, 400);\nconst html = '<h1>No dossier this time</h1><p>' + esc(reason) + '</p>'\n  + '<p class=\"muted\">The dossier is built only from pages that were read and quotes that were found in them, so a topic with too little to read gives no dossier. Nothing is made up to fill the gap.</p>';\nreturn [{ json: { html } }];\n"
+        "jsCode": "// The text of the page shown when there is no dossier: the request was not accepted, or too little could be found and verified.\n// \"Make the result page\" adds the style, tells it from a dossier by `notice`, and ends the form.\nconst item = $input.first().json || {};\nconst esc = (s) => String(s == null ? '' : s).replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' })[c]);\nconst reason = String(item.error || item.why || 'Nothing could be made.').replace(/\\s+/g, ' ').slice(0, 400);\nconst html = '<h1>No dossier this time</h1><p>' + esc(reason) + '</p>'\n  + '<p class=\"muted\">The dossier is built only from pages that were read and quotes that were found in them, so a topic with too little to read gives no dossier. Nothing is made up to fill the gap.</p>';\nreturn [{ json: { html, notice: true } }];\n"
       },
       "id": "d15444e6-de15-44fd-89ae-3624ff324e39",
       "name": "Explain why there is no dossier",
@@ -840,22 +840,6 @@
         1792,
         224
       ]
-    },
-    {
-      "parameters": {
-        "operation": "completion",
-        "respondWith": "showText",
-        "responseText": "=<style>body{max-width:720px;margin:auto;font:16px/1.6 system-ui,sans-serif;padding:24px;color:#222;overflow-wrap:anywhere}.muted{color:#666;font-size:.9em}</style>{{ $('Explain why there is no dossier').first().json.html }}"
-      },
-      "id": "0d0ae0c4-a1bd-473d-843e-614042bf4099",
-      "name": "Show the notice",
-      "type": "n8n-nodes-base.form",
-      "typeVersion": 2.5,
-      "position": [
-        1984,
-        224
-      ],
-      "webhookId": "959e7548-5620-4af2-8beb-dae454dacf8c"
     },
     {
       "parameters": {
@@ -876,8 +860,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1360,
-        1296
+        832,
+        1280
       ]
     }
   ],
@@ -1238,7 +1222,7 @@
       "main": [
         [
           {
-            "node": "Make the download page",
+            "node": "Make the result page",
             "type": "main",
             "index": 0
           }
@@ -1249,7 +1233,7 @@
       "main": [
         [
           {
-            "node": "Show the notice",
+            "node": "Make the result page",
             "type": "main",
             "index": 0
           }
@@ -1337,11 +1321,11 @@
         ]
       ]
     },
-    "Make the download page": {
+    "Make the result page": {
       "main": [
         [
           {
-            "node": "Show the dossier",
+            "node": "Show the result",
             "type": "main",
             "index": 0
           }

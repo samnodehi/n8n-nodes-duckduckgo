@@ -3,7 +3,7 @@
  * Its logic is in Code nodes whose source lives in the JSON file, and it turns text from web pages and from models into a file that a
  * person opens in a browser, so what the nodes do is pinned here by running their own code on small cases: the request check, the plan
  * check, the verification of quotes, the five "keep" nodes, the picture check, the assembly of the input, the text check, the style
- * checker, the builder of the page and the page that shows it with a download link and a preview.
+ * checker, the builder of the page and the page that ends the form: the dossier with a download link and a preview, or the reason.
  */
 
 import { readFileSync } from 'fs';
@@ -162,16 +162,19 @@ describe('example 9: the workflow file', () => {
     expect([...operations].sort()).toEqual(['autocomplete', 'extractContent', 'instantAnswer', 'search', 'searchImages', 'searchNews', 'searchVideos']);
   });
 
-  it('shows the dossier on the form page and does not rely on an automatic download', () => {
-    const done = nodeOf('Show the dossier').parameters;
+  it('ends in one form page that shows the dossier or the reason, and does not rely on an automatic download', () => {
+    const forms = example.nodes.filter((n) => n.type === 'n8n-nodes-base.form' || n.type === 'n8n-nodes-base.formTrigger');
+    expect(forms.map((n) => n.name).sort()).toEqual(['Show the result', 'Topic to research']);
+    const done = nodeOf('Show the result').parameters;
     expect(done.operation).toBe('completion');
     expect(done.respondWith).toBe('showText');
     // a finished run has no $json when the page is loaded again (a reload, the back button), so the ending names the node it reads
-    expect(done.responseText).toBe("={{ $('Make the download page').first().json.page }}");
-    expect(nodeOf('Show the notice').parameters.responseText).toContain("{{ $('Explain why there is no dossier').first().json.html }}");
-    for (const name of ['Show the dossier', 'Show the notice']) expect(nodeOf(name).parameters.responseText).not.toContain('$json');
-    expect(example.connections['Build the page'].main[0][0].node).toBe('Make the download page');
-    expect(example.connections['Make the download page'].main[0][0].node).toBe('Show the dossier');
+    expect(done.responseText).toBe("={{ $('Make the result page').first().json.page }}");
+    expect(done.responseText).not.toContain('$json');
+    // both outcomes go through the same page node: the dossier, and the reason that the failure branches give
+    expect(example.connections['Build the page'].main[0][0].node).toBe('Make the result page');
+    expect(example.connections['Explain why there is no dossier'].main[0][0].node).toBe('Make the result page');
+    expect(example.connections['Make the result page'].main[0][0].node).toBe('Show the result');
     // the form's own file ending downloads on load with no click, which a browser may block while the page still says "downloaded"
     expect(example.nodes.some((n) => n.parameters && n.parameters.respondWith === 'returnBinary')).toBe(false);
     expect(example.nodes.some((n) => n.type === 'n8n-nodes-base.convertToFile')).toBe(false);
@@ -1039,7 +1042,7 @@ describe('example 9: the page', () => {
   });
 });
 
-describe('example 9: the notice', () => {
+describe('example 9: the reason', () => {
   it('escapes the reason and says what happened', () => {
     const n = run('Explain why there is no dossier', [{ error: 'Type a topic <script>alert(1)</script>' }])[0];
     expect(n.html).toContain('No dossier this time');
@@ -1096,8 +1099,8 @@ describe('example 9: hostile text does not stall n8n', () => {
   });
 });
 
-describe('example 9: the download page', () => {
-  const page = (item: Json) => run('Make the download page', [item])[0].page as string;
+describe('example 9: the result page', () => {
+  const page = (item: Json) => run('Make the result page', [item])[0].page as string;
   const linkBytes = (html: string) => {
     const m = /href="data:text\/html;charset=utf-8;base64,([A-Za-z0-9+/=]*)"/.exec(html);
     return m ? Buffer.from(m[1], 'base64').toString('utf8') : null;
@@ -1165,6 +1168,26 @@ describe('example 9: the download page', () => {
     expect(html).toContain('Missing this time: News, &lt;b&gt;Videos&lt;/b&gt;.');
     expect(page({ html: dossier, filename: 'dossier-a.html', missing: [] })).not.toContain('Missing this time');
     expect(page({ html: dossier, filename: 'dossier-a.html' })).not.toContain('Missing this time');
+  });
+
+  it('shows the reason when there is no dossier, as the previous node wrote it', () => {
+    const reason = run('Explain why there is no dossier', [{ error: 'Type a <b>topic</b>' }])[0];
+    const html = page(reason);
+    expect(html).toContain('No dossier this time');
+    expect(html).toContain('Type a &lt;b&gt;topic&lt;/b&gt;');
+    expect(html).not.toContain('<iframe');
+    expect(html).not.toContain('data:text/html');
+    expect(html).not.toContain('Your dossier is ready');
+    expect(html).not.toContain('<script');
+  });
+
+  it('tells the reason from a dossier by what the previous node marked, not by a guess', () => {
+    expect(run('Explain why there is no dossier', [{ why: 'x' }])[0].notice).toBe(true);
+    expect(page({ html: '<p>A reason</p>', notice: true })).not.toContain('<iframe');
+    // a dossier that lost its file name is still a dossier, with the default name
+    const nameless = page({ html: dossier, missing: [] });
+    expect(nameless).toContain('<iframe');
+    expect(nameless).toContain('download="dossier.html"');
   });
 
   it('refuses to show an empty page', () => {
