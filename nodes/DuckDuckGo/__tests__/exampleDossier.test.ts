@@ -9,6 +9,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
+import { CHALLENGE_COOLDOWN_MS } from '../challengeCooldown';
+
 interface ExampleNode {
   name: string;
   type: string;
@@ -131,6 +133,30 @@ describe('example 9: the workflow file', () => {
       expect(node.onError).toBe('continueRegularOutput');
       expect(node.parameters.errorHandling).toBe('continueOnFail');
     }
+  });
+
+  it('waits longer than the pause of the node after a refused news search, and a few seconds otherwise', () => {
+    // after a challenge the node refuses every search for CHALLENGE_COOLDOWN_MS; the wait must outlast that, and stay under the 65 seconds at which
+    // n8n stores the execution and resumes it later
+    const seconds = (name: string, nodes: Record<string, Json>) => {
+      const parameters = nodeOf(name).parameters;
+      expect(parameters.unit).toBe('seconds');
+      const body = String(parameters.amount).replace(/^=\{\{\s*/, '').replace(/\s*\}\}$/, '');
+      const $ = (n: string) => ({ first: () => ({ json: nodes[n] }) });
+      return new Function('$', 'return ' + body)($) as number;
+    };
+    const next = (media: string, news: string) => seconds('Wait before the next search', { 'Check the request': { media }, 'Keep the news': { state: news } });
+    const long = next('links', 'blocked');
+    expect(long).toBeGreaterThan(CHALLENGE_COOLDOWN_MS / 1000);
+    expect(long).toBeLessThan(65);
+    expect(next('thumbs', 'blocked')).toBe(long);
+    expect(next('links', 'ok')).toBe(4);
+    expect(next('links', 'failed')).toBe(4);
+    // with no pictures or videos wanted only the instant answer and the search ideas follow, and the node does not hold those back
+    expect(next('none', 'blocked')).toBe(4);
+    // the wait before the images stays short: after a challenge in the video search the node refuses the image search by itself, and a longer
+    // wait would send a second real request into a block that can last tens of minutes
+    expect(nodeOf('Wait before the images').parameters.amount).toBe(4);
   });
 
   it('waits between the searches that go to DuckDuckGo', () => {
@@ -665,6 +691,14 @@ describe('example 9: the input of the writer', () => {
       expect(d.thumbs).toBe(false);
       expect(d.notes.join(' ')).toMatch(/could not be checked/);
     }
+  });
+
+  it('does not say that thumbnails could not be checked when the searches were refused and there is nothing to check', () => {
+    const refused = { state: 'blocked', note: 'DuckDuckGo limited the searches of this server just now. Wait about 30 minutes and run it again.', items: [] };
+    const d = prepare(base({ 'Check the request': { topic: 'Solar power', media: 'thumbs', today: '2026-10-21' }, 'Keep the images': refused, 'Keep the videos': refused }));
+    expect(d.thumbs).toBe(false);
+    expect(d.notes).toEqual([]);
+    expect(d.images.state).toBe('blocked');
   });
 
   it('goes on when a section did not run', () => {
