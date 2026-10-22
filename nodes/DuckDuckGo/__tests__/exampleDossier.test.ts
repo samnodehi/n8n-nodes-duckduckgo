@@ -184,13 +184,17 @@ describe('example 9: the workflow file', () => {
     // the tool tells the agent what the builder will keep, so the two must hold the same rules
     const build = sourceOf('Build the page');
     const tool = sourceOf('Check the style');
+    // the checker and the contrast rules, up to where the builder keeps its base style sheet (the tool has no use for it)...
     const start = tool.indexOf('const CSS_HOOKS');
-    const end = tool.indexOf('const backgroundOk');
+    const middle = tool.indexOf("// The agent's style sheet is checked here");
     expect(start).toBeGreaterThan(-1);
-    expect(build).toContain(tool.slice(start, end).split('const BASE_CSS')[0]);
-    const chooseStart = tool.indexOf('const chooseStyle');
-    const chooseEnd = tool.indexOf('// The design agent calls this tool');
-    expect(build).toContain(tool.slice(chooseStart, chooseEnd).trimEnd());
+    expect(middle).toBeGreaterThan(start);
+    expect(build).toContain(tool.slice(start, middle));
+    // ...and from there to the end of chooseStyle (backgroundOk included)
+    const end = tool.indexOf('// The design agent calls this tool');
+    expect(end).toBeGreaterThan(middle);
+    expect(build).toContain(tool.slice(middle, end).trimEnd());
+    expect(tool).not.toContain('BASE_CSS');
   });
 });
 
@@ -980,6 +984,34 @@ describe('example 9: the page', () => {
     expect(b.html).toContain('Key points');
   });
 
+  it('prints on white paper with dark text whatever the colours on screen', () => {
+    const dark = ':root{--bg:#0f172a;--fg:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--card:#1e293b;--line:#334155}';
+    const style = /<style>([\s\S]*?)<\/style>/.exec(build(D(), dark).html)![1];
+    // the screen colours are the ones of the agent...
+    expect(style.startsWith(':root{--bg:#0f172a;--fg:#e2e8f0;')).toBe(true);
+    // ...and the print rule comes after them, with dark text variables, no backgrounds and visible links
+    const print = style.slice(style.indexOf('@media print{'));
+    expect(style.indexOf('@media print{')).toBeGreaterThan(style.indexOf(':root{'));
+    expect(print).toContain(':root{--bg:#fff;--fg:#111;--muted:#444;--accent:#111;--card:#fff;--line:#bbb}');
+    expect(print).toContain('*{background:none!important;box-shadow:none!important}');
+    expect(print).toContain('a{text-decoration:underline!important}');
+    // text colours may only be the variables (that is what the style checker allows), so overriding them is enough for the text
+    expect(print).not.toMatch(/(^|[;{])color:/);
+  });
+
+  it('cannot be undone by the style sheet of the agent: it comes after the print rule and may not use !important', () => {
+    const dark = ':root{--bg:#0f172a;--fg:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--card:#1e293b;--line:#334155}';
+    const sheet = dark + ' .point{background:var(--card)} a{text-decoration:none} .card{background:var(--card) !important} .quote{color:var(--fg)!important}';
+    const b = build(D(), sheet);
+    const style = /<style>([\s\S]*?)<\/style>/.exec(b.html)![1];
+    const afterPrint = style.slice(style.indexOf('@media print{'));
+    // what is kept of the agent's sheet comes after the print rule, so only !important in the print rule can win; the checker refuses it elsewhere
+    expect(afterPrint).toContain('.point{background:var(--card)}');
+    expect(afterPrint).toContain('a{text-decoration:none}');
+    expect(afterPrint.slice(afterPrint.indexOf('.point{background:var(--card)}'))).not.toContain('!important');
+    expect(b.styleNotes.some((n: string) => n.includes('background'))).toBe(true);
+  });
+
   it('keeps a valid style sheet of the agent and nothing else', () => {
     const hostile = css + ' .card{background:url(https://evil.example/x.png);position:fixed} @import "https://evil.example/x.css"; script{x:y} </style><script>alert(1)</script>';
     const b = build(D(), hostile);
@@ -1161,6 +1193,10 @@ describe('example 9: the result page', () => {
     const sandbox = /sandbox="([^"]*)"/.exec(html)![1].split(' ');
     expect(sandbox.sort()).toEqual(['allow-popups', 'allow-popups-to-escape-sandbox']);
     expect(html).toContain('referrerpolicy="no-referrer"');
+  });
+
+  it('says how to get a PDF', () => {
+    expect(page({ html: dossier, filename: 'dossier-a.html', missing: [] })).toContain('To get a PDF, open the file and print it as PDF.');
   });
 
   it('says what is missing, as text', () => {
