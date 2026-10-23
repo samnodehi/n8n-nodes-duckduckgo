@@ -85,12 +85,21 @@ function safeSearchParam(level: SafeSearchLevel | undefined): string {
   return value === SafeSearchLevel.Strict ? '1' : String(value);
 }
 
+/**
+ * What a browser offers, and what the web, image and fallback requests of this node send. Without it axios sends its own default,
+ * "gzip, compress, deflate, br", and DuckDuckGo answered that with the bot-detection page (HTTP 202) in 6 of 9 requests from the one connection
+ * that was tried, with the same URL and User-Agent; with this value (or "gzip, deflate" or "identity") none of 15 requests was challenged
+ * (2026-10-23). A block on the address of a server can still exist; this removes a cause that the node gave itself.
+ */
+const ACCEPT_ENCODING = 'gzip, deflate, br';
+
 async function fetchVqd(pageUrl: string, label: string): Promise<string> {
   const response = await axios.get(pageUrl, {
     headers: {
       'User-Agent': BROWSER_USER_AGENT,
       Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': ACCEPT_ENCODING,
     },
     responseType: 'text',
     timeout: TIMEOUT_MS,
@@ -127,6 +136,7 @@ async function fetchPage(
       'User-Agent': BROWSER_USER_AGENT,
       Accept: 'application/json, text/javascript, */*; q=0.01',
       'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': ACCEPT_ENCODING,
       Referer: referer,
       'Sec-Fetch-Dest': 'empty',
       'Sec-Fetch-Mode': 'cors',
