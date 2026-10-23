@@ -9,8 +9,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-import { CHALLENGE_COOLDOWN_MS } from '../challengeCooldown';
-
 interface ExampleNode {
   name: string;
   type: string;
@@ -135,28 +133,12 @@ describe('example 9: the workflow file', () => {
     }
   });
 
-  it('waits longer than the pause of the node after a refused news search, and a few seconds otherwise', () => {
-    // after a challenge the node refuses every search for CHALLENGE_COOLDOWN_MS; the wait must outlast that, and stay under the 65 seconds at which
-    // n8n stores the execution and resumes it later
-    const seconds = (name: string, nodes: Record<string, Json>) => {
-      const parameters = nodeOf(name).parameters;
-      expect(parameters.unit).toBe('seconds');
-      const body = String(parameters.amount).replace(/^=\{\{\s*/, '').replace(/\s*\}\}$/, '');
-      const $ = (n: string) => ({ first: () => ({ json: nodes[n] }) });
-      return new Function('$', 'return ' + body)($) as number;
-    };
-    const next = (media: string, news: string) => seconds('Wait before the next search', { 'Check the request': { media }, 'Keep the news': { state: news } });
-    const long = next('links', 'blocked');
-    expect(long).toBeGreaterThan(CHALLENGE_COOLDOWN_MS / 1000);
-    expect(long).toBeLessThan(65);
-    expect(next('thumbs', 'blocked')).toBe(long);
-    expect(next('links', 'ok')).toBe(4);
-    expect(next('links', 'failed')).toBe(4);
-    // with no pictures or videos wanted only the instant answer and the search ideas follow, and the node does not hold those back
-    expect(next('none', 'blocked')).toBe(4);
-    // the wait before the images stays short: after a challenge in the video search the node refuses the image search by itself, and a longer
-    // wait would send a second real request into a block that can last tens of minutes
-    expect(nodeOf('Wait before the images').parameters.amount).toBe(4);
+  it('keeps the waits short: a longer one only sends a real request into a block', () => {
+    // after a challenge the node refuses every search by itself for a minute and then sends the next one for real; a block of the address of the
+    // server lasts tens of minutes, so on 2026-10-22 a wait of 62 seconds gave a second challenge and nothing else
+    for (const name of ['Wait before the next search', 'Wait before the images']) {
+      expect(nodeOf(name).parameters).toMatchObject({ resume: 'timeInterval', amount: 4, unit: 'seconds' });
+    }
   });
 
   it('waits between the searches that go to DuckDuckGo', () => {
