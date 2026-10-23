@@ -1,3 +1,58 @@
+# v32.17.3 — News and Video search no longer provoke the challenge page
+
+**Release Date:** 2026-10-23
+
+News and Video Search sent their requests without an `Accept-Encoding` header,
+so axios sent its own default, and DuckDuckGo answered it with its
+bot-detection page. **Nothing in your workflows needs changing; update the node.**
+
+---
+
+## What was wrong
+
+The two requests of News and Video Search (the page that carries the token, and
+`news.js` / `v.js`) set a User-Agent and `Accept-Language` but no
+`Accept-Encoding`. axios then adds `gzip, compress, deflate, br`. The Web,
+Image and fallback requests of the node already sent `gzip, deflate, br`.
+
+Measured on 2026-10-23 from one home connection, same URL and User-Agent:
+
+- with the axios default, DuckDuckGo answered 6 of 9 requests with the
+  challenge page (HTTP 202), the node's own first News search included;
+- with `gzip, deflate, br`, `gzip, deflate` or `identity`, none of 15 requests was
+  challenged, and the node's News (29 results), Video (60) and Image (3)
+  searches all returned results.
+
+A challenge also starts the node's one-minute pause, during which every search
+is refused locally, so the Image search that followed a News or Video search
+was refused too. That is why, on a server that kept meeting it, News, Videos and
+Pictures all came back empty at once and looked like a blocked address.
+
+## What changed
+
+The two requests now send `Accept-Encoding: gzip, deflate, br`. A test pins it.
+
+## What you might notice
+
+- News and Video Search that were refused with "DuckDuckGo served a bot-detection
+  challenge" should work again. If a search is still refused, the address your
+  server sends requests from may really be blocked: see *Bot-detection
+  challenge* in the README. The default sometimes passed too (3 of 9), so this
+  release removes a cause the node gave itself; it does not promise that
+  DuckDuckGo never challenges.
+- `autocomplete` and `instantAnswer` still send no `Accept-Encoding`; nothing
+  showed that they are challenged, and Extract Page Content talks to the pages
+  themselves.
+
+## Example workflows
+
+`docs/examples/` is not part of the npm package. After v32.17.2 it gained
+example 8 (find broken links on a web page) and example 9 (a topic dossier as
+one HTML file, with a preview, a Download button and a print rule for PDF); see
+the README table.
+
+---
+
 # v32.17.2 — A rate limit is reported as one in every search
 
 **Release Date:** 2026-10-19
