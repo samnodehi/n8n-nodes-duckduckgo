@@ -124,6 +124,25 @@ describe('the mapping', () => {
   });
 });
 
+describe('what every request of the news and video search offers for encoding', () => {
+  it('sends a browser-like Accept-Encoding with the token request and the results request, never the axios default', async () => {
+    // axios sends "gzip, compress, deflate, br" when none is given, and DuckDuckGo answers that with its challenge page
+    mockedGet
+      .mockResolvedValueOnce(respond(202, VQD_PAGE))
+      .mockResolvedValueOnce(json(RAW_NEWS))
+      .mockResolvedValueOnce(respond(202, VQD_PAGE))
+      .mockResolvedValueOnce(json({ results: [] }));
+
+    await searchNews('wind power', {});
+    await searchVideos('wind power', {});
+
+    expect(mockedGet).toHaveBeenCalledTimes(4);
+    for (let call = 0; call < 4; call++) {
+      expect(requestedHeaders(call)['Accept-Encoding']).toBe('gzip, deflate, br');
+    }
+  });
+});
+
 describe('the news request', () => {
   it('fetches a token from the results page, then asks for the page as that page would', async () => {
     mockedGet
