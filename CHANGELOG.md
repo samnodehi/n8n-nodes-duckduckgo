@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [32.17.3] - 2026-10-23
+
 ### Fixed
 
 - **News and Video search provoked DuckDuckGo's bot-detection page themselves.** The two requests of `newsVideoSearch.ts` (the page that carries the token, and `news.js` / `v.js`) sent no `Accept-Encoding`, so axios sent its own default, `gzip, compress, deflate, br`, which DuckDuckGo answered with the challenge page (HTTP 202) in 6 of 9 requests from the one connection that was tried; the web, image and fallback requests already sent `gzip, deflate, br`, and with that value (or `gzip, deflate`, or `identity`) none of 15 requests was challenged. A challenge starts the node's one-minute pause, so the Image search that followed was refused too, and the symptom looked like a blocked server address. The two requests now send `Accept-Encoding: gzip, deflate, br`, and a test pins it. A block on the address of a server can still happen (see Bot-detection challenge in the README); it is no longer the only explanation for News and Video being refused.
