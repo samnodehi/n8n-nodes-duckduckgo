@@ -490,6 +490,40 @@ export class DuckDuckGo implements INodeType {
           },
 
           {
+            displayName: 'Time Period',
+            name: 'timeFilter',
+            type: 'options',
+            default: '',
+            description: 'Ask DuckDuckGo to limit the results to pages from this period. Pages without a date can be left out too, so the list may be shorter. All Time (the default) sends no limit, unlike News Search, whose Time Period defaults to Past Week.',
+            options: [
+              {
+                name: 'All Time',
+                value: '',
+                description: 'No time restriction',
+              },
+              {
+                name: 'Past Day',
+                value: TimePeriod.PastDay,
+                description: 'Last 24 hours',
+              },
+              {
+                name: 'Past Week',
+                value: TimePeriod.PastWeek,
+                description: 'Last 7 days',
+              },
+              {
+                name: 'Past Month',
+                value: TimePeriod.PastMonth,
+                description: 'Last 30 days',
+              },
+              {
+                name: 'Past Year',
+                value: TimePeriod.PastYear,
+                description: 'Last 365 days',
+              },
+            ],
+          },
+          {
             displayName: 'Return Raw Results',
             name: 'returnRawResults',
             type: 'boolean',
@@ -1214,6 +1248,7 @@ export class DuckDuckGo implements INodeType {
             maxResults?: number;
             region?: string;
             safeSearch?: number;
+            timeFilter?: string;
             returnRawResults?: boolean;
             useSearchOperators?: boolean;
             searchOperators?: ISearchOperators;
@@ -1257,9 +1292,21 @@ export class DuckDuckGo implements INodeType {
             debugLog?.(logEntry);
           }
 
+          // The option is a list, but an expression or a tool input can give any text: an unknown period is an error, not an unfiltered search
+          // that looks filtered.
+          const timeFilter = options.timeFilter == null ? '' : String(options.timeFilter);
+          if (timeFilter !== '' && !['d', 'w', 'm', 'y'].includes(timeFilter)) {
+            throw new NodeOperationError(
+              this.getNode(),
+              `Invalid Time Period "${timeFilter.slice(0, 40)}": use d (past day), w (past week), m (past month), y (past year) or leave it empty for all time`,
+              { itemIndex },
+            );
+          }
           const searchOptions: SearchOptions = {
             safeSearch: getSafeSearchType(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
             locale: options.region ?? DEFAULT_PARAMETERS.REGION,
+            // Only a real period: All Time (empty) leaves the cache key and the request as they were before this option existed
+            ...(timeFilter ? { time: timeFilter } : {}),
           };
 
 
@@ -1313,6 +1360,7 @@ export class DuckDuckGo implements INodeType {
               const directResults = await directWebSearch(this.getNode(), enhancedQuery, {
                 locale: searchOptions.locale || DEFAULT_PARAMETERS.REGION,
                 safeSearch: getSafeSearchString(options.safeSearch ?? DEFAULT_PARAMETERS.SAFE_SEARCH),
+                ...(searchOptions.time ? { time: searchOptions.time } : {}),
                 maxResults: undefined, // Let it fetch all available results
               });
 
