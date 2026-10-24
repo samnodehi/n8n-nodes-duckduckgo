@@ -85,9 +85,9 @@ describe('News at default settings', () => {
     const out = await run('searchNews');
 
     expect(mockedGet).toHaveBeenCalledTimes(2);
-    // Strict and all time are the node's defaults; DuckDuckGo takes them as p=1 and df=a.
+    // Strict and the past week are the node's defaults (the past week is what the editor shows for Time Period); DuckDuckGo takes them as p=1 and df=w.
     expect(url(1).searchParams.get('p')).toBe('1');
-    expect(url(1).searchParams.get('df')).toBe('a');
+    expect(url(1).searchParams.get('df')).toBe('w');
     expect(url(1).searchParams.get('l')).toBe('wt-wt');
     expect(out[0]).toHaveLength(10);
     expect(out[0][0].json.description).toBe('Excerpt 0 & more');

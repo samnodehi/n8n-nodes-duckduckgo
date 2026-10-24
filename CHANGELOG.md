@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **News Search: a workflow saved without Time Period now searches the past week, the default of the option.** The option has Past Week as its default, but it is stored only after it has been added; without it the code used all time, so a News Search without the option returned articles of any age, whatever the editor would have shown after adding it. The code default is now the same (`w`). **What you might notice:** a News Search that has no Time Period set returns articles of the past week only, so fewer or different results than before, and the notice that fewer results came back than were asked for (`Asked for N and returned M`) can appear more often. AI agents that use the node as a tool and do not pass the option are affected too. To keep the old behaviour, add the option Time Period and choose All Time (stored as the empty value, which is still all time). Examples 3, 4 and 9 set the period themselves and do not change.
+
 ---
 
 ## [32.17.3] - 2026-10-23

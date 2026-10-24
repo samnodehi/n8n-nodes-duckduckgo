@@ -62,7 +62,9 @@ export const DEFAULT_PARAMETERS = {
   REGION: 'wt-wt',
   MAX_RESULTS: 10,
   SAFE_SEARCH: 0,
-  TIME_PERIOD: 'a', // 'a' is the value for 'all time'
+  // The default of the News Search option Time Period in the editor ('w' is the past week). A workflow saved without the option gets the same, so
+  // that what the editor shows is what runs; choosing All Time stores '' and means all time.
+  TIME_PERIOD: 'w',
 };
 
 /**
