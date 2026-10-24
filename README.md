@@ -194,7 +194,7 @@ Searches DuckDuckGo news results.
 | `maxResults` | number | 10 | How many results to ask for (1–100). An upper bound, not a promise — DuckDuckGo may simply have fewer. Fetched a page (26–30 results) at a time, at most five pages |
 | `safeSearch` | options | Strict | `Strict`, `Moderate`, or `Off` |
 | `region` | string | wt-wt | Locale code |
-| `timePeriod` | string | — | Time filter: `d` (day), `w` (week), `m` (month), `y` (year) |
+| `timePeriod` | string | `w` | Time filter: `d` (day), `w` (week, the default), `m` (month), `y` (year); choose All Time (the empty value) for no filter. A workflow saved without the option searches the past week, the default that the option has when it is added |
 | `fetchPageContent` | boolean | false | Fetch each article's page and extract its main text (opt-in; see [Page Content Extraction](#-page-content-extraction)) |
 | `pageContentMaxResults` | number | 3 | How many top results to fetch content for (when enabled) |
 | `pageContentMaxLength` | number | 2000 | Truncate extracted text to N characters (0 = no limit) |

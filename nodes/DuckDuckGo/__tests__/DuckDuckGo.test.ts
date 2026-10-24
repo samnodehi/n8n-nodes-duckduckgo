@@ -5,6 +5,7 @@ import * as cache from '../cache';
 import * as directSearch from '../directSearch';
 import * as fallbackSearch from '../fallbackSearch';
 import { noteChallenge } from '../challengeCooldown';
+import { DEFAULT_PARAMETERS } from '../constants';
 
 
 // News and Video requests; Web and Image go through directSearch, mocked below.
@@ -1118,6 +1119,25 @@ describe('DuckDuckGo Node', () => {
       expect(result[0][0].json).toHaveProperty('relativeTime', '2 hours ago');
       expect(result[0][0].json).toHaveProperty('imageUrl', 'https://news.example.com/image1.jpg');
       expect(result[0][0].json).toHaveProperty('sourceType', 'news');
+    });
+
+    it('searches the past week when the Time Period option is not saved, as the editor shows, and all time only when All Time was chosen', async () => {
+      (newsVideoSearch.searchNews as jest.Mock).mockResolvedValue(mockNewsSearchResults);
+
+      setupNodeParameters('searchNews', 'latest tech news', { timePeriod: undefined });
+      await duckDuckGoNode.execute.call(mockExecuteFunction);
+      expect(newsVideoSearch.searchNews).toHaveBeenLastCalledWith('latest tech news', expect.objectContaining({ time: 'w' }));
+
+      // All Time is stored as the empty value, and that is kept
+      setupNodeParameters('searchNews', 'latest tech news', { timePeriod: '' });
+      await duckDuckGoNode.execute.call(mockExecuteFunction);
+      expect(newsVideoSearch.searchNews).toHaveBeenLastCalledWith('latest tech news', expect.objectContaining({ time: 'a' }));
+    });
+
+    it('has the same default in the editor and in the code for the Time Period of News Search', () => {
+      const news: any = duckDuckGoNode.description.properties.find((p: any) => p.name === 'newsSearchOptions');
+      const option = news.options.find((o: any) => o.name === 'timePeriod');
+      expect(option.default).toBe(DEFAULT_PARAMETERS.TIME_PERIOD);
     });
 
     it('should cache news search results when enabled', async () => {
