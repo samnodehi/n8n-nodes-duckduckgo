@@ -134,8 +134,8 @@ describe('example 9: the workflow file', () => {
   });
 
   it('keeps the waits short: a longer one only sends a real request into a block', () => {
-    // after a challenge the node refuses every search by itself for a minute and then sends the next one for real; a block of the address of the
-    // server lasts tens of minutes, so on 2026-10-22 a wait of 62 seconds gave a second challenge and nothing else
+    // after a challenge the node refuses every search by itself for a minute and then sends the next one for real; on 2026-10-22 (before the
+    // Accept-Encoding fix of 32.17.3) a wait of 62 seconds only sent a real request that was challenged again
     for (const name of ['Wait before the next search', 'Wait before the images']) {
       expect(nodeOf(name).parameters).toMatchObject({ resume: 'timeInterval', amount: 4, unit: 'seconds' });
     }
@@ -239,6 +239,7 @@ describe('example 9: the plan', () => {
     expect(plan({ web: ['solar power history', 'solar panels explained'], news: 'solar news', images: 'solar panel', videos: 'solar explained', language: 'en' })).toEqual({
       web: ['solar power history', 'solar panels explained'],
       news: 'solar news',
+      period: '',
       images: 'solar panel',
       videos: 'solar explained',
       language: 'en',
@@ -262,11 +263,30 @@ describe('example 9: the plan', () => {
   });
 
   it('uses at most two web queries, once each, and a code for the language', () => {
-    const p = plan({ web: ['a solar', 'A SOLAR', 'b solar', 'c solar'], language: 'fa' });
+    const p = plan({ web: ['a solar', 'A SOLAR', 'b solar', 'c solar'], language: 'de' });
     expect(p.web).toEqual(['a solar', 'b solar']);
-    expect(p.language).toBe('fa');
+    expect(p.language).toBe('de');
     expect(plan({ language: 'english' }).language).toBe('en');
     expect(plan({ language: 'zh-CN' }).language).toBe('zh-cn');
+  });
+});
+
+describe('example 9: how recent the news has to be', () => {
+  const period = (newsPeriod: unknown) => run('Check the plan', [{ output: { web: ['solar'], news: 'solar news', newsPeriod } }], { 'Check the request': { topic: 'Solar power' } })[0].period;
+
+  it('maps day, week and month to the values of the Time Period option, and anything else to any time', () => {
+    expect(period('day')).toBe('d');
+    expect(period('week')).toBe('w');
+    expect(period(' Month ')).toBe('m');
+    for (const other of ['any', '', 'year', 'd', '__proto__', 'constructor', 'toString', 3, null, undefined, ['week'], { week: 1 }]) expect(period(other)).toBe('');
+  });
+
+  it('is asked of the planner, kept by its output format, and used by the news search', () => {
+    expect(JSON.stringify(nodeOf('Plan the searches').parameters.messages)).toContain('newsPeriod');
+    expect(JSON.parse(nodeOf('Search plan format').parameters.inputSchema).properties.newsPeriod).toEqual({ type: 'string' });
+    expect(nodeOf('Search for news').parameters.newsSearchOptions.timePeriod).toBe("={{ $('Check the plan').first().json.period }}");
+    // the values that the node reads: '' is all time
+    expect(['d', 'w', 'm', '']).toContain(period('week'));
   });
 });
 
