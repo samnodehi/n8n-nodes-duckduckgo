@@ -1,3 +1,48 @@
+# v32.18.0 — News Search without a Time Period searches the past week
+
+**Release Date:** 2026-10-24
+
+A News Search that has no `Time Period` option now searches the **past week**,
+the default that the option has when it is added. Before, such a search
+returned articles of any age. **Check *What you might notice* below if you rely
+on News Search.**
+
+---
+
+## What was wrong
+
+The option `Time Period` of News Search has **Past Week** as its default, but an
+option of a collection is stored in the workflow only after it has been added.
+A News Search saved without it got **all time** from the code, so a search for
+"new models in the last week" returned news from April and August. The code
+default and the option's default were two different values. Both are the past
+week now, and a test pins that they stay equal.
+
+## What you might notice
+
+- A News Search with no `Time Period` set returns articles of the past week
+  only: fewer, or different, results than before.
+- The notice that fewer results came back than were asked for (`Asked for N and
+  returned M`) can appear more often, because a week holds fewer articles.
+- AI agents that use the node as a tool and do not pass the option get the past
+  week too.
+- **To keep the old behaviour**, open the node, add the option **Time Period**
+  and choose **All Time**. All Time is stored as the empty value and is still
+  all time.
+- Web, Image and Video Search are not changed, and neither are News Searches
+  that set `Time Period` themselves (examples 3 and 4 set the past day).
+
+## Example workflows
+
+`docs/examples/` is not part of the npm package. Since v32.17.3, example 9 (a
+topic dossier as one HTML file) chooses the period of its news search itself:
+its planning model says day, week, month or any, and code checks the answer; the
+picture check asks the vision model only whether a thumbnail is safe, so the
+videos and pictures that the search found are no longer dropped for "not
+clearly showing the topic".
+
+---
+
 # v32.17.3 — News and Video search no longer provoke the challenge page
 
 **Release Date:** 2026-10-23
