@@ -1,3 +1,57 @@
+# v32.19.0 — Web Search can be limited to a period
+
+**Release Date:** 2026-10-25
+
+Web Search has a new option, **Time Period**: it asks DuckDuckGo for pages from
+the past day, week, month or year. The default is **All Time**, which sends no
+limit, so a Web Search that does not use the option behaves exactly as before.
+
+---
+
+## What was missing
+
+Only News Search could be limited to a period. A Web Search for "new models of
+the last week" returned pages of any age, and so did an AI agent that used the
+node as a tool: the topic dossier of example 9 returned September pages in late
+October.
+
+## What is new
+
+- The option **Time Period** in the Web Search options, stored as `timeFilter`:
+  `d` (past day), `w` (past week), `m` (past month), `y` (past year), or
+  empty for all time. It is sent as `df` in the request. A live check showed
+  different result lists for no limit, past day and past week.
+- Any other value, from an expression or a tool input, is an error that names
+  the value. It is never an unfiltered search that looks filtered.
+- The period is part of the cache key, so a cached answer for all time is not
+  served to a limited search.
+
+## What you might notice
+
+- **Nothing changes unless you use the option.** An old `timePeriod` that may
+  still be stored in a workflow from before 32.5.0 stays ignored (the new option
+  has a new name), so no saved workflow starts to filter by itself.
+- A limited search can leave out pages that have no date, so the list may be
+  shorter, or empty.
+- Web Search without the option is not limited, while a News Search without its
+  option searches the past week (since 32.18.0). That is intended.
+
+## Example workflows
+
+`docs/examples/` is not part of the npm package. Example 9 (a topic dossier as
+one HTML file) now asks for node 32.19.0 or later:
+
+- its research step searches the **past day or week** when the plan asks for
+  recent pages (a month, or any time, is not limited, because it would leave too
+  few explanatory pages);
+- the planner and the research agent are told today's date, and not to put it or
+  the year into a query;
+- when a limited search finds no pages, the result page names the limit as the
+  reason. For a topic such as "the last week" the dossier can therefore end with
+  no dossier when too few dated pages are found.
+
+---
+
 # v32.18.1 — Page text keeps neighbouring elements apart
 
 **Release Date:** 2026-10-25
