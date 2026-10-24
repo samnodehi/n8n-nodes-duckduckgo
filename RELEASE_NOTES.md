@@ -1,3 +1,54 @@
+# v32.18.1 — Page text keeps neighbouring elements apart
+
+**Release Date:** 2026-10-25
+
+The text that the node extracts from a page (`Include Page Content`) no longer
+glues the text of neighbouring elements together. **Check *What you might
+notice* below if you compare the text exactly.**
+
+---
+
+## What was wrong
+
+For a page that Readability recognises as an article, the node took the text of
+the whole article as one string. That string joins elements with no whitespace
+between them: a list of cards came out as `Model update5 days agoSecond item`.
+A sentence could then start in the middle of a word, so any comparison of whole
+words against the text failed for text that is on the page. The quote check of
+example 9 is one such comparison: a live run on a news-card page verified quotes
+from one site only and ended with no dossier.
+
+## What changed
+
+The article is turned into text the way the other two extractors already did it:
+
+- the end of a paragraph, heading, list, list item, table, table cell or row, or
+  similar block, and `<br>`, are line breaks;
+- formatting tags such as `<b>`, `<em>` or `<sup>` are removed without a
+  space, so `<b>wor</b>d` stays one word;
+- every other tag is a space, which is dropped in front of closing punctuation,
+  so `<a>link</a>, then` is `link, then`;
+- a `>` inside an attribute value no longer ends the tag early;
+- entities are decoded as before;
+- a cut at `pageContentMaxLength` also backs off to a line break.
+
+## What you might notice
+
+- `content` of such pages has line breaks between blocks and a space where an
+  element ended. The words themselves are the same.
+- A cut at `pageContentMaxLength` can land slightly earlier in the text, because
+  of the added separators.
+- Nothing else changes: the options, the fields and the other two extractors are
+  the same.
+
+## Example workflows
+
+`docs/examples/` is not part of the npm package. Example 9 (a topic dossier as
+one HTML file) now asks for node 32.18.1 or later, because its quote check
+depends on this fix for pages that are built from cards.
+
+---
+
 # v32.18.0 — News Search without a Time Period searches the past week
 
 **Release Date:** 2026-10-24
