@@ -126,15 +126,26 @@ export function extractMainText(html: string): string {
   return htmlFragmentToText(s);
 }
 
+/** A tag, with quoted attribute values that may contain '>'. */
+const TAG = /<(?:"[^"]*"|'[^']*'|[^>"'])+>/g;
+/** Tags that format part of a word or phrase: removing one must not split the word ("<b>wor</b>d"). */
+const INLINE_TAG = /<\/?(?:b|strong|i|em|u|mark|small|sup|sub|code|abbr|cite|q|time|s|del|ins|font|bdi|bdo|wbr)(?:\s(?:"[^"]*"|'[^']*'|[^>"'])*)?\/?>/gi;
+/** Marks the place of a tag that separates words; dropped again in front of closing punctuation. */
+const TAG_BREAK = '';
+
 /**
- * Convert an HTML fragment to readable text: block elements become line breaks,
- * remaining tags are removed, entities decoded, and whitespace normalised.
+ * Convert an HTML fragment to readable text: block elements and <br> become
+ * line breaks, formatting tags are removed, every other tag separates words,
+ * entities are decoded, and whitespace is normalised.
  */
 function htmlFragmentToText(html: string): string {
-  let s = html;
-  s = s.replace(/<\/(p|div|section|article|h[1-6]|li|tr|blockquote|td|th|pre)>/gi, '\n');
+  let s = html.split(TAG_BREAK).join(' ');
+  s = s.replace(/<\/(p|div|section|article|h[1-6]|li|ul|ol|table|tr|blockquote|td|th|pre|dt|dd|figcaption)>/gi, '\n');
   s = s.replace(/<br\s*\/?>/gi, '\n');
-  s = s.replace(/<[^>]+>/g, ' ');
+  s = s.replace(INLINE_TAG, '');
+  s = s.replace(TAG, TAG_BREAK);
+  // "<a>link</a>, then" is "link, then", not "link , then"
+  s = s.replace(/+(?=[,.;:!?)\]%])/g, '').split(TAG_BREAK).join(' ');
   s = decodeEntities(s);
   return normaliseWhitespace(s);
 }
@@ -210,7 +221,9 @@ export function extractWithReadability(html: string): ReadabilityResult | null {
     // cast to any because this project does not include the DOM lib types.
     const article = new Readability(document as any).parse();
     if (article && article.textContent && (article.length ?? 0) >= MIN_READABLE_LENGTH) {
-      const text = normaliseWhitespace(article.textContent);
+      // Not article.textContent: it glues the text of neighbouring elements together ("Model update5 days ago"), so a sentence would start in the
+      // middle of a word. The markup is turned into text the same way as for the other extractors, where every tag is a break.
+      const text = article.content ? htmlFragmentToText(article.content) : normaliseWhitespace(article.textContent);
       if (text.length === 0) return null;
       const meta: PageMeta = {};
       if (article.title) meta.title = article.title;
@@ -232,7 +245,7 @@ export function truncateText(text: string, maxLength: number): { text: string; t
     return { text, truncated: false };
   }
   let cut = text.slice(0, maxLength);
-  const lastSpace = cut.lastIndexOf(' ');
+  const lastSpace = Math.max(cut.lastIndexOf(' '), cut.lastIndexOf('\n'));
   // Only back off to a word boundary if it does not discard too much text.
   if (lastSpace > maxLength * 0.6) {
     cut = cut.slice(0, lastSpace);

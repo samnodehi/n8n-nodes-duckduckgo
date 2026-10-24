@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Page text: the text of neighbouring elements is no longer glued together.** For pages that Readability recognises as an article, the node took the text of the article as one string, which joined elements with no whitespace between them ("Model update5 days agoSecond item"). A sentence could then start in the middle of a word, which broke every comparison of whole words against the text, such as the quote check of example 9 (a live run on a news-card page verified quotes from one site only and ended with no dossier). The article is now turned into text the way the other two extractors do it: the end of a paragraph, heading, list, list item, table, table cell or row, or similar block, and `<br>`, are line breaks; formatting tags such as `<b>`, `<em>` or `<sup>` are removed without a space, so a word is not split; every other tag is a space, which is dropped in front of closing punctuation; entities are decoded. **What you might notice:** `content` of such pages has line breaks between blocks and a space where an element ended; the words themselves are the same, but a cut at `pageContentMaxLength` can land slightly earlier in the text because of the added separators.
+
 ---
 
 ## [32.18.0] - 2026-10-24

@@ -96,6 +96,39 @@ describe('pageContent', () => {
       expect(result!.meta.title).toContain('Understanding Widgets');
     });
 
+    it('keeps the text of neighbouring elements apart, so a sentence never starts in the middle of a word', () => {
+      const paragraph = `<p>${'A paragraph of ordinary text that is long enough for the article to be trusted. '.repeat(6)}</p>`;
+      const html = `<html><head><title>News</title></head><body><article><h1>News</h1>${paragraph}
+        <div><span>Model update</span><span>5 days ago</span></div>
+        <div><span>Second item</span><span>Meta</span><span>6 days ago</span></div>
+      </article></body></html>`;
+
+      const text = extractWithReadability(html)!.text;
+      expect(text).toContain('Model update 5 days ago');
+      expect(text).toContain('Second item Meta 6 days ago');
+      expect(text).not.toMatch(/update5|agoSecond|itemMeta|Meta6/);
+    });
+
+    it('does not split a word at a formatting tag, nor put a space in front of punctuation', () => {
+      const paragraph = `<p>${'Plain sentence that pads the article to a length that Readability trusts. '.repeat(6)}</p>`;
+      const html = `<html><body><article>${paragraph}<p>A <b>wor</b>d and H<sub>2</sub>O and 1<sup>st</sup> and <a href="/x">a link</a>, then <em>emphasis</em>.</p>
+        <p><img alt="x > y"><a title="1 > 0" href="/y">second link</a> ends</p></article></body></html>`;
+
+      const text = extractWithReadability(html)!.text;
+      expect(text).toContain('A word and H2O and 1st and a link, then emphasis.');
+      expect(text).toContain('second link ends');
+      expect(text).not.toContain('>');
+    });
+
+    it('decodes entities and keeps paragraphs and line breaks as breaks', () => {
+      const paragraph = `<p>${'Plain sentence that pads the article to a length that Readability trusts. '.repeat(6)}</p>`;
+      const html = `<html><body><article>${paragraph}<p>Fish &amp; chips</p><p>one<br>two</p></article></body></html>`;
+
+      const text = extractWithReadability(html)!.text;
+      expect(text).toContain('Fish & chips');
+      expect(text).toContain('one\ntwo');
+    });
+
     it('returns null for pages with too little content (caller falls back)', () => {
       expect(extractWithReadability('<html><body><p>hi</p></body></html>')).toBeNull();
       expect(extractWithReadability('')).toBeNull();
@@ -174,6 +207,11 @@ describe('pageContent', () => {
   });
 
   describe('truncateText', () => {
+    it('backs off to a line break as well as to a space', () => {
+      const text = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaa\nbbbbbbbbbbbb';
+      expect(truncateText(text, 35).text).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaa…');
+    });
+
     it('returns text unchanged when under the limit', () => {
       expect(truncateText('short', 100)).toEqual({ text: 'short', truncated: false });
     });
