@@ -105,3 +105,30 @@ describe('the image search cache key', () => {
     expect(mockedImages).toHaveBeenCalledTimes(1);
   });
 });
+
+
+describe('Web Search: the Time Period is part of the cache key', () => {
+  beforeEach(() => {
+    clearCache();
+    resetChallengeCooldown();
+    mockedWeb.mockReset();
+    mockedWeb.mockResolvedValue({ results: WEB_RESULTS.slice(0, 5) });
+  });
+
+  const runWith = (timeFilter: string) =>
+    (new DuckDuckGo().execute as any).call({
+      ...context('search', 'same query', 10),
+      getNodeParameter: (name: string, _i: number, fallback?: unknown) => {
+        if (name === 'webSearchOptions') return { maxResults: 10, timeFilter };
+        return (context('search', 'same query', 10).getNodeParameter as any)(name, _i, fallback);
+      },
+    });
+
+  it('does not serve an answer cached for all time to a search for the past week', async () => {
+    await runWith('');
+    await runWith('w');
+    expect(mockedWeb).toHaveBeenCalledTimes(2);
+    await runWith('w');
+    expect(mockedWeb).toHaveBeenCalledTimes(2);
+  });
+});

@@ -625,6 +625,55 @@ describe('DuckDuckGo Node', () => {
       });
     });
 
+    describe('webSearchOptions.timeFilter — the Time Period of Web Search', () => {
+      const searchWith = async (webSearchOptions: Record<string, unknown>) => {
+        lastOutcome = undefined;
+        jest.clearAllMocks();
+        (directSearch.directWebSearch as jest.Mock).mockResolvedValue({ results: [] });
+        mockGetNodeParameter.mockImplementation((parameter: string, _itemIndex: number, defaultValue?: unknown) => {
+          if (parameter === 'operation') return 'search';
+          if (parameter === 'query') return 'time filter query';
+          if (parameter === 'webSearchOptions') return webSearchOptions;
+          return defaultValue ?? null;
+        });
+        try {
+          lastOutcome = await duckDuckGoNode.execute.call(mockExecuteFunction);
+        } catch (error) {
+          lastOutcome = error;
+        }
+        return (directSearch.directWebSearch as jest.Mock).mock.calls.length > 0 ? (webSearchCall(0).options as Record<string, unknown>) : {};
+      };
+      let lastOutcome: unknown;
+
+      it('passes the chosen period on, and nothing for All Time or when the option is not set', async () => {
+        for (const period of ['d', 'w', 'm', 'y']) expect(await searchWith({ timeFilter: period })).toHaveProperty('time', period);
+        for (const none of [{ timeFilter: '' }, {}, { timeFilter: null }]) {
+          expect(await searchWith(none)).not.toHaveProperty('time');
+        }
+      });
+
+      it('refuses a period that DuckDuckGo does not know instead of searching unfiltered', async () => {
+        for (const bad of ['a', 'week', '__proto__', 'd; w']) {
+          await searchWith({ timeFilter: bad });
+          expect(directSearch.directWebSearch).not.toHaveBeenCalled();
+          // the reason is named, either thrown or as the error of the item
+          expect(JSON.stringify(lastOutcome instanceof Error ? lastOutcome.message : lastOutcome)).toContain('Invalid Time Period');
+        }
+      });
+
+      it('has All Time as its default, and the periods that DuckDuckGo knows', () => {
+        const web: any = duckDuckGoNode.description.properties.find((p: any) => p.name === 'webSearchOptions');
+        const option = web.options.find((o: any) => o.name === 'timeFilter');
+        expect(option.displayName).toBe('Time Period');
+        expect(option.default).toBe('');
+        expect(option.options.map((o: any) => o.value)).toEqual(['', 'd', 'w', 'm', 'y']);
+      });
+
+      it('leaves a stale timePeriod of an older workflow ignored, as before', async () => {
+        for (const stale of ['d', 'w', 'm', 'y']) expect(await searchWith({ timePeriod: stale })).not.toHaveProperty('time');
+      });
+    });
+
     describe('webSearchOptions.timePeriod regression — stale value is ignored', () => {
       it('should call directWebSearch with the plain query when stale timePeriod: "d" (past day) is stored', async () => {
         // Simulate a saved workflow that has timePeriod: 'd' stored (stale from old node version

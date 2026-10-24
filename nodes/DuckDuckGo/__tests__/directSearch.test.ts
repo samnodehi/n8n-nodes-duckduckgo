@@ -116,6 +116,17 @@ describe('directWebSearch', () => {
   });
 
   describe('normal result parsing', () => {
+    it('sends the period as df, and nothing for all time or for a value DuckDuckGo does not know', async () => {
+      const bodyFor = async (time?: string) => {
+        mockedAxios.post = jest.fn().mockResolvedValue({ status: 200, data: VALID_HTML_ONE_RESULT });
+        await directWebSearch(TEST_NODE, 'test query', time === undefined ? {} : { time });
+        return (mockedAxios.post as jest.Mock).mock.calls[0][1] as URLSearchParams;
+      };
+
+      for (const period of ['d', 'w', 'm', 'y']) expect((await bodyFor(period)).get('df')).toBe(period);
+      for (const other of [undefined, '', 'a', 'week', '__proto__']) expect((await bodyFor(other)).has('df')).toBe(false);
+    });
+
     it('should parse result blocks and return results with correct fields', async () => {
       mockedAxios.post = jest.fn().mockResolvedValue({
         status: 200,

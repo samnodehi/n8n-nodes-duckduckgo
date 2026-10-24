@@ -123,6 +123,8 @@ export async function directWebSearch(node: INode, query: string, options: {
   locale?: string;
   safeSearch?: string;
   maxResults?: number;
+  /** Past day, week, month or year as DuckDuckGo's `df` takes it (d, w, m, y); anything else sends no filter. */
+  time?: string;
 } = {}): Promise<{ results: DirectSearchResult[] }> {
   // A challenge was seen very recently; sending another request would only
   // extend the block on this IP.
@@ -139,6 +141,8 @@ export async function directWebSearch(node: INode, query: string, options: {
         b: '',
         kl: options.locale || 'us-en',
         kp: options.safeSearch === 'strict' ? '1' : options.safeSearch === 'moderate' ? '-1' : '-2',
+        // Only a real period is sent: no `df` at all is what every search did before this option existed.
+        ...(options.time && ['d', 'w', 'm', 'y'].includes(options.time) ? { df: options.time } : {}),
       }), {
       headers: {
         'User-Agent': BROWSER_USER_AGENT,

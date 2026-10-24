@@ -290,6 +290,39 @@ describe('example 9: how recent the news has to be', () => {
   });
 });
 
+describe('example 9: recent pages for the research agent', () => {
+  // the expression of the Time Period of the web search tool, evaluated with a plan that has this period
+  const webPeriod = (period: unknown) => {
+    const expression = String(nodeOf('Search the web').parameters.webSearchOptions.timeFilter).replace(/^=\{\{|\}\}$/g, '');
+    const $ = () => ({ first: () => ({ json: { period } }) });
+    return new Function('$', 'return (' + expression + ')')($);
+  };
+
+  it('limits the web search to the past day or week that the plan names, and to nothing else', () => {
+    expect(webPeriod('d')).toBe('d');
+    expect(webPeriod('w')).toBe('w');
+    // a month, or any time, would leave too few explanatory pages
+    for (const other of ['m', '', undefined, 'y', 'a', null]) expect(webPeriod(other)).toBe('');
+  });
+
+  it('tells the planner and the agent what day it is, and not to put it into a query', () => {
+    expect(nodeOf('Plan the searches').parameters.text).toContain('$json.today');
+    expect(nodeOf('Research the topic').parameters.text).toContain("$('Check the request').first().json.today");
+    expect(JSON.stringify(nodeOf('Plan the searches').parameters.messages)).toMatch(/never put a date or a year into a query/);
+    expect(nodeOf('Research the topic').parameters.options.systemMessage).toMatch(/never put it or the year into a search/);
+  });
+
+  it('says that the limit was the reason when a limited search found no pages', () => {
+    const failed = (period: string | undefined) =>
+      run('Verify the findings', [{ output: JSON.stringify({ findings: [] }), intermediateSteps: [] }], period === undefined ? {} : { 'Check the plan': { period } })[0];
+    expect(failed('w').why).toMatch(/limited to the past week/);
+    expect(failed('d').why).toMatch(/limited to the past day/);
+    expect(failed('m').why).not.toMatch(/limited/);
+    expect(failed('').why).not.toMatch(/limited/);
+    expect(failed(undefined).why).toMatch(/no pages to read/);
+  });
+});
+
 describe('example 9: the verified findings', () => {
   const pageText =
     'Solar power is the conversion of energy from sunlight into electricity. In 2023 solar provided about 5% of global electricity. Photovoltaic cells convert light directly. Panels last about thirty years.';
