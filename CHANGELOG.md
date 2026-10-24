@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [32.19.0] - 2026-10-25
+
 ### Added
 
 - **Web Search: a Time Period option.** `Time Period` (stored as `timeFilter`) asks DuckDuckGo to limit the results to the past day, week, month or year; All Time, the default, sends no limit, so a Web Search without the option is exactly what it was. Before, only News Search could be limited. It is sent as `df` in the request body of the HTML endpoint; a live check on 2026-10-25 showed different result lists for no limit, past day and past week. The period is part of the cache key. Any other value, from an expression or a tool input, is an error instead of an unfiltered search. The old `timePeriod` of Web Search (removed in 32.5.0 because it was never sent) stays ignored if it is still stored in a workflow, so no saved workflow starts to filter. **What you might notice:** pages without a date can be left out of a limited search, so the list may be shorter or empty. The example workflow 9 uses it: its research step searches the past day or week when the plan asks for the latest pages, and knows today's date. **For example 9 this means** that a topic such as "the last week" can end with no dossier when too few dated pages are found (the result page then names the limit as the reason); a topic without a recent period is not limited. Example 9 needs this version: an older node ignores the option and searches without a limit.
