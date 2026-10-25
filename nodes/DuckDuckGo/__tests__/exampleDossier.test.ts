@@ -297,7 +297,7 @@ describe('example 9: recent pages for the research agent', () => {
     expect(tool().webSearchOptions.timeFilter).toMatch(/^=\{\{ \$fromAI\('Time_Period', '[^']*d, w, m or y[^']*', 'string'\) \}\}$/);
     expect(tool().toolDescription).toContain('Time_Period');
     const system = nodeOf('Research the topic').parameters.options.systemMessage;
-    expect(system).toMatch(/Time_Period exactly as d, w, m or y \(never a word like "week"\), or empty for no limit/);
+    expect(system).toMatch(/Time_Period exactly as d, w, m or y \(never a word like "week"\), or an empty string for no limit/);
     // a limited search that finds nothing can be repeated without the limit
     expect(system).toMatch(/search again with it empty/);
   });
