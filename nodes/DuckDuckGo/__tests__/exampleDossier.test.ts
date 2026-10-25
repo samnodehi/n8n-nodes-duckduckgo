@@ -291,18 +291,19 @@ describe('example 9: how recent the news has to be', () => {
 });
 
 describe('example 9: recent pages for the research agent', () => {
-  // the expression of the Time Period of the web search tool, evaluated with a plan that has this period
-  const webPeriod = (period: unknown) => {
-    const expression = String(nodeOf('Search the web').parameters.webSearchOptions.timeFilter).replace(/^=\{\{|\}\}$/g, '');
-    const $ = () => ({ first: () => ({ json: { period } }) });
-    return new Function('$', 'return (' + expression + ')')($);
-  };
+  const tool = () => nodeOf('Search the web').parameters;
 
-  it('limits the web search to the past day or week that the plan names, and to nothing else', () => {
-    expect(webPeriod('d')).toBe('d');
-    expect(webPeriod('w')).toBe('w');
-    // a month, or any time, would leave too few explanatory pages
-    for (const other of ['m', '', undefined, 'y', 'a', null]) expect(webPeriod(other)).toBe('');
+  it('lets the agent choose the Time Period of each web search, and says which values are allowed', () => {
+    expect(tool().webSearchOptions.timeFilter).toMatch(/^=\{\{ \$fromAI\('Time_Period', '[^']*d, w, m or y[^']*', 'string'\) \}\}$/);
+    expect(tool().toolDescription).toContain('Time_Period');
+    const system = nodeOf('Research the topic').parameters.options.systemMessage;
+    expect(system).toMatch(/Time_Period exactly as d, w, m or y \(never a word like "week"\), or empty for no limit/);
+    // a limited search that finds nothing can be repeated without the limit
+    expect(system).toMatch(/search again with it empty/);
+  });
+
+  it('gives the agent the period of the plan as a suggestion', () => {
+    expect(nodeOf('Research the topic').parameters.text).toContain("'\\nSuggested Time_Period: ' + ($json.period || 'empty')");
   });
 
   it('tells the planner and the agent what day it is, and not to put it into a query', () => {
@@ -313,13 +314,15 @@ describe('example 9: recent pages for the research agent', () => {
   });
 
   it('says that the limit was the reason when a limited search found no pages', () => {
-    const failed = (period: string | undefined) =>
-      run('Verify the findings', [{ output: JSON.stringify({ findings: [] }), intermediateSteps: [] }], period === undefined ? {} : { 'Check the plan': { period } })[0];
-    expect(failed('w').why).toMatch(/limited to the past week/);
-    expect(failed('d').why).toMatch(/limited to the past day/);
-    expect(failed('m').why).not.toMatch(/limited/);
-    expect(failed('').why).not.toMatch(/limited/);
-    expect(failed(undefined).why).toMatch(/no pages to read/);
+    const searched = (...periods: unknown[]) => periods.map((p) => ({ action: { tool: 'Search_the_web', toolInput: p === undefined ? { query: 'solar' } : { query: 'solar', Time_Period: p } }, observation: '[]' }));
+    const failed = (steps: unknown[]) => run('Verify the findings', [{ output: JSON.stringify({ findings: [] }), intermediateSteps: steps }])[0];
+    expect(failed(searched('w')).why).toMatch(/limited to the past week/);
+    expect(failed(searched('d')).why).toMatch(/limited to the past day/);
+    expect(failed(searched('m')).why).toMatch(/limited to the past month/);
+    // the last limited search names the period; a later search without one does not remove it
+    expect(failed(searched('w', 'd', '')).why).toMatch(/limited to the past day/);
+    for (const none of [searched(''), searched(undefined), searched('week'), searched(null), []]) expect(failed(none).why).not.toMatch(/limited to/);
+    expect(failed([]).why).toMatch(/no pages to read/);
   });
 });
 

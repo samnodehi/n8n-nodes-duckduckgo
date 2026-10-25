@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Example 9: the research agent chooses the Time Period of each web search.** In 32.19.0 the example fixed the period of the web search tool from the plan (past day or week only), which left the agent no way to drop the limit when it found nothing. The tool now takes the period from the agent (`d`, `w`, `m`, `y` or empty, as an AI-filled parameter), the agent gets the plan's period as a suggestion and is told to search again without it when a limited search finds nothing, and the failure message names the period of the last limited search. Files in `docs/examples/` are not part of the npm package, so there is no new release: import the file again to get it.
+
 ---
 
 ## [32.19.0] - 2026-10-25
