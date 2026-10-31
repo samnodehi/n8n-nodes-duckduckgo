@@ -472,6 +472,20 @@ describe('the guarded lookup on a real socket', () => {
 });
 
 describe('fetchPageContent connects through the guarded lookup', () => {
+  // a runner that inherits a proxy would make fetchPageContent leave the guarded agents out on purpose
+  const PROXY_ENV = ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY'];
+  let savedProxyEnv: Record<string, string | undefined>;
+  beforeEach(() => {
+    savedProxyEnv = Object.fromEntries(PROXY_ENV.map((v) => [v, process.env[v]]));
+    for (const v of PROXY_ENV) delete process.env[v];
+  });
+  afterEach(() => {
+    for (const v of PROXY_ENV) {
+      if (savedProxyEnv[v] === undefined) delete process.env[v];
+      else process.env[v] = savedProxyEnv[v];
+    }
+  });
+
   it('passes agents with a lookup to axios, for http and for https', async () => {
     mockedAxios.get.mockResolvedValue({ data: bodyOf('<html><body><p>hello</p></body></html>'), headers: { 'content-type': 'text/html' } } as never);
     await fetchPageContent('https://example.com/a');
