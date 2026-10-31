@@ -309,6 +309,14 @@ describe('example 10: the grouping rules', () => {
     expect(seen.size).toBe(1);
   });
 
+  it('names the earliest page only if it is ahead of every dated page by more than the uncertainty of both dates', () => {
+    const out = compare([twin('a.example', '2026-10-27T08:00:00Z'), twin('b.example', '2026-10-27T10:00:00Z'), twin('c.example', '2026-10-27T11:00:00')]);
+    expect(out.families[0].first).toBe('');
+    expect(out.families[0].why).toContain('less than the uncertainty of their dates');
+    const day = compare([twin('a.example', '2026-10-27T08:00:00Z'), twin('b.example', '2026-10-27T10:00:00Z'), twin('c.example', '2026-10-27')]);
+    expect(day.families[0].first).toBe('');
+  });
+
   it('stays fast on a page made of unclosed curly quotation marks', () => {
     const hostile = '\u201c'.repeat(30000);
     const pages = Array.from({ length: 12 }, (_, i) => twin(`site${i}.example`, '2026-10-27T08:00:00Z', null, hostile + '\n' + story));
@@ -350,6 +358,16 @@ describe('example 10: Pick the pages', () => {
     const many = pick(Array.from({ length: 15 }, (_, i) => news(`https://site${i}.example/x`)), [{ title: 'Dock workers walk off the job at the port', url: 'https://web.example/x', description: '', pageContent: body() }]);
     expect(many.pages).toHaveLength(12);
     expect(many.skipped.overLimit).toBe(4);
+  });
+
+  it('keeps the readable copy of an address that one search could not read and the other could', () => {
+    const failed = news('https://same.example/x', { pageContent: '', pageContentError: 'HTTP 403' });
+    const web = [{ title: 'Dock workers walk off the job at the port', url: 'https://same.example/x', description: '', pageContent: body() }];
+    const r = pick([failed], web);
+    expect(r.pages).toHaveLength(1);
+    expect(r.pages[0]).toMatchObject({ host: 'same.example', from: 'web', error: '' });
+    expect(r.pages[0].text.length).toBeGreaterThan(100);
+    expect(r.skipped.duplicates).toBe(1);
   });
 
   it('lets pages with text take the places of the twelve before pages that could not be read', () => {
@@ -645,7 +663,7 @@ describe('example 10: Compare the texts', () => {
     it('does not take the date that a search engine reports for a page as the moment of posting', () => {
       const g = first([twin('a.example', '2026-10-27T10:00:00Z'), twin('b.example', null, '2026-10-27T12:00:00Z')]);
       expect(g.first).toBe('');
-      expect(g.why).toBe('the two earliest pages are dated 2 hours apart, which is less than the uncertainty of their dates');
+      expect(g.why).toBe('two pages are dated 2 hours apart, which is less than the uncertainty of their dates');
     });
 
     it('says how many pages of a group show no date', () => {
