@@ -12,7 +12,7 @@ jest.mock('axios');
 import axios from 'axios';
 import { Readable } from 'stream';
 
-import { isBlockedHost, getUrlBlockReason, isFetchableUrl } from '../urlGuard';
+import { isBlockedHost, getUrlBlockReason, isFetchableUrl, createGuardedLookup } from '../urlGuard';
 import { fetchPageContent } from '../pageContent';
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -90,9 +90,9 @@ describe('IPv6 spellings of a private address', () => {
     expect(isFetchableUrl(url)).toBe(true);
   });
 
-  it('does not treat a malformed literal as private', () => {
-    // Nonsense must fall through to "not a private address" rather than throw.
-    expect(isBlockedHost('not:an:address:at:all:zz')).toBe(false);
+  it('treats a literal that is not an address as blocked, since it cannot be a public one', () => {
+    // Nonsense must not throw, and it is not fetched: it cannot be a public address.
+    expect(isBlockedHost('not:an:address:at:all:zz')).toBe(true);
   });
 });
 
@@ -238,5 +238,263 @@ describe('fetchPageContent URL enforcement', () => {
         hostname: hostnameOf('http://[::ffff:8.8.8.8]/'),
       }),
     ).not.toThrow();
+  });
+});
+
+describe('names that only resolve inside a network', () => {
+  it.each([
+    ['localhost with a trailing dot', 'localhost.'],
+    ['a .localhost name with a trailing dot', 'foo.localhost.'],
+    ['a Docker service name', 'n8n'],
+    ['another one-label name', 'redis'],
+    ['a one-label name with a trailing dot', 'printer.'],
+    ['mDNS .local', 'printer.local'],
+    ['.internal (cloud and Docker)', 'metadata.google.internal'],
+    ['host.docker.internal', 'host.docker.internal'],
+    ['.lan', 'router.lan'],
+    ['.localdomain', 'box.localdomain'],
+    ['.home.arpa', 'nas.home.arpa'],
+    ['a Kubernetes service name', 'api.default.svc'],
+    ['a Kubernetes cluster name', 'api.default.svc.cluster.local'],
+    ['.intranet', 'wiki.intranet'],
+    ['the bare ending itself', 'internal'],
+  ])('blocks %s', (_label, host) => {
+    expect(isBlockedHost(host)).toBe(true);
+  });
+
+  it('does not block a public name for ending in a dot, or for containing an internal word', () => {
+    expect(isBlockedHost('example.com.')).toBe(false);
+    expect(isBlockedHost('www.example.com')).toBe(false);
+    expect(isBlockedHost('internal.example.com')).toBe(false);
+    expect(isBlockedHost('local.example.org')).toBe(false);
+    expect(isBlockedHost('homeaway.com')).toBe(false);
+  });
+
+  it('refuses these URLs, trailing dot and port included', () => {
+    for (const url of ['http://localhost./', 'http://foo.localhost./', 'http://n8n:5678/', 'http://redis/', 'http://metadata.google.internal/computeMetadata/v1/']) {
+      expect(getUrlBlockReason(url)).toContain('private, loopback or link-local');
+    }
+  });
+});
+
+describe('reserved address ranges', () => {
+  it.each([
+    ['benchmarking 198.18/15 (low)', '198.18.0.1'],
+    ['benchmarking 198.18/15 (high)', '198.19.255.254'],
+    ['IETF protocol assignments 192.0.0.0/24', '192.0.0.8'],
+    ['documentation 192.0.2.0/24', '192.0.2.1'],
+    ['documentation 198.51.100.0/24', '198.51.100.7'],
+    ['documentation 203.0.113.0/24', '203.0.113.9'],
+    ['multicast 224/4', '224.0.0.1'],
+    ['reserved 240/4', '240.0.0.1'],
+    ['limited broadcast', '255.255.255.255'],
+    ['IPv6 multicast', 'ff02::1'],
+    ['Teredo 2001::/32', '2001:0:4136:e378:8000:63bf:3fff:fdd2'],
+    ['IPv6 documentation 2001:db8::/32', '2001:db8::1'],
+    ['local-use NAT64 64:ff9b:1::/48', '64:ff9b:1::7f00:1'],
+    ['6to4 carrying a loopback address', '2002:7f00:1::'],
+    ['6to4 carrying a private address', '2002:c0a8:101::'],
+  ])('blocks %s', (_label, host) => {
+    expect(isBlockedHost(host)).toBe(true);
+  });
+
+  it.each([
+    ['198.17 (just below 198.18/15)', '198.17.255.1'],
+    ['198.20 (just above 198.18/15)', '198.20.0.1'],
+    ['223.255.255.1 (just below multicast)', '223.255.255.1'],
+    ['6to4 carrying a public address', '2002:0808:0808::'],
+    ['2001:4860 (a public IPv6 block)', '2001:4860:4860::8888'],
+    ['64:ff9b::808:808 (global NAT64 of a public IPv4)', '64:ff9b::808:808'],
+  ])('allows %s', (_label, host) => {
+    expect(isBlockedHost(host)).toBe(false);
+  });
+});
+
+describe('what the red-team round found', () => {
+  it.each([
+    ['a link-local address with a zone id', 'fe80::1%eth0'],
+    ['a loopback with a zone id', '::1%lo'],
+    ['site-local fec0::/10', 'fec0::1'],
+    ['discard-only 100::/64', '100::1'],
+    ['documentation 3fff::/20', '3fff::1'],
+    ['benchmarking 2001:2::/48', '2001:2::1'],
+    ['IPv4-translated loopback (hex)', '::ffff:0:7f00:1'],
+    ['IPv4-translated loopback (dotted)', '::ffff:0:127.0.0.1'],
+    ['the Azure WireServer address', '168.63.129.16'],
+  ])('blocks %s', (_label, host) => {
+    expect(isBlockedHost(host)).toBe(true);
+  });
+
+  it.each([
+    ['a neighbouring Azure address', '168.63.129.17'],
+    ['IPv4-translated public address', '::ffff:0:808:808'],
+    ['3fff:1000:: (outside the 3fff::/20 documentation block)', '3fff:1000::1'],
+  ])('allows %s', (_label, host) => {
+    expect(isBlockedHost(host)).toBe(false);
+  });
+});
+
+describe('createGuardedLookup', () => {
+  type Answer = string | Array<{ address: string; family: number }>;
+  const resolverGiving = (answer: Answer) =>
+    jest.fn((_host: string, _options: unknown, callback: (e: Error | null, a: Answer, f?: number) => void) => callback(null, answer, 4));
+  const lookupWith = (answer: Answer, options: Record<string, unknown> = {}) =>
+    new Promise<{ error: NodeJS.ErrnoException | null; address: unknown }>((resolve) => {
+      createGuardedLookup(resolverGiving(answer) as never)('example.test', options as never, (error, address) => resolve({ error, address }));
+    });
+
+  it('passes a name that resolves to a public address', async () => {
+    const result = await lookupWith('93.184.216.34');
+    expect(result.error).toBeNull();
+    expect(result.address).toBe('93.184.216.34');
+  });
+
+  it('refuses a name that resolves to a private address, with a code that says why', async () => {
+    const result = await lookupWith('10.0.0.5');
+    expect(result.error?.code).toBe('ERR_BLOCKED_ADDRESS');
+    expect(result.error?.message).toContain('private, loopback or link-local');
+  });
+
+  it.each(['127.0.0.1', '169.254.169.254', '192.168.1.1', '::1', 'fd00::1', '::ffff:127.0.0.1'])('refuses a name that resolves to %s', async (address) => {
+    expect((await lookupWith(address)).error?.code).toBe('ERR_BLOCKED_ADDRESS');
+  });
+
+  it('refuses when any one of several answers is private (the all option of net.connect)', async () => {
+    const result = await lookupWith(
+      [{ address: '93.184.216.34', family: 4 }, { address: '10.0.0.5', family: 4 }],
+      { all: true },
+    );
+    expect(result.error?.code).toBe('ERR_BLOCKED_ADDRESS');
+    expect(result.address).toEqual([]);
+  });
+
+  it('passes several public answers through unchanged', async () => {
+    const answers = [{ address: '93.184.216.34', family: 4 }, { address: '2606:4700:4700::1111', family: 6 }];
+    const result = await lookupWith(answers, { all: true });
+    expect(result.error).toBeNull();
+    expect(result.address).toEqual(answers);
+  });
+
+  it('passes a resolver error on as it is', async () => {
+    const failing = (_h: string, _o: unknown, callback: (e: Error | null) => void) => callback(Object.assign(new Error('not found'), { code: 'ENOTFOUND' }));
+    const result = await new Promise<{ error: NodeJS.ErrnoException | null }>((resolve) => {
+      createGuardedLookup(failing as never)('nope.test', {} as never, (error) => resolve({ error }));
+    });
+    expect(result.error?.code).toBe('ENOTFOUND');
+  });
+});
+
+describe('fetchPageContent and the guarded lookup', () => {
+  const PROXY_VARS = ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY', 'no_proxy', 'NO_PROXY'];
+  let saved: Record<string, string | undefined>;
+  beforeEach(() => {
+    saved = Object.fromEntries(PROXY_VARS.map((v) => [v, process.env[v]]));
+    for (const v of PROXY_VARS) delete process.env[v];
+    mockedAxios.get.mockResolvedValue({ data: bodyOf('<html><body><p>hello</p></body></html>'), headers: { 'content-type': 'text/html' } } as never);
+  });
+  afterEach(() => {
+    for (const v of PROXY_VARS) {
+      if (saved[v] === undefined) delete process.env[v];
+      else process.env[v] = saved[v];
+    }
+  });
+  const configOf = () => (mockedAxios.get.mock.calls[0] as unknown[])[1] as { httpAgent?: unknown; httpsAgent?: unknown };
+
+  it('tells the user why a name that resolved to a private address was refused', async () => {
+    mockedAxios.get.mockRejectedValue(Object.assign(new Error('blocked'), { code: 'ERR_BLOCKED_ADDRESS' }));
+    const result = await fetchPageContent('https://example.com/a');
+    expect(result.error).toBe('Refused to connect to a private, loopback or link-local address');
+    expect(result.content).toBe('');
+  });
+
+  it.each([
+    ['HTTPS_PROXY for an https URL', { HTTPS_PROXY: 'http://proxy.corp.example:3128' }, 'https://example.com/a'],
+    ['https_proxy for an https URL', { https_proxy: 'http://proxy.corp.example:3128' }, 'https://example.com/a'],
+    ['HTTP_PROXY for an http URL', { HTTP_PROXY: 'http://proxy.corp.example:3128' }, 'http://example.com/a'],
+    ['ALL_PROXY', { ALL_PROXY: 'http://proxy.corp.example:3128' }, 'https://example.com/a'],
+    ['HTTP_PROXY even for an https URL: a redirect hop can change the scheme', { HTTP_PROXY: 'http://proxy.corp.example:3128' }, 'https://example.com/a'],
+    ['a proxy and a NO_PROXY: axios decides per hop, so the guarded agents stay off', { HTTPS_PROXY: 'http://proxy.corp.example:3128', NO_PROXY: 'example.com' }, 'https://example.com/a'],
+  ])('does not use the guarded agents when a proxy is configured (%s): the proxy resolves the target', async (_label, env, url) => {
+    Object.assign(process.env, env);
+    await fetchPageContent(url);
+    expect(configOf().httpAgent).toBeUndefined();
+    expect(configOf().httpsAgent).toBeUndefined();
+  });
+
+  it('judges a redirect by the address it points to, also when axios has put the proxy into hostname', async () => {
+    await fetchPageContent('https://example.com/a');
+    const hook = (configOf() as unknown as { beforeRedirect: (o: Record<string, unknown>) => void }).beforeRedirect;
+    // the proxy is public-looking, the redirect target is the cloud metadata address
+    expect(() => hook({ hostname: 'proxy.example.net', protocol: 'http:', href: 'http://169.254.169.254/latest/meta-data/' })).toThrow('Refused to follow a redirect');
+    expect(() => hook({ hostname: '127.0.0.2', protocol: 'http:', href: 'http://internal-svc.corp/' })).toThrow('Refused to follow a redirect');
+    // a private proxy no longer blocks a redirect to a public page
+    expect(() => hook({ hostname: '10.0.0.9', protocol: 'http:', href: 'http://example.org/next' })).not.toThrow();
+    // without href the old fields are used
+    expect(() => hook({ hostname: '127.0.0.1', protocol: 'http:' })).toThrow('Refused to follow a redirect');
+  });
+
+  it('keeps the guarded agents when no proxy is configured, and treats an empty variable as none', async () => {
+    await fetchPageContent('https://example.com/a');
+    expect(configOf().httpsAgent).toBeDefined();
+
+    jest.clearAllMocks();
+    mockedAxios.get.mockResolvedValue({ data: bodyOf('<html><body><p>hello</p></body></html>'), headers: { 'content-type': 'text/html' } } as never);
+    process.env.HTTPS_PROXY = '  ';
+    process.env.NO_PROXY = 'localhost';
+    await fetchPageContent('https://example.com/a');
+    expect(configOf().httpsAgent).toBeDefined();
+  });
+});
+
+describe('the guarded lookup on a real socket', () => {
+  it('refuses a connection to a name that resolves to loopback, with the real resolver', async () => {
+    const http = await import('http');
+    const server = http.createServer((_req, res) => res.end('secret'));
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as { port: number }).port;
+    try {
+      const agent = new http.Agent({ lookup: createGuardedLookup() as never });
+      const code = await new Promise<string>((resolve) => {
+        const request = http.get({ host: 'localhost', port, agent }, () => resolve('CONNECTED'));
+        request.on('error', (error: NodeJS.ErrnoException) => resolve(String(error.code)));
+      });
+      expect(code).toBe('ERR_BLOCKED_ADDRESS');
+      // the same request without the guard does connect, so the refusal above is the guard's
+      const plain = await new Promise<string>((resolve) => {
+        const request = http.get({ host: 'localhost', port }, () => resolve('CONNECTED'));
+        request.on('error', (error: NodeJS.ErrnoException) => resolve(String(error.code)));
+      });
+      expect(plain).toBe('CONNECTED');
+    } finally {
+      server.close();
+    }
+  });
+});
+
+describe('fetchPageContent connects through the guarded lookup', () => {
+  // a runner that inherits a proxy would make fetchPageContent leave the guarded agents out on purpose
+  const PROXY_ENV = ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY'];
+  let savedProxyEnv: Record<string, string | undefined>;
+  beforeEach(() => {
+    savedProxyEnv = Object.fromEntries(PROXY_ENV.map((v) => [v, process.env[v]]));
+    for (const v of PROXY_ENV) delete process.env[v];
+  });
+  afterEach(() => {
+    for (const v of PROXY_ENV) {
+      if (savedProxyEnv[v] === undefined) delete process.env[v];
+      else process.env[v] = savedProxyEnv[v];
+    }
+  });
+
+  it('passes agents with a lookup to axios, for http and for https', async () => {
+    mockedAxios.get.mockResolvedValue({ data: bodyOf('<html><body><p>hello</p></body></html>'), headers: { 'content-type': 'text/html' } } as never);
+    await fetchPageContent('https://example.com/a');
+    const config = (mockedAxios.get.mock.calls[0] as unknown[])[1] as { httpAgent: { options: { lookup?: unknown } }; httpsAgent: { options: { lookup?: unknown } } };
+    expect(typeof config.httpAgent.options.lookup).toBe('function');
+    expect(config.httpsAgent.options.lookup).toBe(config.httpAgent.options.lookup);
+    // and it is the guarded one: the plain resolver would answer 127.0.0.1 for localhost
+    const lookup = config.httpsAgent.options.lookup as (host: string, options: unknown, callback: (error: NodeJS.ErrnoException | null) => void) => void;
+    const error = await new Promise<NodeJS.ErrnoException | null>((resolve) => lookup('localhost', {}, (e) => resolve(e)));
+    expect(error?.code).toBe('ERR_BLOCKED_ADDRESS');
   });
 });
