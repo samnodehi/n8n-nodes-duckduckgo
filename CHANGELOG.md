@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example 10: find the earliest reports of a news story.** `docs/examples/10-news-trace.json` takes a headline or an article link, runs a News Search and a Web Search (both with Fetch Page Content and page metadata), and shows one HTML file that groups the pages that carry the same text and names the page with the earliest trustworthy date in each group. It has no model and needs no credential. The comparison is plain code in a Code node: runs of five words per paragraph, quotations and text that a site repeats left out, a page joins a group only when it matches more than half of it; a group is given an earliest page only when the dates settle the order, otherwise the reason is shown. A group means shared wording, not authorship. Needs this node 32.19.1 or later (Web Search Time Period of 32.19.0; the page-fetch guard of 32.19.1, because the form can fetch a link that a person types) and n8n 2.18 or later for the links in the preview.
+
 ---
 
 ## [32.19.1] - 2026-10-31
