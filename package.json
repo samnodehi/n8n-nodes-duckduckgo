@@ -80,7 +80,7 @@
     "@mozilla/readability": "^0.6.0",
     "axios": "^1.20.0",
     "html-entities": "^2.6.0",
-    "linkedom": "^0.18.0"
+    "linkedom": "^0.18.14"
   },
   "peerDependencies": {
     "n8n-workflow": "*"
