@@ -13,13 +13,54 @@
  */
 
 import axios from 'axios';
+import * as http from 'http';
+import * as https from 'https';
 import * as path from 'path';
 import { StringDecoder } from 'string_decoder';
 import { Worker } from 'worker_threads';
 import { Readability } from '@mozilla/readability';
 import { parseHTML } from 'linkedom';
 import { BROWSER_USER_AGENT } from './constants';
-import { getUrlBlockReason, isBlockedHost } from './urlGuard';
+import { createGuardedLookup, getUrlBlockReason, isBlockedHost } from './urlGuard';
+
+/**
+ * Agents whose sockets resolve names through the guarded lookup: the address a
+ * name resolves to is checked when the connection is made, for the first request
+ * and for every redirect hop. Shared, so connections are not opened afresh for
+ * each page (no keep-alive: one page, one connection).
+ */
+const guardedLookup = createGuardedLookup();
+const guardedHttpAgent = new http.Agent({ lookup: guardedLookup as unknown as http.AgentOptions['lookup'] });
+const guardedHttpsAgent = new https.Agent({ lookup: guardedLookup as unknown as https.AgentOptions['lookup'] });
+
+/**
+ * True when axios would send this URL through a proxy from the environment
+ * (HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and their lower-case forms, minus NO_PROXY).
+ * With a proxy the agent's lookup would judge the address of the proxy and not
+ * the target, and a proxy sits on a private address almost always, so the
+ * guarded agents are not used then; the proxy resolves the target itself.
+ */
+function proxyAppliesTo(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  const env = process.env;
+  const proxy = parsed.protocol === 'https:'
+    ? env.https_proxy || env.HTTPS_PROXY
+    : env.http_proxy || env.HTTP_PROXY;
+  if (!(proxy || env.all_proxy || env.ALL_PROXY)) return false;
+  const host = parsed.hostname.toLowerCase();
+  const noProxy = (env.no_proxy || env.NO_PROXY || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  for (const entry of noProxy) {
+    if (entry === '*') return false;
+    const bare = entry.replace(/^\*?\./, '').replace(/:\d+$/, '');
+    if (host === bare || host.endsWith('.' + bare)) return false;
+  }
+  return true;
+}
 
 export interface PageContentOptions {
   /** Time allowed for the whole download - connecting, redirects and body - in milliseconds. */
@@ -603,12 +644,24 @@ export async function fetchPageContent(
       responseType: 'stream',
       // The size limit is applied while reading, so a long page is cut, not refused.
       maxContentLength: -1,
+      // The name in the URL can look public and still resolve to an internal
+      // address; the agents check the resolved address when the socket connects.
+      // Not used behind a proxy: see proxyAppliesTo.
+      ...(proxyAppliesTo(url) ? {} : { httpAgent: guardedHttpAgent, httpsAgent: guardedHttpsAgent }),
       validateStatus: (status: number) => status >= 200 && status < 300,
       // A redirect can point somewhere the original URL could not, so every hop
       // is re-checked. Throwing here aborts the request chain.
       beforeRedirect: (options: Record<string, any>) => {
-        const nextProtocol = String(options.protocol ?? '');
-        const nextHost = String(options.hostname ?? options.host ?? '');
+        // Behind a proxy axios has already put the proxy's name into
+        // options.hostname; the address that is being redirected to is in href.
+        let target: URL | undefined;
+        try {
+          target = typeof options.href === 'string' ? new URL(options.href) : undefined;
+        } catch {
+          target = undefined;
+        }
+        const nextProtocol = String(target ? target.protocol : options.protocol ?? '');
+        const nextHost = String(target ? target.hostname : options.hostname ?? options.host ?? '');
         if ((nextProtocol !== 'http:' && nextProtocol !== 'https:') || isBlockedHost(nextHost)) {
           throw new Error('Refused to follow a redirect to a private, loopback or non-HTTP(S) address');
         }
@@ -664,6 +717,9 @@ export async function fetchPageContent(
       // A body that breaks off mid-read also carries its 2xx response, and
       // "HTTP 200" would hide the reason; those fall through to the code.
       message = `HTTP ${error.response.status}`;
+    } else if (error?.code === 'ERR_BLOCKED_ADDRESS') {
+      // The name resolved to an address that is not public (see urlGuard).
+      message = 'Refused to connect to a private, loopback or link-local address';
     } else if (error?.code === 'ERR_BAD_RESPONSE') {
       // axios uses this one code for several failures, so the code alone
       // tells the user nothing.
