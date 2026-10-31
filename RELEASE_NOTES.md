@@ -1,3 +1,38 @@
+# v32.19.1 — Security: the page-fetch guard refuses internal names and resolved private addresses
+
+**Release Date:** 2026-10-31
+
+**Security fix. Update if an AI Agent can use this node as a tool, or if search results reach `Fetch Page Content` or `Extract Page Content` on a host that can see an internal network.**
+
+---
+
+## What was wrong
+
+`Extract Page Content` and `Fetch Page Content` (and the page text of the search operations) fetch a URL that can come from a search result, which an AI Agent may follow. A guard refused loopback, private and link-local addresses, but it compared literal addresses and a short list of names only. These URLs were **not** refused:
+
+- `http://localhost./` and `http://foo.localhost./` (a trailing dot);
+- single-label names such as `http://n8n:5678/` and `http://redis/` (Docker and local-network service names);
+- `http://printer.local/`, `http://metadata.google.internal/` and other names ending in `.internal`, `.lan`, `.localdomain`, `.home.arpa`, `.svc`, `.cluster.local`;
+- addresses in reserved ranges (198.18.0.0/15, 192.0.0.0/24, multicast, 240.0.0.0/4, the broadcast address, and for IPv6 multicast, Teredo, 6to4 with a private address, documentation and local-use NAT64);
+- any public-looking name that **resolves** to a private address (DNS rebinding), which earlier entries listed as out of scope.
+
+A page that an attacker managed to get into the search results could make the n8n host fetch an internal service and hand its text to the model.
+
+## What changed
+
+- The name and address checks cover all of the above (trailing dots, single labels, internal endings, the reserved ranges, IPv6 zone ids, an unparseable IPv6 literal is blocked, IPv4-translated forms, the Azure WireServer address).
+- A name that looks public is checked **when the connection is made**: if it resolves to a private, loopback, link-local or reserved address (any one of the answers), the connection is refused, for the first request and for every redirect hop. The error reads `Refused to connect to a private, loopback or link-local address`.
+- Behind a proxy from the environment, a redirect is judged by the address it points to, not by the proxy.
+
+## What you might notice
+
+- A page that you fetched on purpose on a single-label or internal name (for example `http://wiki/` inside your own network) is now refused. **There is no option to allow it.**
+- **A proxy configured in the environment** (`HTTP_PROXY`, `HTTPS_PROXY` or `ALL_PROXY`, whatever `NO_PROXY` says): the proxy resolves the target itself, so the check of the resolved address is not made there; the name and literal-address checks and the check of every redirect target still are. Fetches through a proxy on a private address keep working.
+- **Hosts whose DNS answers private addresses for public names** (VPN or proxy tools in fake-IP mode, DNS sinkholes, some tailnet setups) will have every fetch refused.
+- Nothing else changes: the options, the fields and the search requests to DuckDuckGo are the same. Each page fetch now opens its own connection (no connection reuse).
+
+---
+
 # v32.19.0 — Web Search can be limited to a period
 
 **Release Date:** 2026-10-25
