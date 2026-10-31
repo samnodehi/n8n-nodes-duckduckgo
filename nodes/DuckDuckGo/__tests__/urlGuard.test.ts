@@ -412,7 +412,9 @@ describe('fetchPageContent and the guarded lookup', () => {
     ['https_proxy for an https URL', { https_proxy: 'http://proxy.corp.example:3128' }, 'https://example.com/a'],
     ['HTTP_PROXY for an http URL', { HTTP_PROXY: 'http://proxy.corp.example:3128' }, 'http://example.com/a'],
     ['ALL_PROXY', { ALL_PROXY: 'http://proxy.corp.example:3128' }, 'https://example.com/a'],
-  ])('does not use the guarded agents behind a proxy (%s): the proxy resolves the target', async (_label, env, url) => {
+    ['HTTP_PROXY even for an https URL: a redirect hop can change the scheme', { HTTP_PROXY: 'http://proxy.corp.example:3128' }, 'https://example.com/a'],
+    ['a proxy and a NO_PROXY: axios decides per hop, so the guarded agents stay off', { HTTPS_PROXY: 'http://proxy.corp.example:3128', NO_PROXY: 'example.com' }, 'https://example.com/a'],
+  ])('does not use the guarded agents when a proxy is configured (%s): the proxy resolves the target', async (_label, env, url) => {
     Object.assign(process.env, env);
     await fetchPageContent(url);
     expect(configOf().httpAgent).toBeUndefined();
@@ -431,16 +433,15 @@ describe('fetchPageContent and the guarded lookup', () => {
     expect(() => hook({ hostname: '127.0.0.1', protocol: 'http:' })).toThrow('Refused to follow a redirect');
   });
 
-  it('keeps the guarded agents when the proxy is for the other scheme, or the host is in NO_PROXY', async () => {
-    process.env.HTTP_PROXY = 'http://proxy.corp.example:3128';
+  it('keeps the guarded agents when no proxy is configured, and treats an empty variable as none', async () => {
     await fetchPageContent('https://example.com/a');
     expect(configOf().httpsAgent).toBeDefined();
 
     jest.clearAllMocks();
     mockedAxios.get.mockResolvedValue({ data: bodyOf('<html><body><p>hello</p></body></html>'), headers: { 'content-type': 'text/html' } } as never);
-    process.env.HTTPS_PROXY = 'http://proxy.corp.example:3128';
-    process.env.NO_PROXY = 'localhost, .example.com';
-    await fetchPageContent('https://www.example.com/a');
+    process.env.HTTPS_PROXY = '  ';
+    process.env.NO_PROXY = 'localhost';
+    await fetchPageContent('https://example.com/a');
     expect(configOf().httpsAgent).toBeDefined();
   });
 });

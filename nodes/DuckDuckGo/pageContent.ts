@@ -34,32 +34,21 @@ const guardedHttpAgent = new http.Agent({ lookup: guardedLookup as unknown as ht
 const guardedHttpsAgent = new https.Agent({ lookup: guardedLookup as unknown as https.AgentOptions['lookup'] });
 
 /**
- * True when axios would send this URL through a proxy from the environment
- * (HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and their lower-case forms, minus NO_PROXY).
- * With a proxy the agent's lookup would judge the address of the proxy and not
- * the target, and a proxy sits on a private address almost always, so the
- * guarded agents are not used then; the proxy resolves the target itself.
+ * True when a proxy is configured in the environment (HTTP_PROXY, HTTPS_PROXY,
+ * ALL_PROXY, lower-case forms too). Whether a request really goes through it
+ * depends on the scheme, on NO_PROXY and on every redirect hop, and axios
+ * decides that again per hop; a copy of its rules here would drift. So the
+ * answer is only "is any proxy configured". With one, the guarded agents are not
+ * used at all: their lookup would judge the address of the proxy and not of the
+ * target (a proxy sits on a private address almost always), and the proxy
+ * resolves the target itself. The name and literal-address checks, and the check
+ * of every redirect target, still apply.
  */
-function proxyAppliesTo(url: string): boolean {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return false;
-  }
+function proxyConfigured(): boolean {
   const env = process.env;
-  const proxy = parsed.protocol === 'https:'
-    ? env.https_proxy || env.HTTPS_PROXY
-    : env.http_proxy || env.HTTP_PROXY;
-  if (!(proxy || env.all_proxy || env.ALL_PROXY)) return false;
-  const host = parsed.hostname.toLowerCase();
-  const noProxy = (env.no_proxy || env.NO_PROXY || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-  for (const entry of noProxy) {
-    if (entry === '*') return false;
-    const bare = entry.replace(/^\*?\./, '').replace(/:\d+$/, '');
-    if (host === bare || host.endsWith('.' + bare)) return false;
-  }
-  return true;
+  return [env.http_proxy, env.HTTP_PROXY, env.https_proxy, env.HTTPS_PROXY, env.all_proxy, env.ALL_PROXY].some(
+    (value) => typeof value === 'string' && value.trim() !== '',
+  );
 }
 
 export interface PageContentOptions {
@@ -646,8 +635,8 @@ export async function fetchPageContent(
       maxContentLength: -1,
       // The name in the URL can look public and still resolve to an internal
       // address; the agents check the resolved address when the socket connects.
-      // Not used behind a proxy: see proxyAppliesTo.
-      ...(proxyAppliesTo(url) ? {} : { httpAgent: guardedHttpAgent, httpsAgent: guardedHttpsAgent }),
+      // Not used when a proxy is configured: see proxyConfigured.
+      ...(proxyConfigured() ? {} : { httpAgent: guardedHttpAgent, httpsAgent: guardedHttpsAgent }),
       validateStatus: (status: number) => status >= 200 && status < 300,
       // A redirect can point somewhere the original URL could not, so every hop
       // is re-checked. Throwing here aborts the request chain.
