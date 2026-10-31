@@ -1,0 +1,660 @@
+{
+  "name": "Find the earliest reports of a news story with DuckDuckGo",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Find the earliest reports of a news story\n\nType a headline or paste an article link, and get one HTML file that groups the pages which carry the same text and names the page dated earliest in each group, when the dates settle it. It needs **no search API key and no model**.\n\n**Self-hosted n8n only** - community nodes do not run on n8n Cloud.\n\n### How it works\n1. The form takes a headline or an article link and how far back to look. For a link, the title of the page is the headline.\n2. A News Search and a Web Search (the headline in quotes) fetch the text of their top results.\n3. Code keeps one entry per address, only pages about the headline, at most two per site and twelve in all.\n4. Code cuts each page into runs of five words, leaves out quotations and repeated site text, and groups pages that share most of their wording. A page joins a group only when it matches more than half of it.\n5. Each group gets the page with the earliest trustworthy date, or the reason the dates do not settle it. The form shows the file with a Download button and a preview.\n\n### Setup\n1. **Settings > Community nodes**: install `n8n-nodes-duckduckgo-search` 32.19.1 or later, on **n8n 2.18 or later** (older versions open preview links in a restricted tab).\n2. No credential is needed. Activate, open the form's production URL and type a headline. The form only opens for people signed in to this n8n.\n\nA run usually takes under a minute and uses 2 DuckDuckGo searches and up to 21 page downloads (22 with a link); leave a few minutes between runs, because DuckDuckGo limits searches per IP address. A shared text does not show who wrote it.",
+        "color": 1,
+        "width": 1096,
+        "height": 456
+      },
+      "id": "b246aff6-8658-467c-8206-d24b0fd6c37c",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 1. Read the request\nThe form takes a headline or an article link. For a link, the node reads the page and uses its title as the headline.",
+        "color": 7,
+        "width": 1440,
+        "height": 440
+      },
+      "id": "c5eb04fe-dff1-4677-8fac-12ea9ff1a276",
+      "name": "Section - read the request",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Search and read pages\nA News Search and a Web Search with the headline in quotes fetch the text of their top results. Code keeps one entry per address, only pages about the headline, at most two per site and twelve in all.",
+        "color": 7,
+        "width": 1040,
+        "height": 440
+      },
+      "id": "7f0f7f15-13c8-4b3b-85f3-62d05c9aacfa",
+      "name": "Section - search and read pages",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Compare and build the file\nCode groups the pages that share their wording, dates each group and builds one HTML file. The form shows it with a Download button and a preview, or the reason why there is none.",
+        "color": 7,
+        "width": 720,
+        "height": 440
+      },
+      "id": "50bf7123-aabc-4458-87a0-081ea14f0511",
+      "name": "Section - compare and build",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2528,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "n8nUserAuth",
+        "formTitle": "Find the earliest reports of a news story",
+        "formDescription": "Type a headline, or paste the link of an article. You get one HTML file that groups the pages carrying the same text and shows which page is dated earliest in each group. It usually takes under a minute and uses 2 DuckDuckGo searches and up to 21 page downloads (22 with a link).",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Headline or article link",
+              "fieldName": "story",
+              "fieldType": "text",
+              "placeholder": "e.g. Dock workers walk off the job at the port",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Look back",
+              "fieldName": "window",
+              "fieldType": "dropdown",
+              "defaultValue": "Past week",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Past day"
+                  },
+                  {
+                    "option": "Past week"
+                  },
+                  {
+                    "option": "Past month"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "responseMode": "lastNode",
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Compare the pages"
+        }
+      },
+      "id": "2fe65e65-32c6-4b5d-8f63-1a8f35edc3f5",
+      "name": "Story to trace",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        208
+      ],
+      "webhookId": "3e3bd640-f87d-48b3-8bab-1e332d8fc21c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reads the form: a headline or the link of an article, and how far back to look.\nconst form = $input.first().json;\nconst fail = (error) => [{ json: { ok: false, error } }];\n\nconst story = String(form.story || '').replace(/[\\u0000-\\u001f\\u007f-\\u009f\\u200b\\u200e\\u200f\\u202a-\\u202e\\u2060-\\u206f\\ufeff]/g, ' ').replace(/\\s+/g, ' ').trim();\nif (story.length < 8) return fail('Type a headline of at least 8 characters, or the link of an article.');\nif (!/[\\p{L}\\p{N}]{3}/u.test(story)) return fail('Type a headline with at least one word of three letters or more.');\nif (story.length > 300) return fail('That is too long: 300 characters at most.');\nconst picked = String(form.window || '');\nconst period = /day/i.test(picked) ? 'd' : /month/i.test(picked) ? 'm' : 'w';\n\n// A link is one word that starts with http://, https:// or www.; anything with a space is a headline.\nconst lower = story.toLowerCase();\nlet link = '';\nif (!story.includes(' ')) {\n  if (lower.startsWith('http://') || lower.startsWith('https://')) link = story;\n  else if (lower.startsWith('www.')) link = 'https://' + story;\n}\nif (link) {\n  const rest = link.slice(link.indexOf('://') + 3);\n  const host = rest.split('/')[0].split('?')[0].split('#')[0];\n  if (host.includes('@') || link.includes('\\\\')) return fail('That link has a user name or a backslash in it. Paste the plain address of the article, or type the headline.');\n  if (!host.includes('.')) return fail('That link has no site name in it. Type the headline instead.');\n}\nreturn [{ json: { ok: true, story, link, isLink: link !== '', period, nowIso: new Date().toISOString() } }];\n"
+      },
+      "id": "e67828ca-6566-40e8-852a-0b5d39efb965",
+      "name": "Check the request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "75df4f10-1fcc-422b-80e7-9f1320fc7fc3",
+      "name": "Request accepted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        384,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.isLink }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b274ea48-ac94-4a58-8b25-f1d0045dc6e7",
+      "name": "Article link?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        576,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "extractContent",
+        "url": "={{ $json.link }}",
+        "extractOptions": {
+          "pageContentMaxLength": 40000,
+          "pageContentTimeout": 15000,
+          "includePageMetadata": true
+        }
+      },
+      "id": "ac56f389-b36d-4f07-8a3e-d972619c7a49",
+      "name": "Read the article",
+      "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
+      "typeVersion": 1,
+      "position": [
+        768,
+        384
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Makes the two search texts. With a link, the headline is the title of the page behind it, and that page is kept as the first page to compare.\nconst check = $('Check the request').first().json;\nlet headline = check.story;\nlet seed = null;\nif (check.isLink) {\n  const art = $input.first().json || {};\n  const title = String(art.title || '').replace(/\\s+/g, ' ').trim();\n  if (!title) {\n    return [{ json: { ok: false, error: 'The page behind that link could not be read' + (art.error ? ' (' + String(art.error).slice(0, 120) + ')' : '') + '. Type its headline instead.' } }];\n  }\n  headline = title;\n  // a title often ends with the name of the site: \"Headline | Site\" or \"Headline - Site\"\n  for (const sep of [' | ', ' - ', ' \\u2013 ', ' \\u2014 ']) {\n    const at = headline.lastIndexOf(sep);\n    if (at > 0 && headline.slice(at + sep.length).split(' ').length <= 4 && headline.slice(0, at).split(' ').length >= 3) {\n      headline = headline.slice(0, at);\n      break;\n    }\n  }\n  seed = { url: check.link, title, site: art.siteName || '', text: String(art.content || ''), published: art.published || null, error: art.error || '' };\n}\n// cut at a word boundary\nconst cut = (s, n) => (s.length <= n ? s : s.slice(0, n).replace(/\\s+\\S*$/, ''));\nconst plain = headline.replace(/\"/g, ' ').replace(/\\s+/g, ' ').trim();\nif (plain.length < 8) return [{ json: { ok: false, error: 'There is no headline to search for.' } }];\nreturn [{ json: { ok: true, headline: plain, newsQuery: cut(plain, 150), webQuery: '\"' + cut(plain, 100) + '\"', period: check.period, nowIso: check.nowIso, seed } }];\n"
+      },
+      "id": "5b163d32-4edb-4b80-88b8-4c8c30ba11d3",
+      "name": "Plan the searches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "69490995-9a6d-4139-87a3-159f056b0598",
+      "name": "Headline found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1152,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "searchNews",
+        "newsQuery": "={{ $('Plan the searches').first().json.newsQuery }}",
+        "newsSearchOptions": {
+          "maxResults": 20,
+          "region": "wt-wt",
+          "safeSearch": -1,
+          "timePeriod": "={{ $('Plan the searches').first().json.period }}",
+          "fetchPageContent": true,
+          "pageContentMaxResults": 15,
+          "pageContentMaxLength": 30000,
+          "pageContentTimeout": 12000,
+          "includePageMetadata": true
+        },
+        "errorHandling": "continueOnFail"
+      },
+      "id": "34a65a84-29bc-44a2-862d-3b200605183f",
+      "name": "Search the news",
+      "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
+      "typeVersion": 1,
+      "position": [
+        1488,
+        208
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 4,
+        "unit": "seconds"
+      },
+      "id": "82af1790-94bd-4f6a-8edb-e4af32e70763",
+      "name": "Wait before the web search",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        208
+      ],
+      "webhookId": "b2f1b50c-acc9-4494-8d14-af7d6306ac27"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "query": "={{ $('Plan the searches').first().json.webQuery }}",
+        "webSearchOptions": {
+          "maxResults": 10,
+          "region": "wt-wt",
+          "safeSearch": -1,
+          "timeFilter": "={{ $('Plan the searches').first().json.period }}",
+          "fetchPageContent": true,
+          "pageContentMaxResults": 6,
+          "pageContentMaxLength": 30000,
+          "pageContentTimeout": 12000,
+          "includePageMetadata": true
+        },
+        "errorHandling": "continueOnFail"
+      },
+      "id": "b7775772-23c0-4685-8a21-2ea112680a6f",
+      "name": "Search the web",
+      "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
+      "typeVersion": 1,
+      "position": [
+        1872,
+        208
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Puts the pages of both searches (and the page behind the link, if one was given) into one list: one entry per address, only pages about the\n// headline, at most 2 per site and 12 in all. The text of a page is whatever the node could read; a page that was not fetched is left out.\nconst plan = $('Plan the searches').first().json;\nconst readItems = (name) => {\n  try {\n    return $(name).all().map((i) => i.json || {});\n  } catch (e) {\n    return [];\n  }\n};\nconst news = readItems('Search the news');\nconst web = readItems('Search the web');\n\n// Plain string steps: the site of an address, and a key that is the same for the same page with tracking parameters or a trailing slash.\nconst partsOf = (url) => {\n  const s = String(url || '').trim();\n  const lower = s.toLowerCase();\n  const rest = lower.startsWith('https://') ? s.slice(8) : lower.startsWith('http://') ? s.slice(7) : '';\n  if (rest === '') return null;\n  const noHash = rest.includes('#') ? rest.slice(0, rest.indexOf('#')) : rest;\n  const q = noHash.indexOf('?');\n  const beforeQuery = q >= 0 ? noHash.slice(0, q) : noHash;\n  const slash = beforeQuery.indexOf('/');\n  let host = slash >= 0 ? beforeQuery.slice(0, slash) : beforeQuery;\n  let path = slash >= 0 ? beforeQuery.slice(slash) : '';\n  // a user name in the address, or a backslash, lets the address show one site and lead to another\n  if (host.includes('@') || host.includes('\\\\')) return null;\n  if (host.includes(':')) host = host.slice(0, host.indexOf(':'));\n  host = host.toLowerCase();\n  while (host.endsWith('.')) host = host.slice(0, -1);\n  if (host.startsWith('www.')) host = host.slice(4);\n  while (path.endsWith('/')) path = path.slice(0, -1);\n  return { host, path, query: q >= 0 ? noHash.slice(q + 1) : '' };\n};\nconst TRACKING = ['fbclid', 'gclid', 'igshid', 'mc_cid', 'mc_eid', 'ref', 'cmp', 'ocid', 'taid'];\nconst hostOf = (url) => (partsOf(url) || { host: '' }).host;\nconst keyOf = (url) => {\n  const p = partsOf(url);\n  const query = p.query.split('&').filter((x) => x !== '' && !x.toLowerCase().startsWith('utm_') && !TRACKING.includes(x.split('=')[0].toLowerCase())).sort().join('&');\n  return p.host + p.path + (query ? '?' + query : '');\n};\n\nconst tokens = (s) => String(s).normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, ' ').trim().split(' ').filter((w) => w !== '');\nconst STOP = ['the', 'and', 'for', 'with', 'from', 'that', 'this', 'into', 'over', 'after', 'about'];\nlet needles = Array.from(new Set(tokens(plan.headline).filter((w) => w.length >= 4)));\nif (needles.length < 2) needles = Array.from(new Set(tokens(plan.headline).filter((w) => w.length >= 3 && !STOP.includes(w))));\nconst needed = Math.max(1, needles.length >= 6 ? 3 : Math.min(2, needles.length));\nconst aboutIt = (page, snippet) => {\n  const seen = new Set(tokens(page.title + ' ' + snippet + ' ' + page.text.slice(0, 3000)));\n  return needles.filter((w) => seen.has(w)).length >= needed;\n};\n\n// The search nodes fetch the text of the first results only (Maximum Results to Fetch Content For on each node: keep these two numbers equal to\n// them); the node gives every other result an empty text and no error, which looks the same as a page with no text.\nconst NEWS_FETCHED = 15;\nconst WEB_FETCHED = 6;\nconst candidates = [];\nif (plan.seed) candidates.push({ ...plan.seed, from: 'link', date: null, relativeTime: null, snippet: '', fetched: true });\nnews.forEach((r, n) => {\n  candidates.push({\n    url: r.url, title: r.pageTitle || r.title, site: r.pageSiteName || r.syndicate || '', text: r.pageContent, published: r.pagePublished || null,\n    date: r.date || null, relativeTime: r.relativeTime || null, error: r.pageContentError || '', snippet: r.description || '', from: 'news',\n    fetched: n < NEWS_FETCHED && typeof r.pageContent === 'string',\n  });\n});\nweb.forEach((r, n) => {\n  candidates.push({\n    url: r.url, title: r.pageTitle || r.title, site: r.pageSiteName || '', text: r.pageContent, published: r.pagePublished || null,\n    date: null, relativeTime: null, error: r.pageContentError || '', snippet: r.description || '', from: 'web', fetched: n < WEB_FETCHED && typeof r.pageContent === 'string',\n  });\n});\n// Results with text come first, so that the address of a result that was not fetched cannot hide the same page found later with its text.\ncandidates.sort((a, b) => Number(b.fetched) - Number(a.fetched));\n\nconst skipped = { duplicates: 0, notAboutIt: 0, notFetched: 0, sameSite: 0, overLimit: 0 };\nconst seen = new Set();\nconst perHost = new Map();\nconst pages = [];\nlet found = 0;\nfor (const c of candidates) {\n  const host = hostOf(c.url);\n  if (host === '') continue;\n  const key = keyOf(c.url);\n  if (seen.has(key)) {\n    skipped.duplicates += 1;\n    continue;\n  }\n  seen.add(key);\n  found += 1;\n  if (!c.fetched) {\n    skipped.notFetched += 1;\n    continue;\n  }\n  const page = { url: String(c.url), host, title: String(c.title || '').slice(0, 200), site: String(c.site || '').slice(0, 80), text: String(c.text || ''), published: c.published, date: c.date, relativeTime: c.relativeTime, error: c.error, from: c.from };\n  if (c.from !== 'link' && !aboutIt(page, String(c.snippet))) {\n    skipped.notAboutIt += 1;\n    continue;\n  }\n  if ((perHost.get(host) || 0) >= 2) {\n    skipped.sameSite += 1;\n    continue;\n  }\n  perHost.set(host, (perHost.get(host) || 0) + 1);\n  pages.push(page);\n}\n// Twelve pages at most: pages that came with text first, so that a page the node could not read does not take the place of one it could.\nconst hasText = (p) => p.text.split(/\\s+/).filter((w) => w !== '').length >= 60;\nconst kept = pages.filter(hasText).concat(pages.filter((p) => !hasText(p))).slice(0, 12);\nskipped.overLimit = pages.length - kept.length;\npages.length = 0;\nkept.forEach((p) => pages.push(p));\nconst full = pages.filter((p) => p.text.split(/\\s+/).filter((w) => w !== '').length >= 150).length;\nconst searchErrors = [...news, ...web].filter((r) => r.error && !r.url).map((r) => String(r.error).slice(0, 160));\nreturn [{\n  json: {\n    headline: plan.headline, period: plan.period, nowIso: plan.nowIso, pages, found, skipped, full, enough: full >= 5,\n    searchError: searchErrors[0] || '',\n    why: 'Only ' + full + ' page' + (full === 1 ? '' : 's') + ' about this headline could be read with enough text, and at least 5 are needed to compare them.'\n      + (searchErrors.length ? ' DuckDuckGo answered with an error: ' + searchErrors[0] + '. Wait a few minutes and try again.' : ''),\n  },\n}];\n"
+      },
+      "id": "85b0aa8b-363e-4251-809d-2913e6eeb1e0",
+      "name": "Pick the pages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.enough }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d10c366c-4cc5-4a44-8d50-df9fb0842be4",
+      "name": "Enough pages?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2256,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compares the text of the pages that were read, in plain code. Pages that carry the same passages form a group, and each group gets\n// the page with the earliest date, but only when the dates really settle it. There is no model here: the same pages always give the same groups.\n// Method: every paragraph of 8 words or more is cut into runs of 5 words; two pages are linked when most of the shorter one sits in runs that\n// the other one also has; a page joins a group only when it is linked to more than half of the pages in it, so one shared quote or one shared\n// legal notice cannot chain two different stories together. Text inside quotation marks is left out first, and a paragraph that two different\n// articles of one site share (a menu, a notice, a sign-up box) is site text and is left out too.\nconst input = $input.first().json || {};\nconst rows = Array.isArray(input.pages) ? input.pages : [];\nconst nowParsed = Date.parse(input.nowIso);\nconst now = Number.isFinite(nowParsed) ? nowParsed : Date.now();\nconst period = ['d', 'w', 'm'].includes(input.period) ? input.period : 'w';\nconst MIN = 60000;\nconst HOUR = 3600000;\nconst DAY = 86400000;\nconst windowStart = now - { d: 1, w: 7, m: 30 }[period] * DAY;\n\nconst K = 5; // words per run\nconst MIN_PARA_WORDS = 8; // shorter paragraphs are bylines, menus and \"read more\"\nconst MIN_PAGE_WORDS = 60; // a page with less text than this is not compared\nconst STRONG_SHARE = 0.6; // part of the shorter page that sits in runs of the other page\nconst STRONG_WORDS = 50; // and at least this many words\nconst MUTUAL_SHARE = 0.5; // the longer page must share this much too, unless the shorter one is a lead\nconst PARTIAL_WORDS = 20; // a weaker link: reported, never joins a group\nconst MAX_QUOTE = 700;\nconst BOILERPLATE = [\n  'we use cookies', 'by continuing to browse', 'all rights reserved', 'sign up to our', 'subscribe to', 'read more', 'related:',\n  'share this', 'skip to content', 'terms of use', 'forward looking statements', 'click here', 'advertisement',\n];\n\nconst words = (s) => s.split(/\\s+/).filter((w) => w !== '');\nconst tokensOf = (s) => {\n  const t = String(s)\n    .normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '')\n    .toLowerCase()\n    .replace(/['\\u2018\\u2019\\u02bc]/g, '')\n    .replace(/[^\\p{L}\\p{N}]+/gu, ' ')\n    .trim();\n  return t === '' ? [] : t.split(' ');\n};\n// A quotation that opens and closes within 700 characters is left out; one that never closes is kept.\nconst withoutQuotes = (line) => {\n  let out = '';\n  let i = 0;\n  while (i < line.length) {\n    const ch = line[i];\n    if (ch === '\"' || ch === '\\u201c') {\n      const k = line.slice(i + 1, i + 2 + MAX_QUOTE).indexOf(ch === '\"' ? '\"' : String.fromCharCode(0x201d));\n      if (k >= 0) {\n        out += ' ';\n        i += k + 2;\n        continue;\n      }\n    }\n    out += ch;\n    i += 1;\n  }\n  return out;\n};\nconst isBoiler = (raw) => {\n  const low = raw.toLowerCase().replace(/\\s+/g, ' ').trim();\n  return BOILERPLATE.some((b) => low.startsWith(b) || (low.length < 400 && low.includes(b)));\n};\n\nconst pages = rows.map((p, i) => ({\n  i,\n  id: 'P' + (i + 1),\n  url: String(p.url || ''),\n  host: String(p.host || ''),\n  title: String(p.title || ''),\n  site: String(p.site || ''),\n  from: String(p.from || ''),\n  text: String(p.text || '').slice(0, 60000),\n  published: p.published || null,\n  date: p.date || null,\n  relativeTime: p.relativeTime || null,\n  error: p.error ? String(p.error) : '',\n}));\n\n// Site text: a paragraph that two pages of one site share, when the two articles are not the same article twice.\nconst lineKey = (line) => tokensOf(line).join(' ');\nconst siteLines = new Map();\n{\n  const keyed = pages.map((p) => p.text.split('\\n').map(lineKey).filter((k) => k.split(' ').length >= 5));\n  // menus and notices belong to one site: a paragraph that another site's page carries too is story text\n  const carriers = new Map();\n  keyed.forEach((keys, i) => keys.forEach((k) => {\n    if (!carriers.has(k)) carriers.set(k, new Set());\n    carriers.get(k).add(pages[i].host);\n  }));\n  for (let a = 0; a < pages.length; a++) {\n    for (let b = a + 1; b < pages.length; b++) {\n      if (!pages[a].host || pages[a].host !== pages[b].host) continue;\n      const shared = keyed[a].filter((k) => keyed[b].includes(k) && carriers.get(k).size === 1);\n      if (!shared.length) continue;\n      const sharedWords = shared.join(' ').split(' ').length;\n      const smaller = Math.min(keyed[a].join(' ').split(' ').length, keyed[b].join(' ').split(' ').length);\n      if (sharedWords / smaller > 0.9) continue; // the same article twice (a print or amp view)\n      if (!siteLines.has(pages[a].host)) siteLines.set(pages[a].host, new Set());\n      shared.forEach((k) => siteLines.get(pages[a].host).add(k));\n    }\n  }\n}\n\nconst prepare = (page) => {\n  const site = siteLines.get(page.host);\n  const paras = [];\n  for (const line of page.text.split('\\n')) {\n    if (site && site.has(lineKey(line))) continue;\n    if (isBoiler(line)) continue;\n    const tk = tokensOf(withoutQuotes(line));\n    if (tk.length >= MIN_PARA_WORDS) paras.push({ raw: line.trim(), tk });\n  }\n  const runs = [];\n  let count = 0;\n  paras.forEach((para, p) => {\n    count += para.tk.length;\n    for (let i = 0; i + K <= para.tk.length; i++) runs.push({ p, i, key: para.tk.slice(i, i + K).join(' ') });\n  });\n  return { paras, runs, set: new Set(runs.map((r) => r.key)), words: count };\n};\n\nconst prep = pages.map(prepare);\npages.forEach((page, i) => {\n  const w = prep[i].words;\n  page.words = w;\n  if (w === 0) {\n    page.status = 'unreadable';\n    page.reason = page.error ? page.error.slice(0, 80) : page.text.trim() === '' ? 'no text could be read' : 'only menus, notices and short lines were found';\n  } else if (w < MIN_PAGE_WORDS) {\n    page.status = 'short';\n    page.reason = 'too little text to compare (' + w + ' words)';\n  } else {\n    page.status = 'read';\n    page.reason = '';\n  }\n});\n\n// How much of page a sits in runs that page b also has: words covered, and where the first shared run is.\nconst cover = (a, b) => {\n  const covered = new Set();\n  let first = -1;\n  for (const r of a.runs) {\n    if (!b.set.has(r.key)) continue;\n    if (first < 0) first = r.p;\n    for (let j = 0; j < K; j++) covered.add(r.p * 100000 + r.i + j);\n  }\n  return { n: covered.size, first, covered };\n};\nconst score = (a, b) => {\n  const ca = cover(a, b);\n  const cb = cover(b, a);\n  const shareA = a.words ? ca.n / a.words : 0;\n  const shareB = b.words ? cb.n / b.words : 0;\n  const aSmall = a.words <= b.words;\n  const small = aSmall ? { share: shareA, c: ca } : { share: shareB, c: cb };\n  const large = aSmall ? { share: shareB, c: cb } : { share: shareA, c: ca };\n  return { smallShare: small.share, largeShare: large.share, words: small.c.n, lead: small.c.first === 0 && large.c.first === 0 };\n};\nconst classify = (sc) => {\n  if (sc.smallShare >= STRONG_SHARE && sc.words >= STRONG_WORDS) {\n    if (sc.largeShare >= MUTUAL_SHARE || sc.lead) return 'strong';\n    return 'inside'; // a passage of the shorter page sits inside the longer one, which says much more\n  }\n  return sc.words >= PARTIAL_WORDS ? 'partial' : 'none';\n};\n\nconst readable = pages.filter((p) => p.status === 'read').map((p) => p.i);\nconst edges = new Map();\nfor (let x = 0; x < readable.length; x++) {\n  for (let y = x + 1; y < readable.length; y++) {\n    const a = Math.min(readable[x], readable[y]);\n    const b = Math.max(readable[x], readable[y]);\n    const sc = score(prep[a], prep[b]);\n    edges.set(a + ':' + b, { sc, cls: classify(sc) });\n  }\n}\nconst edgeOf = (a, b) => edges.get(Math.min(a, b) + ':' + Math.max(a, b));\nconst strong = (a, b) => {\n  const e = edgeOf(a, b);\n  return !!e && e.cls === 'strong';\n};\n\n// Longest pages first, so a page joins a group that already holds its fuller version; it joins only where it is linked to more than half of the group\n// (to both pages of a group of two), so a page that matches the start of one page and another page that matches its end do not end up together.\nconst groups = [];\nconst byUrl = (a, b) => (pages[a].url < pages[b].url ? -1 : pages[a].url > pages[b].url ? 1 : a - b);\nfor (const i of readable.slice().sort((a, b) => prep[b].words - prep[a].words || byUrl(a, b))) {\n  let best = -1;\n  let bestScore = 0;\n  groups.forEach((g, gi) => {\n    const hits = g.filter((m) => strong(i, m));\n    if (hits.length * 2 <= g.length) return;\n    const quality = hits.reduce((t, m) => t + (edgeOf(i, m).sc.smallShare + edgeOf(i, m).sc.largeShare) / 2, 0) / hits.length;\n    const s = (hits.length / g.length) * 1000 + hits.length * 10 + quality;\n    if (s > bestScore) {\n      bestScore = s;\n      best = gi;\n    }\n  });\n  if (best >= 0) groups[best].push(i);\n  else groups.push([i]);\n}\n\n// Dates. A page can show several (its own, and the one a search engine reports); the earliest one that can be trusted is used, and the\n// uncertainty of each kind of date decides whether two pages can be put in order.\nconst stamp = (v) => {\n  if (v === null || v === undefined || v === '') return null;\n  const s = String(v).trim();\n  const flags = [];\n  let t;\n  let u;\n  let m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(s);\n  if (m) {\n    t = Date.UTC(+m[1], +m[2] - 1, +m[3]);\n    u = DAY;\n    flags.push('dateOnly');\n  } else {\n    m = /^(\\d{4})-(\\d{2})-(\\d{2})[T ](\\d{2}):(\\d{2})(?::(\\d{2})(?:\\.\\d+)?)?(Z|[+-]\\d{2}:?\\d{2})?$/.exec(s);\n    if (m) {\n      const base = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], m[6] ? +m[6] : 0);\n      if (new Date(base).getUTCMonth() !== +m[2] - 1) return null;\n      if (!m[7]) {\n        t = base;\n        u = 14 * HOUR;\n        flags.push('noTimezone');\n      } else if (m[7] === 'Z') {\n        t = base;\n        u = MIN;\n      } else {\n        const sign = m[7][0] === '-' ? -1 : 1;\n        t = base - sign * (+m[7].slice(1, 3) * 60 + +m[7].slice(-2)) * MIN;\n        u = MIN;\n      }\n    } else if (/^[A-Za-z]{3},? \\d{1,2} [A-Za-z]{3} \\d{4} \\d{2}:\\d{2}(:\\d{2})? (GMT|UTC|[+-]\\d{4})$/.test(s)) {\n      t = Date.parse(s);\n      u = MIN;\n      if (Number.isNaN(t)) return null;\n    } else {\n      return null;\n    }\n  }\n  if (t > now + 10 * MIN || t < Date.UTC(1990, 0, 1)) return null; // in the future, or a placeholder\n  return { t, u, flags };\n};\nconst relative = (s) => {\n  const m = /^(\\d+|an?) (minute|hour|day|week|month)s? ago$/i.exec(String(s || '').trim());\n  if (!m) return null;\n  const n = /^an?$/i.test(m[1]) ? 1 : +m[1];\n  const unit = { minute: MIN, hour: HOUR, day: DAY, week: 7 * DAY, month: 30 * DAY }[m[2].toLowerCase()];\n  return { t: now - n * unit, u: unit, flags: ['relative'] };\n};\nconst timeOf = (page) => {\n  const found = [];\n  const own = stamp(page.published);\n  if (own) found.push({ src: 'page', ...own });\n  const seen = stamp(page.date);\n  if (seen) found.push({ src: 'search', ...seen, u: Math.max(seen.u, 3 * HOUR) }); // a search engine can lag behind the page\n  if (!found.length) {\n    const r = relative(page.relativeTime);\n    if (r) found.push({ src: 'search', ...r });\n  }\n  if (!found.length) return { t: null, u: null, src: '', flags: ['noDate'] };\n  // a time without a zone can be 14 hours off, and a date long before the search window is usually a stale page date: both last\n  let pool = found.filter((x) => !x.flags.includes('noTimezone') && x.t >= windowStart - DAY);\n  if (!pool.length) pool = found;\n  pool.sort((a, b) => a.t - b.t);\n  const best = pool[0];\n  const flags = best.flags.slice();\n  if (pool.length < found.length) flags.push('otherDateIgnored');\n  // a page shows the date it was first posted, and its text can be newer (a live page, an updated article): two dates far apart are a warning\n  if (pool.length > 1 && pool[1].t - best.t > 3 * HOUR) flags.push('sourcesDisagree');\n  if (best.t < windowStart - DAY) flags.push('beforeWindow');\n  return { t: best.t, u: best.u, src: best.src, flags };\n};\npages.forEach((page) => {\n  const tm = timeOf(page);\n  page.t = tm.t;\n  page.u = tm.u;\n  page.timeSrc = tm.src;\n  page.timeFlags = tm.flags;\n  page.timeLabel = tm.t === null ? 'no date' : tm.flags.includes('dateOnly') ? new Date(tm.t).toISOString().slice(0, 10) + ' (date only)'\n    : new Date(tm.t).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' + (tm.flags.includes('noTimezone') || tm.flags.includes('relative') ? ' (approximate)' : '');\n});\n\nconst WEAK = ['sourcesDisagree', 'beforeWindow', 'relative', 'noTimezone', 'dateOnly', 'otherDateIgnored'];\nconst gap = (ms) => (ms >= DAY ? Math.round(ms / DAY) + ' days' : ms >= HOUR ? Math.round(ms / HOUR) + ' hours' : Math.max(1, Math.round(ms / MIN)) + ' minutes');\n// The earliest page of a group, when the dates settle it; otherwise why they do not.\nconst earliest = (members) => {\n  const hosts = new Set(members.map((m) => pages[m].host));\n  if (hosts.size < 2) return { first: null, why: 'all the pages of this group are on one site' };\n  const dated = members.filter((m) => pages[m].t !== null).sort((a, b) => pages[a].t - pages[b].t);\n  if (dated.length < 2) return { first: null, why: 'fewer than two of its pages show a date' };\n  const a = pages[dated[0]];\n  const b = pages[dated[1]];\n  if (a.timeFlags.some((f) => WEAK.includes(f))) return { first: null, why: 'the earliest date is approximate or disputed' };\n  const margin = b.t - a.t;\n  if (margin < 10 * MIN) return { first: null, why: 'the two earliest pages are dated within 10 minutes of each other' };\n  if (margin <= a.u + b.u) return { first: null, why: 'the two earliest pages are dated ' + gap(margin) + ' apart, which is less than the uncertainty of their dates' };\n  return { first: dated[0], margin, undated: members.length - dated.length };\n};\n\n// What the group shares: the paragraph of its earliest (or longest) page that the most other members also have.\nconst sharedPassage = (members, lead) => {\n  const base = lead !== null && lead !== undefined ? lead : members.slice().sort((a, b) => prep[b].words - prep[a].words)[0];\n  let best = null;\n  prep[base].paras.forEach((para) => {\n    const keys = [];\n    for (let i = 0; i + K <= para.tk.length; i++) keys.push(para.tk.slice(i, i + K).join(' '));\n    if (!keys.length) return;\n    const holders = members.filter((m) => m !== base && keys.filter((k) => prep[m].set.has(k)).length / keys.length >= 0.5).length;\n    if (holders > 0 && (!best || holders > best.holders || (holders === best.holders && para.tk.length > best.size))) best = { raw: para.raw, holders, size: para.tk.length };\n  });\n  return best ? { text: best.raw.length > 320 ? best.raw.slice(0, 320).replace(/\\s+\\S*$/, '') + '\\u2026' : best.raw, pages: best.holders + 1 } : null;\n};\n\n// Phrases that the pages themselves print after \"according to\" (at most six words, exactly as written).\nconst NOT_A_NAME = ['him', 'her', 'them', 'me', 'us', 'it', 'this', 'that', 'these', 'those', 'a', 'an'];\nconst attributions = (members) => {\n  const out = [];\n  for (const m of members) {\n    const text = prep[m].paras.map((para) => para.raw).join('\\n');\n    const at = text.toLowerCase().indexOf('according to ');\n    if (at < 0) continue;\n    const tail = text.slice(at + 13, at + 100);\n    const cut = tail.search(/[,.;:\\n]/);\n    const ws = words(cut >= 0 ? tail.slice(0, cut) : tail).slice(0, 6);\n    if (!ws.length || NOT_A_NAME.includes(ws[0].toLowerCase()) || ws.some((w) => w.length > 25)) continue;\n    const phrase = ws.join(' ');\n    if (!out.some((o) => o.toLowerCase() === phrase.toLowerCase())) out.push(phrase);\n    if (out.length >= 4) break;\n  }\n  return out;\n};\n\nconst multi = groups.filter((g) => g.length > 1);\nconst families = multi.map((g) => {\n  const stampOf = (m) => (pages[m].t === null ? Number.MAX_SAFE_INTEGER : pages[m].t);\n  const members = g.slice().sort((a, b) => stampOf(a) - stampOf(b) || byUrl(a, b));\n  const e = earliest(members);\n  return {\n    members,\n    first: e.first,\n    why: e.why || '',\n    margin: e.margin || 0,\n    undated: e.undated || 0,\n    shared: sharedPassage(members, e.first),\n    attributions: attributions(members),\n  };\n});\nfamilies.sort((a, b) => b.members.length - a.members.length || byUrl(a.members[0], b.members[0]));\nfamilies.forEach((f, n) => {\n  f.id = 'G' + (n + 1);\n  f.members.forEach((m) => {\n    pages[m].family = f.id;\n  });\n});\n\n// A page that puts together passages of several groups: at least two groups (its own counts) each account for a good part of its text,\n// and together they account for most of it, with no single group accounting for nearly all. A full article that a digest quotes two\n// paragraphs of is not that page; the digest is.\nconst compilations = [];\nfor (const page of pages) {\n  if (page.status !== 'read') continue;\n  const all = new Set();\n  let groupsHit = 0;\n  let biggest = 0;\n  for (const f of families) {\n    const union = new Set();\n    for (const m of f.members) {\n      if (m === page.i) continue;\n      for (const w of cover(prep[page.i], prep[m]).covered) union.add(w);\n    }\n    biggest = Math.max(biggest, union.size / prep[page.i].words);\n    if (union.size / prep[page.i].words >= 0.15) {\n      groupsHit += 1;\n      page.compilation = (page.compilation || []).concat(f.id);\n      for (const w of union) all.add(w);\n    }\n  }\n  if (groupsHit >= 2 && biggest < 0.85 && all.size / prep[page.i].words >= 0.6) compilations.push(page.i);\n  else page.compilation = [];\n}\n\nconst out = (p) => ({\n  id: p.id, url: p.url, host: p.host, title: p.title, site: p.site, from: p.from, words: p.words, status: p.status, reason: p.reason,\n  timeLabel: p.timeLabel, timeFlags: p.timeFlags, family: p.family || '', compilation: p.compilation || [],\n});\nreturn [{\n  json: {\n    ok: true,\n    headline: input.headline,\n    period,\n    nowIso: new Date(now).toISOString(),\n    counts: {\n      found: Number(input.found) || pages.length,\n      compared: readable.length,\n      groups: families.length,\n      alone: readable.filter((i) => !pages[i].family).length,\n      notCompared: pages.length - readable.length,\n    },\n    skipped: input.skipped || {},\n    families: families.map((f) => ({\n      id: f.id, first: f.first === null ? '' : pages[f.first].id, why: f.why, margin: f.margin, undated: f.undated, shared: f.shared, attributions: f.attributions,\n      members: f.members.map((m) => out(pages[m])),\n    })),\n    alone: readable.filter((i) => !pages[i].family).map((i) => out(pages[i])),\n    notCompared: pages.filter((p) => p.status !== 'read').map(out),\n    compilations: compilations.map((i) => pages[i].id),\n  },\n}];\n"
+      },
+      "id": "832052b0-3458-42de-8732-4f4a46742d63",
+      "name": "Compare the texts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2592,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Builds the report: one HTML file, made only here. Every piece of text that came from the web is escaped, a link is made for http and https\n// addresses only, there is no script, and the first thing in the head is a policy that allows inline style and nothing else.\n// The sentence under the title is fixed text, written here and not taken from any page.\nconst D = $input.first().json;\nconst esc = (s) => String(s == null ? '' : s).replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' })[c]);\nconst cut = (s, n) => {\n  const t = String(s == null ? '' : s).replace(/\\s+/g, ' ').trim();\n  return t.length <= n ? t : t.slice(0, n).replace(/\\s+\\S*$/, '') + '\\u2026';\n};\nconst plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);\nconst WINDOW = { d: 'the past day', w: 'the past week', m: 'the past month' }[D.period] || 'the past week';\nconst flagNote = (p) => (p.timeFlags.includes('sourcesDisagree') ? ' \\u00b7 dates disagree' : p.timeFlags.includes('beforeWindow') ? ' \\u00b7 dated before the search window' : p.timeFlags.includes('otherDateIgnored') ? ' \\u00b7 another date of this page was left out' : '');\n\nconst link = (p) => {\n  const label = esc(cut(p.title || p.host, 110));\n  const ok = p.url.startsWith('https://') || p.url.startsWith('http://');\n  return ok ? '<a href=\"' + esc(p.url) + '\" rel=\"noopener noreferrer nofollow\" target=\"_blank\">' + label + '</a>' : label;\n};\nconst row = (p, mark) => '<li><span class=\"when\">' + esc(p.timeLabel) + '</span> <strong>' + esc(p.host) + '</strong> ' + link(p)\n  + '<span class=\"muted\">' + esc(flagNote(p)) + (p.compilation.length ? ' \\u00b7 puts together passages of several groups' : '') + '</span>' + (mark ? ' <span class=\"badge\">earliest found</span>' : '') + '</li>';\n\nconst groups = D.families.map((f) => {\n  const hosts = new Set(f.members.map((m) => m.host)).size;\n  const first = f.first ? f.members.find((m) => m.id === f.first) : null;\n  const verdict = first\n    ? '<p class=\"first\">Earliest found among the pages read: <strong>' + esc(first.host) + '</strong>, ' + esc(first.timeLabel) + '. The next page in this group is dated '\n      + esc(f.margin >= 86400000 ? Math.round(f.margin / 86400000) + ' days' : f.margin >= 3600000 ? Math.round(f.margin / 3600000) + ' hours' : Math.round(f.margin / 60000) + ' minutes') + ' later.'\n      + (f.undated ? ' ' + esc(plural(f.undated, 'page in this group shows', 'pages in this group show') + ' no date.') : '') + '</p>'\n    : '<p class=\"first\">The dates do not settle which of these pages came first: ' + esc(f.why) + '.</p>';\n  const shared = f.shared ? '<p class=\"label\">A passage that ' + plural(f.shared.pages, 'page', 'pages') + ' share:</p><blockquote>' + esc(f.shared.text) + '</blockquote>' : '';\n  const said = f.attributions.length ? '<p class=\"muted\">Words that follow \\u201caccording to\\u201d in these pages: ' + f.attributions.map((a) => esc(a)).join('; ') + '.</p>' : '';\n  return '<section class=\"group\"><h3>Group ' + esc(f.id.slice(1)) + ' \\u00b7 ' + plural(f.members.length, 'page', 'pages') + ' on ' + plural(hosts, 'site', 'sites') + '</h3>'\n    + verdict + shared + said + '<ol>' + f.members.map((m) => row(m, m.id === f.first)).join('') + '</ol></section>';\n}).join('');\n\nconst alone = D.alone.length\n  ? '<h2>Pages with text of their own</h2><p class=\"muted\">No other page that was read shares long passages with these.</p><ul>' + D.alone.map((p) => row(p, false)).join('') + '</ul>'\n  : '';\nconst notCompared = D.notCompared.length\n  ? '<h2>Pages that could not be compared</h2><ul>' + D.notCompared.map((p) => '<li><strong>' + esc(p.host) + '</strong> ' + link(p) + ' <span class=\"muted\">\\u00b7 ' + esc(p.reason) + '</span></li>').join('') + '</ul>'\n  : '';\nconst sk = D.skipped || {};\nconst left = [\n  sk.duplicates ? plural(sk.duplicates, 'repeated address', 'repeated addresses') : '',\n  sk.notAboutIt ? plural(sk.notAboutIt, 'page that is not about the headline', 'pages that are not about the headline') : '',\n  sk.sameSite ? plural(sk.sameSite, 'further page of a site already shown', 'further pages of sites already shown') : '',\n  sk.notFetched ? plural(sk.notFetched, 'result whose page was not fetched', 'results whose pages were not fetched') : '',\n  sk.overLimit ? plural(sk.overLimit, 'page over the limit of 12', 'pages over the limit of 12') : '',\n].filter((x) => x !== '');\nconst c = D.counts;\nconst summary = '<p class=\"summary\">' + plural(c.found, 'result', 'results') + ' found, ' + c.compared + ' with enough text to compare: '\n  + plural(c.groups, 'group', 'groups') + ' of pages that carry the same text, ' + plural(c.alone, 'page', 'pages') + ' with text of their own'\n  + (c.notCompared ? ', ' + c.notCompared + ' that could not be compared' : '') + '.</p>';\nconst none = c.groups === 0\n  ? '<p class=\"first\">No two of the pages that were read share long passages of text, so there is no group and no page to name as earliest.</p>'\n  : '';\nconst head = 'This page compares the wording of the pages that the search returned and could read. Pages in a group carry the same passages of text; '\n  + 'that says nothing about who wrote the text or how it travelled between sites, and pages that the search did not return are not in it. '\n  + 'A page is named as the earliest one only when the dates that the pages and DuckDuckGo report settle the order. A page can show a wrong date, or the date it was first posted although its text is newer, so a date far from another date of the same page counts against it.';\n\nconst css = ':root{--bg:#fff;--fg:#1f2328;--muted:#59636e;--line:#d1d9e0;--card:#f6f8fa;--accent:#0b5cad}'\n  + '@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#9198a1;--line:#30363d;--card:#161b22;--accent:#58a6ff}}'\n  + 'body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,sans-serif}.page{max-width:860px;margin:0 auto;padding:28px 18px 48px}'\n  + 'h1{font-size:1.5rem;margin:0 0 6px}h2{font-size:1.15rem;margin:30px 0 8px}h3{font-size:1.02rem;margin:0 0 6px}'\n  + '.headline{font-size:1.1rem;margin:0 0 4px;overflow-wrap:anywhere}.muted{color:var(--muted);font-size:.9em}.note{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:10px 14px;margin:14px 0}'\n  + '.summary{font-weight:600}.group{border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:14px 0}.first{margin:4px 0 10px}.label{margin:10px 0 4px;color:var(--muted);font-size:.9em}'\n  + 'blockquote{margin:0 0 10px;padding:6px 12px;border-left:3px solid var(--line);color:var(--fg);overflow-wrap:anywhere}ol,ul{padding-left:20px}li{margin:5px 0;overflow-wrap:anywhere}'\n  + '.when{display:inline-block;min-width:11.5em;color:var(--muted);font-variant-numeric:tabular-nums}.badge{background:var(--accent);color:#fff;border-radius:10px;padding:1px 8px;font-size:.78em;white-space:nowrap}'\n  + 'a{color:var(--accent)}footer{margin-top:34px;color:var(--muted);font-size:.85em}@media print{.group{break-inside:avoid}}';\nconst csp = \"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'\";\nconst title = 'Earliest reports: ' + cut(D.headline, 90);\nconst html = '<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"' + esc(csp) + '\">'\n  + '<meta name=\"referrer\" content=\"no-referrer\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>' + esc(title) + '</title><style>' + css + '</style></head>'\n  + '<body><div class=\"page\"><h1>Earliest reports of a news story</h1><p class=\"headline\">' + esc(cut(D.headline, 200)) + '</p>'\n  + '<p class=\"muted\">Searched ' + esc(String(D.nowIso).slice(0, 16).replace('T', ' ')) + ' UTC \\u00b7 ' + esc(WINDOW) + ' \\u00b7 DuckDuckGo news and web results</p>'\n  + '<p class=\"note\">' + esc(head) + '</p>' + summary + none\n  + (groups ? '<h2>Groups of pages that carry the same text</h2>' + groups : '') + alone + notCompared\n  + '<footer>' + (left.length ? 'Left out: ' + esc(left.join('; ')) + '. ' : '') + 'Made with n8n and the DuckDuckGo community node.</footer></div></body></html>';\n\nconst whole = String(D.headline || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');\nconst slug = whole.length <= 40 ? whole : whole.slice(0, 40).replace(/-[^-]*$/, '');\nconst filename = 'news-trace-' + (slug ? slug + '-' : '') + String(D.nowIso).slice(0, 10) + '.html';\nreturn [{ json: { html, filename, groups: c.groups, bytes: html.length } }];\n"
+      },
+      "id": "bea2f88d-e035-40c7-89ab-7544dd943fae",
+      "name": "Build the page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2784,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Makes the one page that the form shows at the end, whatever the outcome: the report (a Download button and a preview of the same file) or,\n// when there is none, the reason. The form's own \"return a file\" ending downloads on page load with no click, which a browser may block while\n// the page still says \"downloaded\"; a click on a link is a user action that is always allowed, and the preview shows the result on the spot.\n// The file travels in the link as base64 and in the preview as an escaped attribute, so nothing that came from the web is read as markup\n// here, and the preview is sandboxed: no script and no form, and its links open in a new tab.\nconst item = $input.first().json || {};\nconst html = typeof item.html === 'string' ? item.html : '';\nif (!html) throw new Error('There is no page to show.');\n// The reason that \"Explain why there is no report\" wrote is marked `notice`; everything else is a report.\nif (item.notice === true) {\n  const style = '<style>body{max-width:720px;margin:auto;font:16px/1.6 system-ui,sans-serif;padding:24px;color:#222;overflow-wrap:anywhere}.muted{color:#666;font-size:.9em}</style>';\n  return [{ json: { page: style + html } }];\n}\nconst esc = (s) => String(s == null ? '' : s).replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' })[c]);\nconst filename = String(item.filename || '').replace(/[^A-Za-z0-9._-]+/g, '-').slice(0, 80) || 'report.html';\nconst base64 = Buffer.from(html, 'utf8').toString('base64');\n// A preview takes the address of the form page as its base, so a citation link (#s1) would load the form page again inside the preview\n// instead of scrolling. In the preview only, the in-page links point at the preview itself; text from the web cannot contain\n// the literal href=\"#s because its quotes are escaped.\nconst preview = html.replace(/href=\"#s/g, 'href=\"about:srcdoc#s');\nconst page = '<style>body{max-width:960px;margin:auto;font:16px/1.6 system-ui,sans-serif;padding:24px;color:#222;overflow-wrap:anywhere}'\n  + 'h1{font-size:1.4rem;margin:0 0 12px}.bar{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:0 0 16px}'\n  + '.btn{display:inline-block;padding:10px 18px;background:#15803d;color:#fff;border-radius:6px;text-decoration:none;font-weight:600}'\n  + '.muted{color:#666;font-size:.9em}iframe{display:block;width:100%;height:75vh;min-height:420px;border:1px solid #ccc;border-radius:6px;background:#fff}</style>'\n  + '<h1>Your report is ready</h1>'\n  + '<div class=\"bar\"><a class=\"btn\" download=\"' + esc(filename) + '\" href=\"data:text/html;charset=utf-8;base64,' + base64 + '\">Download ' + esc(filename) + '</a>'\n  + '<span class=\"muted\">One HTML file with no script; open it in any browser. To get a PDF, open the file and print it as PDF.</span></div>'\n  + '<iframe title=\"Preview of the report\" sandbox=\"allow-popups allow-popups-to-escape-sandbox\" referrerpolicy=\"no-referrer\" srcdoc=\"' + esc(preview) + '\"></iframe>';\nreturn [{ json: { page, filename } }];\n"
+      },
+      "id": "5cbfd146-c998-4577-86cf-f0df6870bd5e",
+      "name": "Make the result page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "showText",
+        "responseText": "={{ $('Make the result page').first().json.page }}"
+      },
+      "id": "43635b31-3452-4103-8b39-b509ebcdcb65",
+      "name": "Show the result",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        3168,
+        208
+      ],
+      "webhookId": "e85f6ad8-a877-4af7-8407-6dc6cf37c23c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// The text of the page shown when there is no report: the request was not accepted, or too few pages could be read.\n// \"Make the result page\" adds the style, tells it from a report by `notice`, and ends the form.\nconst item = $input.first().json || {};\nconst esc = (s) => String(s == null ? '' : s).replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' })[c]);\nconst reason = String(item.error || item.why || 'Nothing could be made.').replace(/\\s+/g, ' ').slice(0, 400);\nconst html = '<h1>No report this time</h1><p>' + esc(reason) + '</p>'\n  + '<p class=\"muted\">The report compares pages that were read, so a headline with too few readable pages gives no report. Nothing is guessed to fill the gap.</p>';\nreturn [{ json: { html, notice: true } }];\n"
+      },
+      "id": "f17e77ec-351d-4e56-809c-7c0fb625b13e",
+      "name": "Explain why there is no report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        400
+      ]
+    }
+  ],
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 900
+  },
+  "connections": {
+    "Story to trace": {
+      "main": [
+        [
+          {
+            "node": "Check the request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check the request": {
+      "main": [
+        [
+          {
+            "node": "Request accepted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request accepted?": {
+      "main": [
+        [
+          {
+            "node": "Article link?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Explain why there is no report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Article link?": {
+      "main": [
+        [
+          {
+            "node": "Read the article",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Plan the searches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the article": {
+      "main": [
+        [
+          {
+            "node": "Plan the searches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan the searches": {
+      "main": [
+        [
+          {
+            "node": "Headline found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Headline found?": {
+      "main": [
+        [
+          {
+            "node": "Search the news",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Explain why there is no report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search the news": {
+      "main": [
+        [
+          {
+            "node": "Wait before the web search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait before the web search": {
+      "main": [
+        [
+          {
+            "node": "Search the web",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search the web": {
+      "main": [
+        [
+          {
+            "node": "Pick the pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick the pages": {
+      "main": [
+        [
+          {
+            "node": "Enough pages?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enough pages?": {
+      "main": [
+        [
+          {
+            "node": "Compare the texts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Explain why there is no report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare the texts": {
+      "main": [
+        [
+          {
+            "node": "Build the page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build the page": {
+      "main": [
+        [
+          {
+            "node": "Make the result page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make the result page": {
+      "main": [
+        [
+          {
+            "node": "Show the result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Explain why there is no report": {
+      "main": [
+        [
+          {
+            "node": "Make the result page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
