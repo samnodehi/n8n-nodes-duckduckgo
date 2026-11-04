@@ -305,6 +305,13 @@ describe('example 11: Number the sources', () => {
     expect(b.usedQueries).toEqual(['query number 1', 'query number 2']);
   });
 
+  it('keeps two addresses that differ only by the case of their path or query as two pages, and lower-cases only the host', () => {
+    const b = number([gradedItem(1, [src('A.Example', 'Report?id=A'), src('a.example', 'report?id=a'), src('www.a.example', 'Report?id=A')]), gradedItem(2, [src('b.example', 'two')])]);
+    expect(b.sources.map((s: Json) => s.url)).toEqual(['https://A.Example/Report?id=A', 'https://a.example/report?id=a', 'https://b.example/two']);
+    expect(b.skippedBySite).toBe(0);
+    expect(b.subQuestions[0].sourceIds).toEqual(['S1', 'S2']);
+  });
+
   it('lets one site give two sources and no more, and a readable page takes the place before a snippet', () => {
     const b = number([
       gradedItem(1, [src('x.example', 'snip', { kind: 'snippet' }), src('www.x.example', 'a'), src('blog.x.example', 'b'), src('y.example', 'c')]),
@@ -364,8 +371,21 @@ describe('example 11: Check the quotes', () => {
     expect(check(b, [finding('S1', 1, text, 'It delivered 4.0 units of heat per unit of power.')]).keptCount).toBe(1);
     expect(check(b, [finding('S1', 1, text, 'It delivered 40 units of heat per unit of power.')]).keptCount).toBe(0);
     expect(check(b, [finding('S1', 1, text, 'In 2020 it delivered 4.0 units of heat.')]).keptCount).toBe(0);
-    expect(check(b, [finding('S1', 1, text, 'It delivered 4,0 units of heat.')]).keptCount).toBe(0);
+    expect(check(b, [finding('S1', 1, text, 'It delivered 4,0 units of heat.')]).keptCount).toBe(1);
     expect(check(b, [finding('S1', 1, text, '')]).keptCount).toBe(0);
+  });
+
+  it.each([
+    ['The measured coefficient of performance was 3,5 during the cold winter trial.', 'The measured coefficient of performance was 35.', 0],
+    ['The measured coefficient of performance was 3,5 during the cold winter trial.', 'The measured coefficient of performance was 3.5.', 1],
+    ['The measured coefficient of performance was 3,5 during the cold winter trial.', 'The measured coefficient of performance was 3,5.', 1],
+    ['The fund paid out 1,200 grants during the cold winter trial in the region.', 'The fund paid out 1200 grants.', 1],
+    ['The fund paid out 1,200 grants during the cold winter trial in the region.', 'The fund paid out 12 grants.', 0],
+    ['The fund paid out 1,200 grants during the cold winter trial in the region.', 'The fund paid out 1.200 grants.', 1],
+    ['The fund paid out 12,34 grants during the cold winter trial in the region.', 'The fund paid out 1234 grants.', 0],
+  ])('tells a thousands separator from a decimal mark: %s | %s', (quoteText, claim, kept) => {
+    const b = number([gradedItem(1, [src('a.example', 'one', { text: `${prose(40)} ${quoteText} ${prose(40, 1)}` }), src('b.example', 'two')]), gradedItem(2, [src('c.example', 'three')])]);
+    expect(check(b, [finding('S1', 1, quoteText, claim)]).keptCount).toBe(kept);
   });
 
   it('reads digits of other scripts as the numbers they are', () => {
