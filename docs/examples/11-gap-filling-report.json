@@ -6,15 +6,15 @@
         "content": "## Write a cited research report that searches again for what is missing\n\nAsk a question in a form and get one HTML report in which every claim cites a page it quotes. Searching needs **no API key**: it uses the DuckDuckGo community node. The only credential is an OpenRouter key for the model.\n\n**Self-hosted n8n only** - community nodes do not run on n8n Cloud.\n\n### How it works\n1. The model splits the question into 3-5 sub-questions and writes a search for each.\n2. DuckDuckGo searches and the node reads the top pages. Code numbers the sources, at most two per site.\n3. The model extracts findings with quotes. Code keeps a finding only when its quote is in the source and its numbers are in the quote.\n4. A sub-question left without a finding gets one more round: the model rewrites its query, code filters the new queries, and DuckDuckGo searches again (never after a block, never more than two).\n5. The model writes the report from the checked findings. Code checks every citation and adds the sources and a coverage table.\n6. The form shows the file with a Download button and a preview, or says why there is no report.\n\n### Setup\n1. **Settings > Community nodes**: install `n8n-nodes-duckduckgo-search` 32.19.1 or later, on **n8n 2.18 or later** (older versions open preview links in a restricted tab).\n2. Add an OpenRouter credential to **OpenRouter model**. It is set to Gemini 3.8 Flash on the cheaper flex tier; any model that returns JSON reliably will do.\n3. Activate, open the form's production URL and ask. The form only opens for people signed in to this n8n.\n\nA run takes one to four minutes and makes 3 to 7 searches. DuckDuckGo limits searches per IP address, so leave a few minutes between runs.",
         "color": 1,
         "width": 1068,
-        "height": 640
+        "height": 496
       },
       "id": "e4860227-91f2-452c-8da9-b9f19fb1e1f3",
       "name": "Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -240,
-        -432
+        0,
+        240
       ]
     },
     {
@@ -29,8 +29,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -240,
-        288
+        0,
+        768
       ]
     },
     {
@@ -45,8 +45,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        848,
-        416
+        1104,
+        768
       ]
     },
     {
@@ -61,56 +61,56 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        848,
-        48
+        1104,
+        432
       ]
     },
     {
       "parameters": {
         "content": "## 4. Extract and check\nEach finding must quote its source. Code drops a finding when the quote is not in the source text, is under eight words, or when a number of the claim is not in the quote.",
         "color": 7,
-        "width": 1080,
-        "height": 458
+        "width": 1128,
+        "height": 426
       },
       "id": "6c3cc285-6ed4-4c4b-8d41-4f83d6ccec06",
       "name": "Section - extract and check",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1280,
-        -64
+        1568,
+        80
       ]
     },
     {
       "parameters": {
         "content": "## 5. Fill the gaps, once\nA sub-question with no checked finding gets a rewritten query and one more search. Code drops repeated queries and search operators, keeps two at most, and skips the round after a block. Source ids only grow.",
         "color": 7,
-        "width": 1740,
-        "height": 560
+        "width": 1532,
+        "height": 432
       },
       "id": "99baf8a0-7265-4e2b-8295-19fff4606885",
       "name": "Section - fill the gaps",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1984,
-        576
+        2720,
+        80
       ]
     },
     {
       "parameters": {
         "content": "## 6. Write and show\nThe report may cite only sources with a checked finding. Code removes uncited sentences, HTML and links, adds the sources and a coverage table, and the form shows the file.",
         "color": 7,
-        "width": 1480,
-        "height": 302
+        "width": 1352,
+        "height": 430
       },
       "id": "5ecb8087-0397-49c2-8e9c-c54099e4579a",
       "name": "Section - write and show",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2384,
-        -96
+        1728,
+        544
       ]
     },
     {
@@ -159,8 +159,8 @@
       "type": "n8n-nodes-base.formTrigger",
       "typeVersion": 2.6,
       "position": [
-        -208,
-        416
+        32,
+        896
       ],
       "webhookId": "c7e8e2e8-462e-4f7f-8afb-9dd69f88ffa4"
     },
@@ -173,8 +173,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -16,
-        416
+        224,
+        896
       ]
     },
     {
@@ -196,8 +196,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        176,
-        416
+        416,
+        896
       ],
       "retryOnFail": true,
       "maxTries": 2
@@ -212,8 +212,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        272,
-        592
+        464,
+        1072
       ]
     },
     {
@@ -233,8 +233,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1520,
-        576
+        1776,
+        1088
       ]
     },
     {
@@ -246,8 +246,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        496,
-        416
+        736,
+        896
       ]
     },
     {
@@ -260,8 +260,8 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        688,
-        416
+        928,
+        896
       ]
     },
     {
@@ -285,8 +285,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
       "position": [
-        896,
-        560
+        1152,
+        912
       ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true
@@ -300,8 +300,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1088,
-        560
+        1344,
+        912
       ]
     },
     {
@@ -315,8 +315,8 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        1280,
-        560
+        1536,
+        912
       ],
       "webhookId": "e1f610ff-8b76-4aa7-8220-1a937b8336c8"
     },
@@ -329,8 +329,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
-        208
+        1152,
+        592
       ]
     },
     {
@@ -361,8 +361,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1088,
-        208
+        1344,
+        592
       ]
     },
     {
@@ -384,8 +384,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        1328,
-        64
+        1632,
+        208
       ],
       "retryOnFail": true,
       "maxTries": 2,
@@ -401,8 +401,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        1520,
-        224
+        1808,
+        384
       ]
     },
     {
@@ -414,8 +414,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1648,
-        64
+        1952,
+        208
       ]
     },
     {
@@ -427,8 +427,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1840,
-        64
+        2144,
+        208
       ]
     },
     {
@@ -459,7 +459,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2032,
+        2336,
         208
       ]
     },
@@ -482,8 +482,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        2032,
-        720
+        2784,
+        208
       ],
       "retryOnFail": true,
       "maxTries": 2,
@@ -499,8 +499,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        2128,
-        896
+        2880,
+        384
       ]
     },
     {
@@ -512,8 +512,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2352,
-        720
+        3104,
+        208
       ]
     },
     {
@@ -544,8 +544,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2544,
-        720
+        3296,
+        208
       ]
     },
     {
@@ -558,8 +558,8 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        2736,
-        720
+        3504,
+        192
       ]
     },
     {
@@ -583,8 +583,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
       "position": [
-        2944,
-        864
+        3712,
+        320
       ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true
@@ -598,8 +598,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3136,
-        864
+        3904,
+        320
       ]
     },
     {
@@ -613,8 +613,8 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        3328,
-        864
+        4096,
+        320
       ],
       "webhookId": "2a90354a-3118-40a6-81cf-1958a861081d"
     },
@@ -627,8 +627,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2944,
-        640
+        3712,
+        176
       ]
     },
     {
@@ -659,8 +659,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2240,
-        64
+        2544,
+        224
       ]
     },
     {
@@ -682,8 +682,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        2432,
-        48
+        1808,
+        800
       ],
       "retryOnFail": true,
       "maxTries": 2
@@ -697,8 +697,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2832,
-        48
+        2128,
+        800
       ]
     },
     {
@@ -717,8 +717,8 @@
       "type": "n8n-nodes-base.markdown",
       "typeVersion": 1,
       "position": [
-        3024,
-        48
+        2320,
+        800
       ]
     },
     {
@@ -730,8 +730,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3216,
-        48
+        2512,
+        800
       ]
     },
     {
@@ -743,8 +743,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3408,
-        48
+        2704,
+        800
       ]
     },
     {
@@ -758,8 +758,8 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        3600,
-        48
+        2896,
+        800
       ],
       "webhookId": "e7f4ecca-2131-4a91-8bb4-e48b82a3c9ca"
     },
@@ -772,8 +772,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2432,
-        288
+        2896,
+        608
       ]
     }
   ],
