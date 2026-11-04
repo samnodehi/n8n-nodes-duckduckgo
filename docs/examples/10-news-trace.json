@@ -5,32 +5,32 @@
       "parameters": {
         "content": "## Find the earliest reports of a news story\n\nType a headline or paste an article link, and get one HTML file that groups the pages which carry the same text and names the page dated earliest in each group, when the dates settle it. It needs **no search API key and no model**.\n\n**Self-hosted n8n only** - community nodes do not run on n8n Cloud.\n\n### How it works\n1. The form takes a headline or an article link and how far back to look. For a link, the title of the page is the headline.\n2. A News Search and a Web Search (the headline in quotes) fetch the text of their top results.\n3. Code keeps one entry per address, only pages about the headline, at most two per site and twelve in all.\n4. Code cuts each page into runs of five words, leaves out quotations and repeated site text, and groups pages that share most of their wording. A page joins a group only when it matches more than half of it.\n5. Each group gets the page with the earliest trustworthy date, or the reason the dates do not settle it. The form shows the file with a Download button and a preview.\n\n### Setup\n1. **Settings > Community nodes**: install `n8n-nodes-duckduckgo-search` 32.19.1 or later, on **n8n 2.18 or later** (older versions open preview links in a restricted tab).\n2. No credential is needed. Activate, open the form's production URL and type a headline. The form only opens for people signed in to this n8n.\n\nA run usually takes under a minute and uses 2 DuckDuckGo searches and up to 21 page downloads (22 with a link); leave a few minutes between runs, because DuckDuckGo limits searches per IP address. A shared text does not show who wrote it.",
         "color": 1,
-        "width": 1096,
-        "height": 456
+        "width": 472,
+        "height": 696
       },
       "id": "b246aff6-8658-467c-8206-d24b0fd6c37c",
       "name": "Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        0,
-        -480
+        896,
+        224
       ]
     },
     {
       "parameters": {
         "content": "## 1. Read the request\nThe form takes a headline or an article link. For a link, the node reads the page and uses its title as the headline.",
         "color": 7,
-        "width": 1440,
-        "height": 440
+        "width": 1376,
+        "height": 264
       },
       "id": "c5eb04fe-dff1-4677-8fac-12ea9ff1a276",
       "name": "Section - read the request",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -48,
-        96
+        1392,
+        224
       ]
     },
     {
@@ -38,31 +38,31 @@
         "content": "## 2. Search and read pages\nA News Search and a Web Search with the headline in quotes fetch the text of their top results. Code keeps one entry per address, only pages about the headline, at most two per site and twelve in all.",
         "color": 7,
         "width": 1040,
-        "height": 440
+        "height": 488
       },
       "id": "7f0f7f15-13c8-4b3b-85f3-62d05c9aacfa",
       "name": "Section - search and read pages",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1440,
-        96
+        1392,
+        544
       ]
     },
     {
       "parameters": {
         "content": "## 3. Compare and build the file\nCode groups the pages that share their wording, dates each group and builds one HTML file. The form shows it with a Download button and a preview, or the reason why there is none.",
         "color": 7,
-        "width": 720,
-        "height": 440
+        "width": 432,
+        "height": 488
       },
       "id": "50bf7123-aabc-4458-87a0-081ea14f0511",
       "name": "Section - compare and build",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2528,
-        96
+        2448,
+        544
       ]
     },
     {
@@ -111,8 +111,8 @@
       "type": "n8n-nodes-base.formTrigger",
       "typeVersion": 2.6,
       "position": [
-        0,
-        208
+        1440,
+        336
       ],
       "webhookId": "3e3bd640-f87d-48b3-8bab-1e332d8fc21c"
     },
@@ -125,8 +125,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        192,
-        208
+        1632,
+        336
       ]
     },
     {
@@ -157,8 +157,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        384,
-        208
+        1824,
+        336
       ]
     },
     {
@@ -189,8 +189,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        576,
-        208
+        2016,
+        320
       ]
     },
     {
@@ -208,8 +208,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
       "position": [
-        768,
-        384
+        2208,
+        304
       ],
       "onError": "continueRegularOutput"
     },
@@ -222,8 +222,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        960,
-        208
+        2400,
+        336
       ]
     },
     {
@@ -254,8 +254,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1152,
-        208
+        2592,
+        336
       ]
     },
     {
@@ -280,8 +280,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
       "position": [
-        1488,
-        208
+        1504,
+        656
       ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true,
@@ -298,8 +298,8 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        1680,
-        208
+        1696,
+        656
       ],
       "webhookId": "b2f1b50c-acc9-4494-8d14-af7d6306ac27"
     },
@@ -325,8 +325,8 @@
       "type": "n8n-nodes-duckduckgo-search.duckDuckGo",
       "typeVersion": 1,
       "position": [
-        1872,
-        208
+        1888,
+        656
       ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true,
@@ -341,8 +341,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2064,
-        208
+        2080,
+        656
       ]
     },
     {
@@ -373,8 +373,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2256,
-        208
+        2272,
+        656
       ]
     },
     {
@@ -386,8 +386,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2592,
-        208
+        2512,
+        672
       ]
     },
     {
@@ -399,8 +399,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2784,
-        208
+        2704,
+        672
       ]
     },
     {
@@ -412,8 +412,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2976,
-        208
+        2512,
+        864
       ]
     },
     {
@@ -427,8 +427,8 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        3168,
-        208
+        2704,
+        864
       ],
       "webhookId": "e85f6ad8-a877-4af7-8407-6dc6cf37c23c"
     },
@@ -441,8 +441,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2064,
-        400
+        1456,
+        864
       ]
     }
   ],
