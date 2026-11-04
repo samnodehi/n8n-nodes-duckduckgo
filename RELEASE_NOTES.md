@@ -1,3 +1,19 @@
+# v32.19.2 — Documentation: two new examples in the README
+
+**Release Date:** 2026-11-04
+
+**No code change. The node behaves exactly as in 32.19.1; there is no need to update unless you want the new README on the npm page.**
+
+---
+
+## What changed
+
+- **Example 10: find the earliest reports of a news story** (`docs/examples/10-news-trace.json`). A form takes a headline or an article link, runs a News Search and a Web Search with page text, and shows one HTML file that groups the pages carrying the same text and names the page with the earliest trustworthy date in each group. No model and no credential: the comparison is plain code. A group means shared wording, not authorship.
+- **Example 11: a cited research report that searches again for what is missing** (`docs/examples/11-gap-filling-report.json`). The research report of example 5 with a second round: a sub-question without a kept finding gets one rewritten query and one more search; a finding is kept only when its quote is at least eight words, is in the source text and holds every number of the claim; one site gives at most two sources. The form ends in one HTML file with a preview and a Download button.
+- The README table lists both examples. Both need node 32.19.1 or later and n8n 2.18 or later. Files in `docs/examples/` are not part of the npm package: import them from the repository.
+
+---
+
 # v32.19.1 — Security: the page-fetch guard refuses internal names and resolved private addresses
 
 **Release Date:** 2026-10-31
