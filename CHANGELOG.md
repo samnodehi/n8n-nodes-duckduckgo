@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **README: the table of examples links the published templates correctly.** Example 11 is now in n8n's template library ([n8n.io/workflows/22421](https://n8n.io/workflows/22421), approved 2026-11-10) and example 9 is linked too ([n8n.io/workflows/21675](https://n8n.io/workflows/21675)). Example 5 no longer claims a published template: n8n.io/workflows/20413 was taken off the library on 2026-10-20 and answers 404; example 11 is the fuller version of it.
+
 ---
 
 ## [32.19.2] - 2026-11-04
