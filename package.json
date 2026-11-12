@@ -78,7 +78,7 @@
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
-    "axios": "^1.20.0",
+    "axios": "^1.21.0",
     "html-entities": "^2.6.0",
     "linkedom": "^0.18.0"
   },
